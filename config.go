@@ -29,6 +29,8 @@ type Config struct {
 	// shell aliases yolo or claude-glm; DefaultClaudeAlias is preselected for new sessions.
 	ClaudeAliases      []ClaudeAlias `json:"claude_aliases"`
 	DefaultClaudeAlias string        `json:"default_claude_alias"`
+	// Theme is the colour scheme: azul, morado, verde, naranja, rosa or gris.
+	Theme string `json:"theme"`
 }
 
 const (

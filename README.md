@@ -24,6 +24,7 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   fields, lists, cards. Right-click a tab or a session for its menu.
 - Every tab and session has a ✕ to close it, and ⏻ in the corner stops the whole workspace.
   Right-click any session to rename it; switch the claude alias of a whole tab or workspace at once.
+- Colour themes (blue, purple, green, orange, pink, grey) in the configuration menu.
 - **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
   `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 

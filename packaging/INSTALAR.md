@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.3.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.3.1-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.3.0-macos.tar.gz
-   cd cw-0.3.0-macos
+   tar xzf cw-0.3.1-macos.tar.gz
+   cd cw-0.3.1-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.3.0-linux.tar.gz
-cd cw-0.3.0-linux
+tar xzf cw-0.3.1-linux.tar.gz
+cd cw-0.3.1-linux
 sh install.sh
 ```
 
@@ -117,7 +117,8 @@ En Windows se pasan igual: `install.cmd -Yes -NoClaude`.
    Todo también se hace con el ratón: clic en botones y listas, clic derecho sobre una pestaña o
    una sesión para su menú (mover, renombrar, cambiar alias de claude, cerrar), arrastrar
    pestañas y sesiones en la barra para reordenarlas, la ✕ de cada pestaña o sesión para
-   cerrarla y ⏻ (arriba a la derecha) para apagar y guardar todo.
+   cerrarla y ⏻ (arriba a la derecha) para apagar y guardar todo. El color se cambia en
+   *Alt+m → Configuración → Tema de color*.
 
 4. Si usas varios perfiles de Claude como alias del shell (`yolo`, `claude-2`…), regístralos en
    *Alt+m → Configuración → 7 → i* (los importa de tu `~/.bashrc`).

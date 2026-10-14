@@ -86,6 +86,7 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, item("Alias de claude", itoa(len(cfg.claudeAliases()))+" · por defecto "+cfg.defaultAlias(), "a",
 		fmt.Sprintf(`display-popup -E -w 90 -h 30 -T " Alias de claude " "%s"`, q(joinArgs([]string{bin, "_ui", "aliases", ws}))))...)
 	menu = append(menu, "-APARIENCIA", "", "")
+	menu = append(menu, item("Tema de color", themeLabel(cfg.Theme), "t", toggle("theme"))...)
 	menu = append(menu, item("Barra de pestañas", bar, "b", toggle("bar"))...)
 	menu = append(menu, item("Al iniciar, abrir en", window, "v", toggle("window"))...)
 	menu = append(menu, "-GUARDADO", "", "")
@@ -112,6 +113,9 @@ func cmdConf(args []string) error {
 		cfg.LazyStart = !cfg.LazyStart
 	case "bar":
 		cfg.BarPosition = map[bool]string{true: barTop, false: barBottom}[cfg.BarPosition == barBottom]
+	case "theme":
+		cfg.Theme = nextTheme(cfg.Theme)
+		applyTheme(cfg.Theme)
 	case "window":
 		cfg.Window = map[string]string{windowCurrent: windowMaximized, windowMaximized: windowFullscreen,
 			windowFullscreen: windowCurrent}[cfg.Window]
@@ -121,7 +125,7 @@ func cmdConf(args []string) error {
 	if err := saveConfig(cfg); err != nil {
 		return err
 	}
-	if what == "bar" {
+	if what == "bar" || what == "theme" {
 		if err := reloadConf(ws, cfg); err != nil {
 			return err
 		}

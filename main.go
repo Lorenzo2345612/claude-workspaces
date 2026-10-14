@@ -42,6 +42,9 @@ func main() {
 }
 
 func run(args []string) error {
+	if cfg, err := loadConfig(); err == nil {
+		applyTheme(cfg.Theme)
+	}
 	if len(args) == 0 {
 		return cmdLauncher()
 	}

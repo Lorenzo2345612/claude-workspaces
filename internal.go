@@ -145,6 +145,11 @@ func cmdUI(args []string) error {
 		err = uiBulkAlias(args[1], args[2])
 	case "aliases":
 		err = uiClaudeAliases()
+	case "rename":
+		if len(args) != 3 {
+			return errors.New("uso: _ui rename <ws> tab|slot")
+		}
+		err = uiRename(args[1], args[2])
 	case "setconf":
 		if len(args) != 3 {
 			return errors.New("uso: _ui setconf <ws> msg|args|autosave")
@@ -604,5 +609,34 @@ func closeTab(ws, session, client string) error {
 		}
 	}
 	_, err := t.Run("kill-session", "-t", session)
+	return err
+}
+
+// uiRename renames the current tab or session in a centred dialog.
+func uiRename(ws, what string) error {
+	t := Tmux{WS: ws}
+	client, session, err := currentClient(t)
+	if err != nil {
+		return err
+	}
+	if what == "tab" {
+		title, _ := t.Run("show", "-t", session, "-qv", "@cw_title")
+		v, ok := askText("Nuevo nombre de la pestaña", "Nombre", title, "")
+		if !ok || cleanLabel(v) == "" {
+			return nil
+		}
+		return t.setTabOptions(session, Tab{Title: cleanLabel(v), Dir: tabDir(t, session)})
+	}
+	out, err := t.Run("display", "-p", "-c", client, "#{window_id}"+sep+"#{window_name}")
+	if err != nil {
+		return err
+	}
+	f := strings.SplitN(out, sep, 2)
+	v, ok := askText("Nuevo nombre de la sesión", "Nombre", f[1], "")
+	if !ok || cleanLabel(v) == "" {
+		return nil
+	}
+	name := cleanLabel(v)
+	_, err = t.Run("rename-window", "-t", f[0], name, ";", "set", "-w", "-t", f[0], "@cw_alias", name)
 	return err
 }

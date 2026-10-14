@@ -172,7 +172,7 @@ func button(label string, primary, focused bool) string {
 	case focused:
 		return sgrSel + " " + label + " " + sgrReset
 	case primary:
-		return "\033[48;5;24m\033[38;5;255m\033[1m " + label + " " + sgrReset
+		return sgrPrimary + " " + label + " " + sgrReset
 	}
 	return "\033[48;5;239m\033[38;5;252m " + label + " " + sgrReset
 }
@@ -223,17 +223,15 @@ func fit(s string, w int) string {
 func visibleLen(s string) int { return utf8.RuneCountInString(ansiRe.ReplaceAllString(s, "")) }
 
 const (
-	sgrReset  = "\033[0m"
-	sgrAccent = "\033[38;5;75m"
-	sgrBold   = "\033[1m"
-	sgrMuted  = "\033[38;5;245m"
-	sgrDim    = "\033[38;5;240m"
-	sgrGreen  = "\033[38;5;114m"
-	sgrRed    = "\033[38;5;203m"
-	sgrBusy   = "\033[38;5;214m"
-	sgrField  = "\033[48;5;238m\033[38;5;252m"
-	sgrFocus  = "\033[48;5;240m\033[38;5;255m"
-	sgrSel    = "\033[48;5;31m\033[38;5;255m\033[1m"
+	sgrReset = "\033[0m"
+	sgrBold  = "\033[1m"
+	sgrMuted = "\033[38;5;245m"
+	sgrDim   = "\033[38;5;240m"
+	sgrGreen = "\033[38;5;114m"
+	sgrRed   = "\033[38;5;203m"
+	sgrBusy  = "\033[38;5;214m"
+	sgrField = "\033[48;5;238m\033[38;5;252m"
+	sgrFocus = "\033[48;5;240m\033[38;5;255m"
 )
 
 func sttyOutput(args ...string) (string, error) {

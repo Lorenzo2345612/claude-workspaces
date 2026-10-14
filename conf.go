@@ -5,9 +5,10 @@ import (
 	"strings"
 )
 
+// colAccent (current tab, borders) and colPillOn (current session) come from the theme: theme.go.
+
 // Colors of the bar. Backgrounds stay "default" so the bar blends into the terminal theme.
 const (
-	colAccent = "colour75"  // current tab and its underline
 	colDim    = "colour240" // inactive underlines
 	colText   = "colour252"
 	colMuted  = "colour245"
@@ -15,7 +16,6 @@ const (
 	colBusy   = "colour214"
 	colWait   = "colour203"
 	colPill   = "colour238"
-	colPillOn = "colour31"
 
 	statusRows = 4
 )
@@ -39,9 +39,9 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	sessionsPopup := fmt.Sprintf(`display-popup -E -w 78 -h 22 -T " Sesiones " "%s _ui sessions %s"`, bq, ws)
 	editCurrentPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Editar sesión " "%s _ui editcurrent %s"`, bq, ws)
 	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}'"`, bq, ws)
-	renameTab := fmt.Sprintf(`command-prompt -I "#{@cw_title}" -p "Nombre de la pestaña:" { run-shell "%s _title %s '#{session_name}' '%%%%'" }`, bq, ws)
+	renameTab := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar pestaña " "%s _ui rename %s tab"`, bq, ws)
 	configMenu := fmt.Sprintf(`run-shell "%s _configmenu %s '#{client_name}'"`, bq, ws)
-	renameSlot := `command-prompt -I "#W" -p "Nombre de la sesión:" { rename-window "%%" ; set -w @cw_alias "%%" }`
+	renameSlot := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar sesión " "%s _ui rename %s slot"`, bq, ws)
 	bulkTab := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude de la pestaña " "%s _ui bulkalias %s tab"`, bq, ws)
 	bulkAll := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude del workspace " "%s _ui bulkalias %s all"`, bq, ws)
 	switchAliasPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Cambiar alias de claude " "%s _ui editcurrent %s"`, bq, ws)
@@ -180,7 +180,13 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// position of the tab under the mouse.
 	// Pills swap natively (run-shell -C runs a tmux command, no process): the dragged session
 	// follows the mouse. Tabs only call cw when the mouse reaches another tab.
-	w(`bind -n MouseDrag1Status { if -F "#{&&:#{==:#{mouse_status_range},window},#{!=:#{window_active},1}}" { run-shell -C "swap-window -s #{session_name}:#{active_window_index} -t #{session_name}:#{window_index} ; select-window -t #{session_name}:#{window_index}" } { if -F "#{&&:#{==:#{mouse_status_range},session},#{!=:#{session_name},#{client_session}}}" { run-shell -t = "%[1]s _tabmove %[2]s '#{client_session}' '#{session_name}'" } } }`, bq, ws)
+	// Swap only towards where the mouse is going: items have different widths, so right after a
+	// swap the mouse can sit on the item just moved past, which would swap it straight back.
+	right := `#{e|>:#{mouse_x},#{@cw_dragx}}`
+	left := `#{e|<:#{mouse_x},#{@cw_dragx}}`
+	winDir := fmt.Sprintf(`#{||:#{&&:%s,#{e|>:#{window_index},#{active_window_index}}},#{&&:%s,#{e|<:#{window_index},#{active_window_index}}}}`, right, left)
+	tabDir := fmt.Sprintf(`#{||:#{&&:%s,#{>:#{session_name},#{client_session}}},#{&&:%s,#{<:#{session_name},#{client_session}}}}`, right, left)
+	w(`bind -n MouseDrag1Status { if -F "#{&&:#{==:#{mouse_status_range},window},%s}" { run-shell -C "swap-window -s #{session_name}:#{active_window_index} -t #{session_name}:#{window_index} ; select-window -t #{session_name}:#{window_index}" } { if -F "#{&&:#{==:#{mouse_status_range},session},%s}" { run-shell -t = -C "rename-session -t #{client_session} cw-swap ; rename-session -t #{session_name} #{client_session} ; rename-session -t cw-swap #{session_name} ; set -g @cw_active #{session_name}" } } ; set -gF @cw_dragx "#{mouse_x}" }`, winDir, tabDir)
 	// Right click: a context menu for the tab or the session under the mouse.
 	// -O keeps a menu open after the right button is released, until an item or outside is clicked.
 	tabMenu := fmt.Sprintf(`display-menu -O -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✦ Alias de claude de la pestaña" "" { %[5]s } "✕ Cerrar pestaña" "" { %[4]s }`,
@@ -208,6 +214,6 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	for i := len(clicks) - 1; i >= 0; i-- {
 		click = fmt.Sprintf(`if -F "#{==:#{mouse_status_range},%s}" { %s } { %s }`, clicks[i].rng, clicks[i].cmd, click)
 	}
-	w(`bind -n MouseDown1Status { %s }`, click)
+	w(`bind -n MouseDown1Status { set -gF @cw_dragx "#{mouse_x}" ; %s }`, click)
 	return b.String()
 }

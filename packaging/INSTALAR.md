@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.4.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.4.1-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.4.0-macos.tar.gz
-   cd cw-0.4.0-macos
+   tar xzf cw-0.4.1-macos.tar.gz
+   cd cw-0.4.1-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.4.0-linux.tar.gz
-cd cw-0.4.0-linux
+tar xzf cw-0.4.1-linux.tar.gz
+cd cw-0.4.1-linux
 sh install.sh
 ```
 

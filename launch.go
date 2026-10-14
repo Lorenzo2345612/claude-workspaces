@@ -149,6 +149,13 @@ func (l *Launcher) openTab(t Tmux, session string, tab *Tab, resuming bool) erro
 		}
 		return t.setTabOptions(session, *tab)
 	}
+	// State saved before views existed (0.3.x and older) has no layouts and every slot in view 0:
+	// each of those sessions had its own window, so give each its own view again.
+	if len(tab.Layouts) == 0 {
+		for i := range tab.Slots {
+			tab.Slots[i].View = i
+		}
+	}
 	viewWindow := map[int]string{}
 	var order []int
 	activeTarget := ""

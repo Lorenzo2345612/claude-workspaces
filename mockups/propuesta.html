@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>cw · propuesta A3 + B4 + D2 + E3 + F3 + G3</title>
+<style>
+  :root {
+    --bg: #300a24; --page: #1b1b1f; --card: #26262c; --ink: #e8e6e3; --muted: #9a98a0;
+    --accent: #5fafff; --dim: #6c6c6c; --text: #d0d0d0; --mut: #8a8a8a; --green: #87d787;
+    --orange: #ffaf00; --red: #ff5f5f; --blue-bg: #0087af; --sel: #3a3a3a; --pill: #444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header { padding: 28px 40px 4px; max-width: 1150px; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 4px 0; color: var(--muted); }
+  section { padding: 10px 40px 18px; max-width: 1150px; }
+  h2 { font-size: 18px; margin: 18px 0 2px; }
+  h2 b { display: inline-block; background: var(--accent); color: #111; border-radius: 5px; padding: 0 7px; margin-right: 8px; font-size: 14px; }
+  section > p { margin: 2px 0 10px; color: var(--muted); font-size: 14px; }
+  pre.term {
+    margin: 0; background: var(--bg); color: var(--text); padding: 12px 14px; border-radius: 8px; overflow: hidden;
+    font: 14px/1.38 "Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace; white-space: pre;
+    box-shadow: 0 6px 24px rgba(0,0,0,.35);
+  }
+  .a { color: var(--accent); } .ab { color: var(--accent); font-weight: 700; }
+  .d { color: var(--dim); } .t { color: var(--text); } .m { color: var(--mut); } .w { color: #fff; }
+  .g { color: var(--green); } .gb { color: var(--green); font-weight: 700; }
+  .o { color: var(--orange); } .r { color: var(--red); } .b { font-weight: 700; }
+  .cur { background: var(--blue-bg); color: #fff; font-weight: 700; }
+  .pill { background: var(--pill); color: var(--text); }
+  .sel { background: var(--sel); color: #fff; }
+  .shade { color: #7a5a70; }
+  ul { margin: 6px 0 0 0; color: var(--muted); font-size: 14px; }
+  footer { padding: 10px 40px 40px; color: var(--muted); max-width: 1150px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>cw · propuesta: A3 + ayuda, B4, D2, E3, F3, G3</h1>
+  <p>Cinco pantallas de la misma terminal (100 columnas) para ver la combinación entera. Todo se puede dibujar en tmux.</p>
+  <p>Al combinar A3 con las pestañas subrayadas de B4, la barra queda en 4 líneas: un espacio en blanco, las pestañas,
+  su subrayado y las sesiones. Hoy son 5.</p>
+</header>
+
+<section>
+<h2><b>1</b>Uso normal</h2>
+<p>Pestañas planas y subrayadas (B4); la activa en azul con raya gruesa. Los contadores de D2 avisan de lo que pasa en otras pestañas:
+<span class="o">●2</span> = dos sesiones trabajando, <span class="r">?1</span> = una pide permiso. Las sesiones de la pestaña actual van como
+píldoras (A3).</p>
+<pre class="term"><span class="m">● Listo: el filtro de la matriz ya no ignora los acentos. Corrí los tests de risk_matrix:</span>
+<span class="m">  42 passed in 3.1s</span>
+
+<span class="m">✻ Brewed for 41s · done 11:40 AM</span>
+<span class="d">──────────────────────────────────────────────────────────────────────────────── fix-matriz ─</span>
+<span class="w">❯ </span>
+<span class="d">────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="m">  ⏵⏵ auto mode on (shift+tab to cycle)</span>
+
+ <span class="ab">≡ kyc</span>    <span class="m">bug-185</span> <span class="o">●2</span>    <span class="ab">front</span>    <span class="m">infra</span> <span class="r">?1</span>    <span class="gb">＋</span>                                         <span class="m">? ayuda</span>
+          <span class="d">──────────</span>    <span class="a">━━━━━</span>    <span class="d">────────</span>
+   <span class="cur"> fix-matriz ○ </span> <span class="pill"> review-arb <span class="o">●</span> </span> <span class="pill"> shell </span>    <span class="gb">＋ Claude</span>   <span class="gb">＋ Terminal</span>                  <span class="m">~/work/frontend</span></pre>
+<ul>
+  <li>Clic en una pestaña o sesión para ir a ella; <span class="gb">＋</span> crea pestaña; <span class="gb">＋ Claude</span> / <span class="gb">＋ Terminal</span> crean sesión en esta pestaña.</li>
+  <li><span class="ab">≡ kyc</span> abre el menú (E3); <span class="m">? ayuda</span> abre la ayuda (pantalla 5).</li>
+</ul>
+</section>
+
+<section>
+<h2><b>2</b>Menú con iconos y grupos (E3) — Alt+m o clic en ≡</h2>
+<pre class="term"><span class="shade">● Listo: el filtro de la matriz ya no ignora los acentos. Corrí los tests de risk_matrix:</span>
+<span class="shade">  42 passed in 3.1s</span>                          <span class="a">╭────────── cw · kyc ──────────╮</span>
+                                             <span class="a">│</span> <span class="m">CREAR</span>                        <span class="a">│</span>
+<span class="shade">✻ Brewed for 41s · done 11:40 AM</span>             <span class="a">│</span><span class="sel">  ✦ Sesión de Claude        c </span><span class="a">│</span>
+<span class="shade">──────────────────────────────────────────── </span><span class="a">│</span>  ❯ Terminal                s <span class="a">│</span>
+<span class="shade">❯ </span>                                           <span class="a">│</span>  ▤ Pestaña                 t <span class="a">│</span>
+<span class="shade">──────────────────────────────────────────── </span><span class="a">│</span> <span class="m">ESTA PESTAÑA</span>                 <span class="a">│</span>
+                                             <span class="a">│</span>  ✎ Renombrar pestaña       r <span class="a">│</span>
+                                             <span class="a">│</span>  ✎ Renombrar sesión        a <span class="a">│</span>
+                                             <span class="a">│</span>  ✕ Cerrar sesión actual    x <span class="a">│</span>
+                                             <span class="a">│</span> <span class="m">WORKSPACE</span>                    <span class="a">│</span>
+                                             <span class="a">│</span>  ↓ Guardar ahora           g <span class="a">│</span>
+                                             <span class="a">│</span>  ⚙ Configuración           o <span class="a">│</span>
+                                             <span class="a">│</span>  ⇥ Desconectar             d <span class="a">│</span>
+                                             <span class="a">│</span>  <span class="r">⏻ Apagar y guardar        q</span> <span class="a">│</span>
+ <span class="ab">≡ kyc</span>    <span class="m">bug-185</span> <span class="o">●2</span>    <span class="ab">front</span>    <span class="m">infra</span> <span class="r">?1</span>    <span class="a">╰──────────────────────────────╯</span>          <span class="m">? ayuda</span>
+          <span class="d">──────────</span>    <span class="a">━━━━━</span>    <span class="d">────────</span>
+   <span class="cur"> fix-matriz ○ </span> <span class="pill"> review-arb <span class="o">●</span> </span> <span class="pill"> shell </span>    <span class="gb">＋ Claude</span>   <span class="gb">＋ Terminal</span>                  <span class="m">~/work/frontend</span></pre>
+</section>
+
+<section>
+<h2><b>3</b>Nueva pestaña con buscador de directorios (F3) — Alt+t o clic en ＋</h2>
+<p>Al escribir en «Directorio» filtra: primero los directorios que ya usaste en pestañas, luego carpetas bajo ~/work.
+↑↓ elige, Tab completa la ruta, Enter acepta. Por defecto propone el directorio desde donde abriste cw.</p>
+<pre class="term"><span class="shade">● Listo: el filtro de la matriz ya no ignora los acentos. Corrí los tests de risk_matrix:</span>
+<span class="shade">  42 passed in 3.1s</span>
+                  <span class="a">╭─ Nueva pestaña ──────────────────────────────────────────╮</span>
+<span class="shade">✻ Brewed for 41s</span>  <span class="a">│</span>                                                          <span class="a">│</span>
+<span class="shade">─────────────────</span> <span class="a">│</span>   Nombre       <span class="pill"> bug-190                                 </span> <span class="a">│</span>
+<span class="shade">❯ </span>                <span class="a">│</span>   Directorio   <span class="sel"> back▌                                   </span> <span class="a">│</span>
+<span class="shade">─────────────────</span> <span class="a">│</span>                <span class="cur"> ~/work/backend                 reciente </span> <span class="a">│</span>
+                  <span class="a">│</span>                <span class="m"> ~/work/backend-wt-291          reciente </span> <span class="a">│</span>
+                  <span class="a">│</span>                <span class="m"> ~/work/backoffice                       </span> <span class="a">│</span>
+                  <span class="a">│</span>                <span class="m"> ~/work/backend-stress                   </span> <span class="a">│</span>
+                  <span class="a">│</span>                                                          <span class="a">│</span>
+                  <span class="a">│</span>   Empezar con  <span class="cur"> ✦ Claude </span>  <span class="pill"> ❯ Terminal </span>  <span class="pill"> ○ Vacía </span>       <span class="a">│</span>
+                  <span class="a">│</span>   Alias        <span class="pill"> bug-190                                 </span> <span class="a">│</span>
+                  <span class="a">│</span>                                                          <span class="a">│</span>
+                  <span class="a">│</span>  <span class="m">Tab completar · ↑↓ elegir · Esc cancelar</span>      <span class="cur"> Crear </span>   <span class="a">│</span>
+ <span class="ab">≡ kyc</span>    <span class="m">bug</span>  <span class="a">╰─────────────────────────────────────────────────────────────╯</span>     <span class="m">? ayuda</span>
+          <span class="d">──────────</span>    <span class="a">━━━━━</span>    <span class="d">────────</span>
+   <span class="cur"> fix-matriz ○ </span> <span class="pill"> review-arb <span class="o">●</span> </span> <span class="pill"> shell </span>    <span class="gb">＋ Claude</span>   <span class="gb">＋ Terminal</span>                  <span class="m">~/work/frontend</span></pre>
+</section>
+
+<section>
+<h2><b>4</b>Pestaña vacía con sesiones recientes (G3)</h2>
+<p>«Retomar» lista las últimas conversaciones de Claude en el directorio de la pestaña (de cualquier día, aunque no las
+abrieras con cw), con su primer mensaje. Enter o el número la reabre aquí con un alias.</p>
+<pre class="term">
+
+
+                                   <span class="ab">bug-190</span>   <span class="m">~/work/backend</span>
+
+                      <span class="a">╭──────────────────────╮</span>   <span class="d">╭──────────────────────╮</span>
+                      <span class="a">│</span>  <span class="ab">✦  Claude</span>       <span class="m">(c)</span>  <span class="a">│</span>   <span class="d">│</span>  <span class="b">❯  Terminal</span>     <span class="m">(t)</span><span class="d">│</span>
+                      <span class="a">│</span>  <span class="m">sesión nueva</span>        <span class="a">│</span>   <span class="d">│</span>  <span class="m">shell normal</span>        <span class="d">│</span>
+                      <span class="a">╰──────────────────────╯</span>   <span class="d">╰──────────────────────╯</span>
+
+                      <span class="m">RETOMAR UNA CONVERSACIÓN</span>
+                      <span class="sel"> 1  fix-matriz       hace 2 h   «arregla el filtro de acentos…» </span>
+                        <span class="m">2  review-291       ayer       «revisa el plan de la 291…»</span>
+                        <span class="m">3  (sin nombre)     12 oct     «por qué falla el deploy de…»</span>
+
+
+ <span class="ab">≡ kyc</span>    <span class="m">bug-185</span> <span class="o">●2</span>    <span class="m">front</span>    <span class="m">infra</span> <span class="r">?1</span>    <span class="ab">bug-190</span>    <span class="gb">＋</span>                              <span class="m">? ayuda</span>
+          <span class="d">──────────</span>    <span class="d">─────</span>    <span class="d">────────</span>    <span class="a">━━━━━━━</span>
+   <span class="gb">＋ Claude</span>   <span class="gb">＋ Terminal</span>                                                              <span class="m">~/work/backend</span></pre>
+</section>
+
+<section>
+<h2><b>5</b>Ayuda — clic en «? ayuda» (o Alt+h)</h2>
+<pre class="term"><span class="shade">● Listo: el filtro de la matriz ya no ignora los acentos.</span>
+                <span class="a">╭─ Ayuda ─────────────────────────────────────────────────────────╮</span>
+                <span class="a">│</span>                                                                 <span class="a">│</span>
+                <span class="a">│</span>  <span class="m">MOVERSE</span>                         <span class="m">CREAR</span>                          <span class="a">│</span>
+                <span class="a">│</span>  <span class="b">Alt+← →</span>   sesión anterior/sig.  <span class="b">Alt+t</span>   pestaña                <span class="a">│</span>
+                <span class="a">│</span>  <span class="b">Alt+↑ ↓</span>   pestaña anterior/sig. <span class="b">Alt+n</span>   sesión (Claude/term.)  <span class="a">│</span>
+                <span class="a">│</span>  <span class="b">Alt+1..9</span>  ir a la sesión N      <span class="b">Alt+m</span>   menú                   <span class="a">│</span>
+                <span class="a">│</span>  <span class="m">clic</span>      pestaña o sesión                                     <span class="a">│</span>
+                <span class="a">│</span>                                                                 <span class="a">│</span>
+                <span class="a">│</span>  <span class="m">ESTADOS</span>                                                        <span class="a">│</span>
+                <span class="a">│</span>  <span class="o">●</span> trabajando   <span class="r">?</span> pide permiso   <span class="g">○</span> lista   <span class="d">z</span> dormida            <span class="a">│</span>
+                <span class="a">│</span>  <span class="o">●2</span> / <span class="r">?1</span> en una pestaña: cuántas sesiones están así             <span class="a">│</span>
+                <span class="a">│</span>                                                                 <span class="a">│</span>
+                <span class="a">│</span>  <span class="m">Una sesión que termina con error: Enter la reabre.</span>             <span class="a">│</span>
+                <span class="a">│</span>  <span class="m">Rueda del ratón: desplaza; q o Esc vuelve.</span>                     <span class="a">│</span>
+                <span class="a">│</span>                                              <span class="m">Esc cerrar</span>         <span class="a">│</span>
+ <span class="ab">≡ kyc</span>    <span class="m">bug</span>    <span class="a">╰────────────────────────────────────────────────────────────────╯</span>
+          <span class="d">──────────</span>    <span class="a">━━━━━</span>    <span class="d">────────</span>
+   <span class="cur"> fix-matriz ○ </span> <span class="pill"> review-arb <span class="o">●</span> </span> <span class="pill"> shell </span>    <span class="gb">＋ Claude</span>   <span class="gb">＋ Terminal</span>                  <span class="m">~/work/frontend</span></pre>
+</section>
+
+<footer>Si te gusta, la implemento tal cual. Si no, dime qué cambiar (colores, orden de las filas, textos).</footer>
+</body>
+</html>

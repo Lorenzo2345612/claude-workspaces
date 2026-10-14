@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>cw · opciones de interfaz</title>
+<style>
+  :root {
+    --bg: #300a24; --page: #1b1b1f; --card: #26262c; --ink: #e8e6e3; --muted: #9a98a0;
+    --accent: #5fafff; --dim: #585858; --text: #d0d0d0; --mut: #8a8a8a; --green: #87d787;
+    --orange: #ffaf00; --red: #ff5f5f; --blue-bg: #0087af; --sel: #3a3a3a; --pill: #444;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink); font: 15px/1.5 system-ui, "Segoe UI", sans-serif; }
+  header { padding: 28px 40px 8px; }
+  h1 { margin: 0 0 6px; font-size: 26px; }
+  header p { margin: 0; color: var(--muted); max-width: 900px; }
+  section { padding: 18px 40px 8px; }
+  h2 { font-size: 19px; margin: 22px 0 4px; border-top: 1px solid #333; padding-top: 22px; }
+  h2 small { color: var(--muted); font-weight: 400; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(560px, 1fr)); gap: 18px; margin-top: 12px; }
+  .opt { background: var(--card); border-radius: 10px; padding: 14px 14px 12px; }
+  .opt h3 { margin: 0 0 2px; font-size: 15px; }
+  .opt h3 b { display: inline-block; background: var(--accent); color: #111; border-radius: 5px; padding: 0 7px; margin-right: 8px; }
+  .opt p { margin: 2px 0 10px; color: var(--muted); font-size: 13.5px; }
+  pre.term {
+    margin: 0; background: var(--bg); color: var(--text); padding: 10px 12px; border-radius: 6px; overflow: hidden;
+    font: 14px/1.35 "Cascadia Mono", "Cascadia Code", Consolas, "DejaVu Sans Mono", monospace; white-space: pre;
+  }
+  .a { color: var(--accent); } .ab { color: var(--accent); font-weight: 700; }
+  .d { color: var(--dim); } .t { color: var(--text); } .m { color: var(--mut); }
+  .g { color: var(--green); } .gb { color: var(--green); font-weight: 700; }
+  .o { color: var(--orange); } .r { color: var(--red); } .b { font-weight: 700; } .u { text-decoration: underline; }
+  .cur { background: var(--blue-bg); color: #fff; font-weight: 700; }
+  .pill { background: var(--pill); color: var(--text); }
+  .sel { background: var(--sel); color: #fff; }
+  .hl { background: #5f0000; color: #fff; }
+  .warn { background: #5f3a00; color: #ffd787; }
+  .rev { background: var(--accent); color: #111; font-weight: 700; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 8px; }
+  footer { padding: 20px 40px 40px; color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>cw · opciones de interfaz</h1>
+  <p>Cada bloque tiene varias opciones con un código (A1, B2…). Dime cuáles eliges, por ejemplo
+  «A2, B1, C3, D2, E1, F2», o mezcla («A2 pero con los atajos de A1»). Todo lo que se ve aquí se puede
+  dibujar en la terminal: solo usa caracteres, colores de texto y de fondo, negrita y subrayado.</p>
+</header>
+
+<section>
+<h2>A · Barra completa (abajo) <small>— cómo se combinan sesiones, pestañas y atajos</small></h2>
+<div class="grid">
+
+<div class="opt"><h3><b>A1</b>Actual · 5 líneas</h3>
+<p>Atajos arriba, sesiones, y pestañas en recuadros colgando hacia abajo.</p>
+<pre class="term"><span class="m">  …terminal…</span>
+<span class="d">──</span><span class="m"> Alt+m menú · Alt+t pestaña · Alt+n sesión · Alt+←→ sesiones </span><span class="d">─────</span>
+   <span class="t b u">fix-matriz</span> <span class="o">●</span>    <span class="m">review</span> <span class="g">○</span>    <span class="m">shell</span>     <span class="gb">＋ Claude</span>    <span class="gb">＋ Terminal</span>
+<span class="d">─┬──────────────────────┬</span><span class="a">╮                   ╭</span><span class="d">──────────────────</span>
+ <span class="m">│ bug-185  ~/backend   │</span><span class="ab">│ front  ~/frontend │</span> <span class="gb">＋</span>          <span class="ab">≡ kyc</span>
+ <span class="d">╰──────────────────────╯</span><span class="a">╰───────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>A2</b>Compacta · 3 líneas</h3>
+<p>Sin línea de atajos: ayuda en <span class="g">?</span>. Más espacio para la terminal.</p>
+<pre class="term"><span class="m">  …terminal…</span>
+   <span class="t b u">fix-matriz</span> <span class="o">●</span>    <span class="m">review</span> <span class="g">○</span>    <span class="m">shell</span>     <span class="gb">＋ Claude</span>  <span class="gb">＋ Terminal</span>       <span class="m">? ayuda</span>
+<span class="d">─┬──────────────────────┬</span><span class="a">╮                   ╭</span><span class="d">──────────────────</span>
+ <span class="m">│ bug-185  ~/backend   │</span><span class="ab">│ front  ~/frontend │</span> <span class="gb">＋</span>          <span class="ab">≡ kyc</span></pre></div>
+
+<div class="opt"><h3><b>A3</b>Mínima · 2 líneas</h3>
+<p>Pestañas planas (sin recuadro) y sesiones debajo. Muy limpia.</p>
+<pre class="term"><span class="m">  …terminal…</span>
+<span class="d">────────────────────────────────────────────────────────────────────────</span>
+ <span class="ab">≡ kyc</span>  <span class="m">bug-185</span>  <span class="cur"> front </span>  <span class="m">infra</span>  <span class="gb">＋</span>                              <span class="m">~/work/frontend</span>
+   <span class="cur"> fix-matriz ● </span> <span class="pill"> review ○ </span> <span class="pill"> shell </span>   <span class="gb">＋ Claude</span>  <span class="gb">＋ Terminal</span></pre></div>
+
+<div class="opt"><h3><b>A4</b>Panel lateral</h3>
+<p>Árbol de pestañas y sesiones a la izquierda; la terminal ocupa el resto. Usa ~28 columnas.</p>
+<pre class="term"><span class="ab"> ≡ kyc                     </span><span class="d">│</span>
+<span class="d">                           │</span><span class="m">  …terminal…</span>
+<span class="m"> ▾ bug-185   ~/backend     </span><span class="d">│</span>
+<span class="m">     fix-matriz </span><span class="o">●</span><span class="m">          </span><span class="d">│</span>
+<span class="m">     review </span><span class="g">○</span><span class="m">              </span><span class="d">│</span>
+<span class="ab"> ▾ front     ~/frontend    </span><span class="d">│</span>
+<span class="cur">   ▸ arb-copy ○            </span><span class="d">│</span>
+<span class="m">     shell                 </span><span class="d">│</span>
+<span class="d">                           │</span>
+<span class="gb"> ＋ pestaña  ＋ sesión      </span><span class="d">│</span></pre>
+<p class="note">Ojo: en tmux el panel lateral sería un panel más; se ve bien pero quita ancho a Claude.</p></div>
+
+</div>
+</section>
+
+<section>
+<h2>B · Pestañas <small>— estilo de cada tarea</small></h2>
+<div class="grid">
+
+<div class="opt"><h3><b>B1</b>Recuadros redondeados</h3><p>La activa en color y abierta hacia la terminal.</p>
+<pre class="term"><span class="d">─┬──────────────────────┬</span><span class="a">╮                   ╭</span><span class="d">─────────</span>
+ <span class="m">│ bug-185  ~/backend   │</span><span class="ab">│ front  ~/frontend │</span> <span class="gb">＋</span>
+ <span class="d">╰──────────────────────╯</span><span class="a">╰───────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>B2</b>Bloques de color</h3><p>Una línea; la activa con fondo azul. Necesita una sola fila.</p>
+<pre class="term"> <span class="pill"> bug-185 · ~/backend </span> <span class="cur"> front · ~/frontend </span> <span class="pill"> infra · ~/ops </span> <span class="gb"> ＋ </span></pre></div>
+
+<div class="opt"><h3><b>B3</b>Estilo powerline</h3><p>Flechas entre pestañas. Requiere fuente con glifos powerline (Cascadia la tiene).</p>
+<pre class="term"> <span class="pill"> bug-185 </span><span style="color:#444;background:#0087af"></span><span class="cur"> front </span><span style="color:#0087af;background:#444"></span><span class="pill"> infra </span><span style="color:#444"></span> <span class="gb">＋</span></pre></div>
+
+<div class="opt"><h3><b>B4</b>Subrayado</h3><p>Texto plano; la activa en negrita con raya debajo.</p>
+<pre class="term">  <span class="m">bug-185</span>     <span class="ab">front</span>     <span class="m">infra</span>     <span class="gb">＋</span>
+  <span class="d">───────</span>     <span class="a">━━━━━</span>     <span class="d">─────</span></pre></div>
+
+</div>
+</section>
+
+<section>
+<h2>C · Sesiones dentro de la pestaña <small>— y su estado</small></h2>
+<div class="grid">
+
+<div class="opt"><h3><b>C1</b>Texto con punto de estado (actual)</h3>
+<pre class="term">   <span class="t b u">fix-matriz</span> <span class="o">●</span>    <span class="m">review</span> <span class="g">○</span>    <span class="m">permisos</span> <span class="r">?</span>    <span class="m">shell</span>     <span class="gb">＋ Claude</span>  <span class="gb">＋ Terminal</span></pre></div>
+
+<div class="opt"><h3><b>C2</b>Píldoras</h3><p>Fondo gris; la actual con fondo azul.</p>
+<pre class="term">  <span class="cur"> fix-matriz <span class="o">●</span> </span> <span class="pill"> review <span class="g">○</span> </span> <span class="pill"> permisos <span class="r">?</span> </span> <span class="pill"> shell </span>   <span class="gb">＋ Claude</span>  <span class="gb">＋ Terminal</span></pre></div>
+
+<div class="opt"><h3><b>C3</b>Estado escrito</h3><p>Más explícito: dice qué hace cada una.</p>
+<pre class="term">  <span class="cur"> fix-matriz </span><span class="o"> trabajando </span>  <span class="m">review</span><span class="g"> lista </span>  <span class="m">permisos</span><span class="warn"> pide permiso </span>  <span class="m">shell</span></pre></div>
+
+<div class="opt"><h3><b>C4</b>Numeradas</h3><p>Muestra el número para Alt+1..9.</p>
+<pre class="term">  <span class="cur"> 1 fix-matriz <span class="o">●</span> </span>  <span class="m">2 review</span> <span class="g">○</span>   <span class="m">3 permisos</span> <span class="r">?</span>   <span class="m">4 shell</span>    <span class="gb">＋</span></pre></div>
+
+</div>
+</section>
+
+<section>
+<h2>D · Avisos <small>— cuando algo pasa en otra pestaña</small></h2>
+<div class="grid">
+
+<div class="opt"><h3><b>D1</b>Sin avisos (actual)</h3><p>Solo ves el estado de la pestaña en la que estás.</p>
+<pre class="term"> <span class="m">│ bug-185  ~/backend │</span><span class="ab">│ front  ~/frontend │</span></pre></div>
+
+<div class="opt"><h3><b>D2</b>Contadores en la pestaña</h3><p>● cuántas trabajan · ? cuántas piden permiso.</p>
+<pre class="term"> <span class="m">│ bug-185 </span><span class="o">●2</span><span class="m">  ~/backend │</span><span class="ab">│ front </span><span class="r">?1</span><span class="ab">  ~/frontend │</span></pre></div>
+
+<div class="opt"><h3><b>D3</b>Resaltar la pestaña</h3><p>La pestaña se pinta cuando una sesión terminó o pide permiso, hasta que entras.</p>
+<pre class="term"> <span class="hl">│ bug-185 ✓ terminó │</span><span class="ab">│ front  ~/frontend │</span><span class="warn">│ infra ? permiso │</span></pre></div>
+
+<div class="opt"><h3><b>D4</b>Mensaje emergente breve</h3><p>Además de D2 o D3, un aviso de 3 s en la barra.</p>
+<pre class="term"><span class="warn"> ⚑ infra · deploy pide permiso — Alt+↓ para ir </span></pre></div>
+
+</div>
+</section>
+
+<section>
+<h2>E · Menú (Alt+m o ≡)</h2>
+<div class="grid">
+
+<div class="opt"><h3><b>E1</b>Menú simple (actual)</h3>
+<pre class="term">        <span class="a">╭──────── cw · kyc ────────╮</span>
+        <span class="a">│</span> Nueva pestaña         <span class="m">t</span>  <span class="a">│</span>
+        <span class="a">│</span><span class="sel"> Nueva sesión de Claude <span class="m">c</span> </span><span class="a">│</span>
+        <span class="a">│</span> Nueva terminal        <span class="m">s</span>  <span class="a">│</span>
+        <span class="a">├──────────────────────────┤</span>
+        <span class="a">│</span> Renombrar pestaña     <span class="m">r</span>  <span class="a">│</span>
+        <span class="a">│</span> Cerrar sesión actual  <span class="m">x</span>  <span class="a">│</span>
+        <span class="a">├──────────────────────────┤</span>
+        <span class="a">│</span> Guardar · Configuración  <span class="a">│</span>
+        <span class="a">│</span> Apagar y guardar      <span class="m">q</span>  <span class="a">│</span>
+        <span class="a">╰──────────────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>E2</b>Paleta de comandos con búsqueda</h3><p>Escribes y filtra; también salta a cualquier sesión de cualquier pestaña.</p>
+<pre class="term">  <span class="a">╭─ cw · kyc ───────────────────────────────────╮</span>
+  <span class="a">│</span> <span class="b">› rev</span><span class="a">▌</span>                                        <span class="a">│</span>
+  <span class="a">│</span><span class="sel">  ↪ review            bug-185 · sesión ○       </span><span class="a">│</span>
+  <span class="a">│</span>   ↪ revisar-pr        front · sesión ●         <span class="a">│</span>
+  <span class="a">│</span>   ✎ Renombrar pestaña                          <span class="a">│</span>
+  <span class="a">│</span> <span class="m">↑↓ elegir · Enter abrir · Esc cerrar</span>          <span class="a">│</span>
+  <span class="a">╰──────────────────────────────────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>E3</b>Menú con iconos y grupos</h3>
+<pre class="term">        <span class="a">╭──────── cw · kyc ────────╮</span>
+        <span class="a">│</span> <span class="m">CREAR</span>                    <span class="a">│</span>
+        <span class="a">│</span><span class="sel">  ✦ Sesión de Claude    c </span><span class="a">│</span>
+        <span class="a">│</span>  ❯ Terminal            s <span class="a">│</span>
+        <span class="a">│</span>  ▤ Pestaña             t <span class="a">│</span>
+        <span class="a">│</span> <span class="m">WORKSPACE</span>                <span class="a">│</span>
+        <span class="a">│</span>  ↓ Guardar             g <span class="a">│</span>
+        <span class="a">│</span>  ⚙ Configuración       o <span class="a">│</span>
+        <span class="a">│</span>  <span class="r">⏻ Apagar y guardar    q</span> <span class="a">│</span>
+        <span class="a">╰──────────────────────────╯</span></pre></div>
+
+</div>
+</section>
+
+<section>
+<h2>F · Diálogo «Nueva pestaña»</h2>
+<div class="grid">
+
+<div class="opt"><h3><b>F1</b>Preguntas en línea (actual)</h3>
+<pre class="term">  <span class="a">╭─ Nueva pestaña ─────────────────────────────╮</span>
+  <span class="a">│</span>Nombre de la pestaña: bug-185                <span class="a">│</span>
+  <span class="a">│</span>Directorio base: [~/work/backend]            <span class="a">│</span>
+  <span class="a">│</span>Primera sesión: (c) Claude o (t) terminal [c] <span class="a">│</span>
+  <span class="a">│</span>Alias de la sesión de Claude: [bug-185]       <span class="a">│</span>
+  <span class="a">╰─────────────────────────────────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>F2</b>Formulario con campos</h3><p>Tab cambia de campo; todo visible a la vez.</p>
+<pre class="term">  <span class="a">╭─ Nueva pestaña ─────────────────────────────╮</span>
+  <span class="a">│</span>  Nombre      <span class="sel"> bug-185▌                    </span>  <span class="a">│</span>
+  <span class="a">│</span>  Directorio  <span class="pill"> ~/work/backend              </span>  <span class="a">│</span>
+  <span class="a">│</span>  Empezar con <span class="cur"> ✦ Claude </span>  <span class="pill"> ❯ Terminal </span>  <span class="pill"> Vacía </span><span class="a">│</span>
+  <span class="a">│</span>  Alias       <span class="pill"> bug-185                     </span>  <span class="a">│</span>
+  <span class="a">│</span>                        <span class="m">Esc cancelar</span>  <span class="rev"> Crear </span> <span class="a">│</span>
+  <span class="a">╰─────────────────────────────────────────────╯</span></pre></div>
+
+<div class="opt"><h3><b>F3</b>Formulario + buscador de directorios</h3><p>Como F2, y al escribir el directorio sugiere recientes y carpetas de ~/work.</p>
+<pre class="term">  <span class="a">╭─ Nueva pestaña ─────────────────────────────╮</span>
+  <span class="a">│</span>  Nombre      <span class="pill"> bug-185                     </span>  <span class="a">│</span>
+  <span class="a">│</span>  Directorio  <span class="sel"> back▌                       </span>  <span class="a">│</span>
+  <span class="a">│</span>              <span class="cur"> ~/work/backend       reciente </span>  <span class="a">│</span>
+  <span class="a">│</span>              <span class="m"> ~/work/backend-wt-291          </span>  <span class="a">│</span>
+  <span class="a">│</span>              <span class="m"> ~/work/backoffice              </span>  <span class="a">│</span>
+  <span class="a">│</span>  Empezar con <span class="cur"> ✦ Claude </span>  <span class="pill"> ❯ Terminal </span>  <span class="pill"> Vacía </span><span class="a">│</span>
+  <span class="a">╰─────────────────────────────────────────────╯</span></pre></div>
+
+</div>
+</section>
+
+<section>
+<h2>G · Pantalla de una pestaña vacía</h2>
+<div class="grid">
+
+<div class="opt"><h3><b>G1</b>Actual</h3>
+<pre class="term">
+
+                     <span class="ab">bug-185</span>
+                 <span class="m">~/work/backend</span>
+
+     Esta pestaña todavía no tiene sesiones.
+
+           <span class="gb"> c </span>  Nueva sesión de Claude
+           <span class="gb"> t </span>  Nueva terminal
+</pre></div>
+
+<div class="opt"><h3><b>G2</b>Tarjetas</h3>
+<pre class="term">
+
+                     <span class="ab">bug-185</span>  <span class="m">~/work/backend</span>
+
+     <span class="a">╭──────────────────────╮</span>  <span class="d">╭──────────────────────╮</span>
+     <span class="a">│</span>  <span class="ab">✦  Claude</span>           <span class="a">│</span>  <span class="d">│</span>  <span class="b">❯  Terminal</span>         <span class="d">│</span>
+     <span class="a">│</span>  <span class="m">nueva sesión  (c)</span>   <span class="a">│</span>  <span class="d">│</span>  <span class="m">shell normal  (t)</span>   <span class="d">│</span>
+     <span class="a">╰──────────────────────╯</span>  <span class="d">╰──────────────────────╯</span>
+</pre></div>
+
+<div class="opt"><h3><b>G3</b>Tarjetas + sesiones recientes</h3><p>Además ofrece retomar conversaciones recientes de Claude en ese directorio.</p>
+<pre class="term">
+                     <span class="ab">bug-185</span>  <span class="m">~/work/backend</span>
+
+     <span class="a">╭─────────────────╮</span>  <span class="d">╭─────────────────╮</span>
+     <span class="a">│</span> <span class="ab">✦ Claude</span>    <span class="m">(c)</span> <span class="a">│</span>  <span class="d">│</span> <span class="b">❯ Terminal</span>  <span class="m">(t)</span> <span class="d">│</span>
+     <span class="a">╰─────────────────╯</span>  <span class="d">╰─────────────────╯</span>
+
+     <span class="m">RETOMAR</span>
+     <span class="sel"> 1  fix-matriz      hace 2 h   «arregla el filtro…» </span>
+       <span class="m">2  review-291      ayer       «revisa el PR…»</span>
+</pre></div>
+
+</div>
+</section>
+
+<footer>Responde con los códigos que elijas (o «ninguna» por bloque). Puedes pedir mezclas o cambios de color.</footer>
+</body>
+</html>

@@ -1,0 +1,29 @@
+cw — workspaces de sesiones de Claude Code en pestañas
+=======================================================
+
+INSTALAR   (guía completa paso a paso: INSTALAR.md)
+
+  macOS / Linux:   abre una terminal en esta carpeta y corre   sh install.sh
+  Windows:         doble clic en install.cmd   (instala dentro de WSL)
+
+El instalador pregunta antes de instalar cada cosa:
+  - tmux 3.3 o mayor (Homebrew en macOS; apt/dnf/pacman/zypper/apk en Linux;
+    si tu distribución trae uno viejo, como Ubuntu 22.04, lo compila);
+  - cw, en ~/.local/bin;
+  - Claude Code, con su instalador oficial, si no lo tienes.
+Opciones: --yes (aceptar todo), --no-claude (no instalar Claude Code).
+
+USAR
+
+  cw              pantalla de inicio: crear un workspace aquí o retomar uno
+  cw new          crear un workspace en el directorio actual
+  cw ls           listar workspaces
+  cw stop NOMBRE  guardar y apagar
+  cw help         todos los comandos
+
+Dentro: Alt+m menú · Alt+t pestaña · Alt+n sesión · Alt+e sesiones ·
+Alt+p alias de claude · Alt+h ayuda.
+En Mac, Alt es la tecla Option (⌥): activa «Usar Opción como tecla Meta» en tu terminal
+(detalles en INSTALAR.md).
+
+En Windows: abre Windows Terminal y elige el perfil «cw».

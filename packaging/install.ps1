@@ -1,0 +1,60 @@
+﻿# Instalador de cw para Windows. cw corre dentro de WSL (Linux), así que este script:
+#   1. comprueba que WSL tenga una distribución instalada (si no, la instala: pide permisos
+#      de administrador y luego hay que reiniciar y volver a correr el instalador);
+#   2. corre install.sh dentro de WSL (instala tmux, cw y, si quieres, Claude Code);
+#   3. agrega a Windows Terminal un perfil «cw» que abre cw directamente.
+#
+# Uso: doble clic en install.cmd, o en PowerShell:  powershell -ExecutionPolicy Bypass -File install.ps1
+param([switch]$Yes, [switch]$NoClaude)
+
+$ErrorActionPreference = 'Stop'
+function Say($m)  { Write-Host "==> $m" -ForegroundColor Cyan }
+function Warn($m) { Write-Host " aviso: $m" -ForegroundColor Yellow }
+function Fail($m) { Write-Host " error: $m" -ForegroundColor Red; Read-Host 'Enter para cerrar' | Out-Null; exit 1 }
+
+if (-not (Get-Command wsl.exe -ErrorAction SilentlyContinue)) {
+    Fail 'Este Windows no tiene WSL. Necesitas Windows 10 2004+ o Windows 11.'
+}
+
+# wsl.exe -l escribe en UTF-16: quitamos los NUL para poder leerlo.
+$distros = @((& wsl.exe -l -q) -replace "`0", '' | Where-Object { $_.Trim() -ne '' })
+if ($distros.Count -eq 0) {
+    Warn 'WSL no tiene ninguna distribución de Linux instalada.'
+    $ok = $Yes -or ((Read-Host '¿Instalar Ubuntu en WSL ahora? Pide permisos de administrador (S/n)') -notmatch '^[nN]')
+    if (-not $ok) { Fail 'cw necesita WSL con una distribución de Linux.' }
+    Start-Process wsl.exe -ArgumentList '--install', '-d', 'Ubuntu' -Verb RunAs -Wait
+    Say 'Ubuntu se está instalando. Reinicia Windows si te lo pide, abre «Ubuntu» una vez para crear tu usuario'
+    Say 'y vuelve a correr este instalador (install.cmd).'
+    Read-Host 'Enter para cerrar' | Out-Null
+    exit 0
+}
+
+$distro = ((& wsl.exe -e printenv WSL_DISTRO_NAME) -replace "`0", '' | Out-String).Trim()
+if (-not $distro) { Fail 'No pude abrir la distribución de WSL por defecto. Ábrela una vez desde el menú Inicio y reintenta.' }
+Say "Instalando dentro de WSL ($distro)"
+
+$here = ((& wsl.exe -e wslpath -a "$PSScriptRoot") -replace "`0", '' | Out-String).Trim()
+$flags = @()
+if ($Yes) { $flags += '--yes' }
+if ($NoClaude) { $flags += '--no-claude' }
+& wsl.exe -d $distro -e sh "$here/install.sh" @flags
+if ($LASTEXITCODE -ne 0) { Fail 'La instalación dentro de WSL no terminó bien (mira los mensajes de arriba).' }
+
+# Perfil de Windows Terminal (un «fragment»: no toca tu settings.json).
+$fragmentDir = Join-Path $env:LOCALAPPDATA 'Microsoft\Windows Terminal\Fragments\cw'
+New-Item -ItemType Directory -Force -Path $fragmentDir | Out-Null
+$wtProfile = @{
+    profiles = @(@{
+        name        = 'cw'
+        commandline = "wsl.exe -d $distro --cd ~ -- bash -lic cw"
+        icon        = "$([char]0x2261)"
+        tabTitle    = 'cw'
+        suppressApplicationTitle = $true
+    })
+}
+$json = $wtProfile | ConvertTo-Json -Depth 5
+[System.IO.File]::WriteAllText((Join-Path $fragmentDir 'cw.json'), $json, (New-Object System.Text.UTF8Encoding $false))
+Say 'Perfil «cw» agregado a Windows Terminal (menú ˅ de pestañas nuevas).'
+
+Say 'Listo. Abre Windows Terminal y elige el perfil «cw», o escribe cw en tu terminal de Ubuntu.'
+Read-Host 'Enter para cerrar' | Out-Null

@@ -90,6 +90,10 @@ func run(args []string) error {
 		return cmdUI(rest)
 	case "_respawn":
 		return cmdRespawn(rest)
+	case "_winmove":
+		return cmdWinMove(rest)
+	case "_tabmove":
+		return cmdTabMove(rest)
 	case "_labels":
 		return withName(rest, func(ws string) error { refreshAllLabels(Tmux{WS: ws}); return nil })
 	case "_home":

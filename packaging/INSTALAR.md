@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.1.1-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.2.0-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.1.1-macos.tar.gz
-   cd cw-0.1.1-macos
+   tar xzf cw-0.2.0-macos.tar.gz
+   cd cw-0.2.0-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.1.1-linux.tar.gz
-cd cw-0.1.1-linux
+tar xzf cw-0.2.0-linux.tar.gz
+cd cw-0.2.0-linux
 sh install.sh
 ```
 
@@ -110,7 +110,12 @@ En Windows se pasan igual: `install.cmd -Yes -NoClaude`.
    | `Alt+e` | todas las sesiones (editar, cerrar) |
    | `Alt+p` | cambiar el alias de Claude de la sesión |
    | `Alt+←/→`, `Alt+↑/↓` | moverse entre sesiones y pestañas |
+   | `Alt+<` / `Alt+>` | mover la pestaña |
+   | `Alt+Shift+←/→` | mover la sesión |
    | `Alt+h` | ayuda |
+
+   Todo también se hace con el ratón: clic en botones y listas, clic derecho sobre una pestaña o
+   una sesión para su menú, y arrastrar pestañas y sesiones en la barra para reordenarlas.
 
 4. Si usas varios perfiles de Claude como alias del shell (`yolo`, `claude-2`…), regístralos en
    *Alt+m → Configuración → 7 → i* (los importa de tu `~/.bashrc`).

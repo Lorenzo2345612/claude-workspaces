@@ -26,6 +26,7 @@ type homeScreen struct {
 	recents           []recentConv
 	sel               int
 	inDialog          bool // the new-session form owns the screen
+	hits              []hit
 }
 
 func cmdHome(args []string) error {
@@ -91,20 +92,28 @@ func (h *homeScreen) openSessionIDs() map[string]bool {
 }
 
 func (h *homeScreen) handle(k key) (bool, error) {
+	action := ""
+	if k.kind == keyClick {
+		action = hitAt(h.hits, k.x, k.y)
+	}
 	switch {
-	case k.kind == keyRune && (k.r == 'c' || k.r == 'C'):
+	case action == "claude" || (k.kind == keyRune && (k.r == 'c' || k.r == 'C')):
 		return h.dialog(nil)
-	case k.kind == keyRune && (k.r == 't' || k.r == 'T'):
+	case action == "shell" || (k.kind == keyRune && (k.r == 't' || k.r == 'T')):
 		setRaw(false)
 		return true, addSlot(h.ws, h.session, kindShell, "shell")
+	case strings.HasPrefix(action, "conv:"):
+		i, _ := strconv.Atoi(action[5:])
+		h.sel = i
+		return h.dialog(&h.recents[i])
 	case k.kind == keyRune && k.r >= '1' && k.r <= '9':
 		if i := int(k.r - '1'); i < len(h.recents) {
 			h.sel = i
 			return h.dialog(&h.recents[i])
 		}
-	case k.kind == keyUp && len(h.recents) > 0:
+	case (k.kind == keyUp || k.kind == keyWheelUp) && len(h.recents) > 0:
 		h.sel = (h.sel - 1 + len(h.recents)) % len(h.recents)
-	case k.kind == keyDown && len(h.recents) > 0:
+	case (k.kind == keyDown || k.kind == keyWheelDown) && len(h.recents) > 0:
 		h.sel = (h.sel + 1) % len(h.recents)
 	case k.kind == keyEnter && len(h.recents) > 0:
 		return h.dialog(&h.recents[h.sel])
@@ -140,53 +149,47 @@ func (h *homeScreen) draw() {
 	h.dir, _ = h.t.Run("show", "-t", h.session, "-qv", "@cw_dir")
 	const blockW = 64
 	left := max((w-blockW)/2, 1) + 1
-	var lines []string
-	add := func(s string) { lines = append(lines, s) }
+	var lines []lineItem
+	add := func(li lineItem) { lines = append(lines, li) }
 
 	head := sgrAccent + sgrBold + h.title + sgrReset + "   " + sgrMuted + shortPath(h.dir) + sgrReset
-	add(strings.Repeat(" ", max((blockW-visibleLen(head))/2, 0)) + head)
-	add("")
-	card := func(on bool) (string, string) {
-		if on {
-			return sgrAccent, sgrReset
-		}
-		return sgrDim, sgrReset
+	add(plainLine(strings.Repeat(" ", max((blockW-visibleLen(head))/2, 0)) + head))
+	add(plainLine(""))
+	ca, ta := sgrAccent, sgrDim
+	cards := []string{
+		"   " + ca + "╭──────────────────────────╮" + sgrReset + "   " + ta + "╭──────────────────────────╮" + sgrReset,
+		"   " + ca + "│" + sgrReset + "  " + sgrAccent + sgrBold + "✦  Claude" + sgrReset + "               " + ca + "│" + sgrReset +
+			"   " + ta + "│" + sgrReset + "  " + sgrBold + "❯  Terminal" + sgrReset + "             " + ta + "│" + sgrReset,
+		"   " + ca + "│" + sgrReset + "  " + sgrMuted + fit("sesión nueva", 24) + sgrReset + ca + "│" + sgrReset +
+			"   " + ta + "│" + sgrReset + "  " + sgrMuted + fit("shell normal", 24) + sgrReset + ta + "│" + sgrReset,
+		"   " + ca + "╰──────────────────────────╯" + sgrReset + "   " + ta + "╰──────────────────────────╯" + sgrReset,
 	}
-	ca, cr := card(true)
-	ta, tr := card(false)
-	add("   " + ca + "╭──────────────────────────╮" + cr + "   " + ta + "╭──────────────────────────╮" + tr)
-	add("   " + ca + "│" + cr + "  " + sgrAccent + sgrBold + "✦  Claude" + sgrReset + "          " + sgrMuted + "(c)" + sgrReset + "  " + ca + "│" + cr +
-		"   " + ta + "│" + tr + "  " + sgrBold + "❯  Terminal" + sgrReset + "        " + sgrMuted + "(t)" + sgrReset + "  " + ta + "│" + tr)
-	add("   " + ca + "│" + cr + "  " + sgrMuted + fit("sesión nueva", 24) + sgrReset + ca + "│" + cr +
-		"   " + ta + "│" + tr + "  " + sgrMuted + fit("shell normal", 24) + sgrReset + ta + "│" + tr)
-	add("   " + ca + "╰──────────────────────────╯" + cr + "   " + ta + "╰──────────────────────────╯" + tr)
-	add("")
+	for _, c := range cards { // each card is its own click target
+		add(lineItem{text: c, zones: []hit{{col: 3, width: 28, id: "claude"}, {col: 34, width: 28, id: "shell"}}})
+	}
+	add(plainLine(""))
 	if len(h.recents) > 0 {
-		add("   " + sgrMuted + "RETOMAR UNA CONVERSACIÓN" + sgrReset + "   " + sgrDim + "↑↓ y Enter, o su número" + sgrReset)
+		add(plainLine("   " + sgrMuted + "RETOMAR UNA CONVERSACIÓN" + sgrReset + "   " + sgrDim + "clic para retomarla" + sgrReset))
 		for i, r := range h.recents {
 			name := r.Title
 			if name == "" {
 				name = "(sin nombre)"
 			}
-			row := fmt.Sprintf(" %d  %s %s %s «%s» ", i+1, fit(name, 14), fit(r.Alias, 10), fit(whenES(r.Modified), 10), fit(r.First, 20))
+			row := fmt.Sprintf(" %s %s %s «%s» ", fit(name, 16), fit(r.Alias, 10), fit(whenES(r.Modified), 10), fit(r.First, 20))
+			style := sgrMuted
 			if i == h.sel {
-				add("  " + sgrSel + row + sgrReset)
-			} else {
-				add("  " + sgrMuted + row + sgrReset)
+				style = sgrSel
 			}
+			add(lineItem{text: "  " + style + row + sgrReset, zones: []hit{{col: 2, width: visibleLen(row), id: "conv:" + strconv.Itoa(i)}}})
 		}
 	} else {
-		add("   " + sgrDim + "No hay conversaciones anteriores de Claude en este directorio." + sgrReset)
+		add(plainLine("   " + sgrDim + "No hay conversaciones anteriores de Claude en este directorio." + sgrReset))
 	}
-	add("")
-	add("")
 
 	var s screen
-	top := max((ht-len(lines))/2, 0) + 1
-	for i, l := range lines {
-		s.at(top+i, left, l)
-	}
+	s.place(max((ht-len(lines))/2, 0)+1, left, lines)
 	s.b.WriteString("\033[?25l")
+	h.hits = s.hits
 	s.flush(true)
 }
 

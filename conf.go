@@ -40,9 +40,9 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	editCurrentPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Editar sesión " "%s _ui editcurrent %s"`, bq, ws)
 	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}'"`, bq, ws)
 	renameTab := fmt.Sprintf(`command-prompt -I "#{@cw_title}" -p "Nombre de la pestaña:" { run-shell "%s _title %s '#{session_name}' '%%%%'" }`, bq, ws)
-	configPopup := fmt.Sprintf(`display-popup -E -w 90 -h 30 -T " Configuración " "%s _ui config %s"`, bq, ws)
+	configPopup := fmt.Sprintf(`display-popup -E -w 90 -h 17 -T " Configuración " "%s _ui config %s"`, bq, ws)
 	switchAliasPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Cambiar alias de claude " "%s _ui editcurrent %s"`, bq, ws)
-	helpPopup := fmt.Sprintf(`display-popup -E -w 70 -h 21 -T " Ayuda " "%s _ui help %s"`, bq, ws)
+	helpPopup := fmt.Sprintf(`display-popup -E -w 72 -h 26 -T " Ayuda " "%s _ui help %s"`, bq, ws)
 	save := fmt.Sprintf(`run-shell "%s save %s" ; display-message "Estado guardado"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
@@ -80,8 +80,8 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	brand := " ≡ " + ws + "  "
 	tabsRow := fmt.Sprintf(`#[range=user|menu]#[fg=%s bold]%s#[norange default]`+
 		`#{S:#[range=session|#{session_id}]%s  #{@cw_tab_label}  #[norange default]}`+
-		`#[range=user|newtab]#[fg=%s bold] + #[norange default]`+
-		`#[align=right]#[range=user|help]#[fg=%s] ? ayuda #[norange default]`,
+		`#[range=user|newtab]#[bg=colour237 fg=%s bold] + #[norange default]`+
+		`#[align=right]#[range=user|help]#[bg=colour237 fg=%s] ? Ayuda #[norange default] `,
 		colAccent, brand, isCurrent(`#[fg=`+colAccent+` bold]`, `#[fg=`+colMuted+`]`), colButton, colMuted)
 	underlineRow := strings.Repeat(" ", len([]rune(brand))) +
 		fmt.Sprintf(`#{S:#[range=session|#{session_id}]  %s  #[norange default]}`,
@@ -95,8 +95,8 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#[range=window|#{window_index}]#[%s] #{window_name}%s#[%s]%s #[default]#[norange] }`,
 			style, indicator, style, alias)
 	}
-	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[fg=%s bold] + Claude #[norange default]  `+
-		`#[range=user|newshell]#[fg=%s bold] + Terminal #[norange default]`+
+	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[bg=colour237 fg=%s bold] + Claude #[norange default]  `+
+		`#[range=user|newshell]#[bg=colour237 fg=%s bold] + Terminal #[norange default]`+
 		`#[align=right]#[fg=%s]#{@cw_dir} `,
 		pill(`bg=`+colPill+` fg=`+colText), pill(`bg=`+colPillOn+` fg=colour255 bold`), colButton, colButton, colMuted)
 	// An empty line keeps the bar from sticking to the terminal output; it also hosts the
@@ -161,6 +161,20 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s" }`, bq, ws)
 	// Enter on a session that exited with an error reopens it; anywhere else it is a plain Enter.
 	w(`bind -n Enter { if -F "#{pane_dead}" { run-shell "%s _respawn %s '#{pane_id}'" } { send-keys Enter } }`, bq, ws)
+	// Reordering: Alt+Shift+←/→ moves the current session, Alt+< / Alt+> the current tab.
+	w(`bind -n M-S-Left swap-window -d -t -1`)
+	w(`bind -n M-S-Right swap-window -d -t +1`)
+	w(`bind -n M-< run-shell "%s _tabmove %s '#{client_session}' -1"`, bq, ws)
+	w(`bind -n M-> run-shell "%s _tabmove %s '#{client_session}' +1"`, bq, ws)
+	// Dragging in the bar: a session pill swaps with the one under the mouse; a tab moves to the
+	// position of the tab under the mouse.
+	w(`bind -n MouseDrag1Status { if -F "#{==:#{mouse_status_range},window}" { run-shell -t = "%[1]s _winmove %[2]s '#{client_session}' '#{window_id}'" } { if -F "#{==:#{mouse_status_range},session}" { run-shell -t = "%[1]s _tabmove %[2]s '#{client_session}' '#{session_name}'" } } }`, bq, ws)
+	// Right click: a context menu for the tab or the session under the mouse.
+	tabMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✕ Cerrar pestaña" "" { %[4]s }`,
+		bq, ws, renameTab, confirmCloseTab)
+	slotCtx := fmt.Sprintf(`display-menu -T "#[align=centre] #W " -x M -y S "← Mover a la izquierda" "" { swap-window -d -t -1 } "→ Mover a la derecha" "" { swap-window -d -t +1 } "" "▸ Editar sesión" "" { %s } "✦ Cambiar alias de claude" "" { %s } "✕ Cerrar sesión" "" { %s }`,
+		editCurrentPopup, switchAliasPopup, confirmClose)
+	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = ; %s } { if -F "#{==:#{mouse_status_range},window}" { select-window -t = ; %s } } }`, tabMenu, slotCtx)
 	w(`bind -n M-Left previous-window`)
 	w(`bind -n M-Right next-window`)
 	w(`bind -n M-Up switch-client -p`)
@@ -175,7 +189,8 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		{"menu", mainMenu}, {"newtab", newTabPopup}, {"newclaude", newClaudePopup}, {"newshell", newShell},
 		{"help", helpPopup},
 	}
-	click := `switch-client -t =`
+	// A click on a session pill selects that window; a click on a tab switches to that tab.
+	click := `if -F "#{==:#{mouse_status_range},window}" { select-window -t = } { switch-client -t = }`
 	for i := len(clicks) - 1; i >= 0; i-- {
 		click = fmt.Sprintf(`if -F "#{==:#{mouse_status_range},%s}" { %s } { %s }`, clicks[i].rng, clicks[i].cmd, click)
 	}

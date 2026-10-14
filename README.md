@@ -20,7 +20,10 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   alias such as `yolo`, run through your shell). Pick one per session; switching it restarts the
   session in the same conversation, optionally sending the continue message.
 - An empty tab offers to **resume recent conversations** of its directory.
-- Menus, dialogs and confirmations are floating popups; everything is clickable.
+- Menus, dialogs and confirmations are floating popups, and everything is clickable: buttons,
+  fields, lists, cards. Right-click a tab or a session for its menu.
+- **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
+  `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 
 ## Install
 

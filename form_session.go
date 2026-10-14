@@ -34,6 +34,7 @@ type sessionForm struct {
 	// session's current one (editing only).
 	onAliasChange func(name string) string
 	sendContinue  bool // checkbox shown when the alias changes: send the continue message on restart
+	hits          []hit
 	errMsg        string
 }
 
@@ -93,10 +94,12 @@ func (f *sessionForm) draw() {
 	}
 	s.at(1, 4, sgrMuted+f.heading+sgrReset)
 	field(3, "Nombre", f.alias, f.focus == 0)
+	s.zone(3, 4, fieldWidth+13, "f0")
 	row := 4
 	if f.focus == 0 {
 		for i, m := range f.matches {
 			line := " " + fit(m.Alias, 22) + fit(m.Tab, 12) + fit(whenES(m.At), 11) + " "
+			s.zone(row, 17, fieldWidth, "match:"+itoa(i))
 			if i == f.sel {
 				s.at(row, 17, sgrSel+line+sgrReset)
 			} else {
@@ -120,12 +123,16 @@ func (f *sessionForm) draw() {
 		s.at(row, 4, "Claude")
 		s.at(row, 17, style+" ‹ "+fit(a.Name, fieldWidth-14)+" › "+sgrReset+sgrDim+
 			"  "+itoa(f.aliasIdx+1)+"/"+itoa(len(f.claudeAliases))+sgrReset)
+		s.zone(row, 17, 3, "aprev")
+		s.zone(row, 20, fieldWidth-14, "anext")
+		s.zone(row, 20+fieldWidth-14, 3, "anext")
 		s.at(row+1, 17, sgrDim+" "+fit(a.summary(), fieldWidth-1)+sgrReset)
 		row += 3
 		argsRow = row
 	}
 	if !f.isShell {
 		field(row, "Argumentos", f.args, f.focus == 1)
+		s.zone(row, 4, fieldWidth+13, "f1")
 		row++
 		if len(f.globalArgs) > 0 {
 			s.at(row, 17, sgrDim+" globales: "+fit(joinArgs(f.globalArgs), fieldWidth-12)+sgrReset)
@@ -154,39 +161,20 @@ func (f *sessionForm) draw() {
 		if f.focus == 6 {
 			style = sgrSel
 		}
-		s.at(row-1, 4, style+" "+box+" "+fit(note, fieldWidth+8)+" "+sgrReset)
+		s.btn(row-1, 4, style+" "+box+" "+fit(note, fieldWidth+8)+" "+sgrReset, "check")
 	} else if f.editing && !f.isShell && !f.canRestart && f.restartMsg != "" {
 		s.at(row-1, 4, sgrDim+f.restartMsg+sgrReset)
-	}
-	hint := "↑↓ nombres usados · Tab siguiente · Esc"
-	if f.focus == 6 {
-		hint = "Espacio marcar o desmarcar · Tab siguiente"
-	} else if f.focus == 4 {
-		hint = "←→ elegir alias de claude · Tab siguiente"
-	} else if f.focus != 0 {
-		hint = "Tab siguiente · Enter aceptar · Esc"
-	}
-	if f.editing && f.canRestart {
-		hint = "Tab · Enter · Esc"
-	}
-	s.at(row, 3, sgrMuted+hint+sgrReset)
-	btn := func(col int, label string, on bool) {
-		style := sgrField
-		if on {
-			style = sgrSel
-		}
-		s.at(row, col, style+" "+label+" "+sgrReset)
 	}
 	primary := "Crear"
 	if f.editing {
 		primary = "Guardar"
 	}
+	btns := []btnDef{{label: "Cancelar", id: "cancel"}, {label: primary, id: "save", primary: true, focused: f.focus == 2}}
 	if f.editing && f.canRestart {
-		btn(17+fieldWidth-30, primary, f.focus == 2)
-		btn(17+fieldWidth-20, "Guardar y reiniciar", f.focus == 3)
-	} else {
-		btn(17+fieldWidth-len(primary)-2, primary, f.focus == 2)
+		btns = append(btns, btnDef{label: "Guardar y reiniciar", id: "restart", focused: f.focus == 3})
 	}
+	s.place(row, 4, []lineItem{buttonLine(0, btns...)})
+	f.hits = s.hits
 	switch f.focus {
 	case 0:
 		s.at(3, 18+min(len(f.alias), fieldWidth-2), "\033[?25h")
@@ -211,6 +199,39 @@ func (f *sessionForm) run() int {
 		}
 		for _, k := range keys {
 			f.errMsg = ""
+			if k.kind == keyClick {
+				switch id := hitAt(f.hits, k.x, k.y); {
+				case id == "cancel":
+					return actCancel
+				case id == "save" || id == "restart":
+					if cleanLabel(string(f.alias)) == "" {
+						f.errMsg, f.focus = "Falta el nombre.", 0
+						continue
+					}
+					if id == "restart" {
+						return actSaveRestart
+					}
+					return actSave
+				case id == "f0":
+					f.focus = 0
+				case id == "f1":
+					f.focus = 1
+				case id == "check":
+					f.focus, f.sendContinue = 6, !f.sendContinue
+				case strings.HasPrefix(id, "match:"):
+					i := int(id[6] - '0')
+					f.alias = []rune(f.matches[i].Alias)
+					f.sel = i
+				case id == "aprev" || id == "anext":
+					d := 1
+					if id == "aprev" {
+						d = -1
+					}
+					f.focus = 4
+					f.aliasIdx = (f.aliasIdx + d + len(f.claudeAliases)) % len(f.claudeAliases)
+				}
+				continue
+			}
 			var text *[]rune
 			switch f.focus {
 			case 0:

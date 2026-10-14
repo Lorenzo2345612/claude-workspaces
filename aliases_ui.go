@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -12,6 +13,7 @@ type textForm struct {
 	hints   []string
 	focus   int
 	errMsg  string
+	hits    []hit
 	check   func(values []string) string // returns an error message, "" when valid
 }
 
@@ -38,7 +40,11 @@ func (f *textForm) draw() {
 	if f.errMsg != "" {
 		s.at(bottom, 4, sgrRed+f.errMsg+sgrReset)
 	}
-	s.at(bottom+1, 3, sgrMuted+"Tab siguiente · Enter guardar · Esc cancelar"+sgrReset)
+	for i := range f.labels {
+		s.zone(3+i*3, 4, fieldWidth+13, "f:"+itoa(i))
+	}
+	s.place(bottom+1, 4, []lineItem{buttonLine(0, btnDef{label: "Cancelar", id: "cancel"}, btnDef{label: "Guardar", id: "save", primary: true})})
+	f.hits = s.hits
 	s.at(3+f.focus*3, 18+min(len(f.values[f.focus]), fieldWidth-2), "\033[?25h")
 	s.flush(true)
 }
@@ -55,6 +61,19 @@ func (f *textForm) run() bool {
 		for _, k := range keys {
 			f.errMsg = ""
 			v := &f.values[f.focus]
+			if k.kind == keyClick {
+				switch id := hitAt(f.hits, k.x, k.y); {
+				case id == "cancel":
+					return false
+				case id == "save":
+					k = key{kind: keyEnter}
+				case strings.HasPrefix(id, "f:"):
+					f.focus = int(id[2] - '0')
+					continue
+				default:
+					continue
+				}
+			}
 			switch k.kind {
 			case keyEsc:
 				return false
@@ -114,23 +133,31 @@ func uiClaudeAliases() error {
 			if a.Name == cfg.defaultAlias() {
 				star = "★ "
 			}
-			line := " " + star + fit(a.Name, 20) + " " + fit(a.summary(), 48) + " "
+			line := " " + star + fit(a.Name, 20) + " " + fit(a.summary(), 56) + " "
 			if i == sel {
-				s.at(3+i-offset, 3, sgrSel+line+sgrReset)
-			} else {
-				s.at(3+i-offset, 3, line)
+				line = sgrSel + line + sgrReset
 			}
+			s.btn(3+i-offset, 3, line, "row:"+itoa(i))
 		}
 		foot := 4 + min(len(list), visible)
 		switch {
 		case confirmDelete:
-			s.at(foot, 4, sgrRed+"¿Borrar el alias "+list[sel].Name+"? (s/n)"+sgrReset)
-		case msg != "":
-			s.at(foot, 4, sgrMuted+msg+sgrReset)
+			s.at(foot, 4, sgrRed+"¿Borrar el alias "+list[sel].Name+"?"+sgrReset)
+			s.place(foot+1, 4, []lineItem{buttonLine(0, btnDef{label: "Borrar", id: "yes", style: sgrDanger}, btnDef{label: "Cancelar", id: "no"})})
+		default:
+			if msg != "" {
+				s.at(foot, 4, sgrMuted+msg+sgrReset)
+			}
+			s.place(foot+1, 4, []lineItem{buttonLine(0,
+				btnDef{label: "+ Agregar", id: "add", primary: true},
+				btnDef{label: "Editar", id: "edit"},
+				btnDef{label: "Borrar", id: "del"},
+				btnDef{label: "★ Por defecto", id: "default"},
+				btnDef{label: "Importar del shell", id: "import"},
+				btnDef{label: "Volver", id: "back"})})
 		}
-		s.at(foot+1, 4, sgrMuted+"a agregar · Enter editar · x borrar · d por defecto"+sgrReset)
-		s.at(foot+2, 4, sgrMuted+"i importar de ~/.bashrc · Esc volver"+sgrReset)
 		s.b.WriteString("\033[?25l")
+		hits := s.hits
 		s.flush(true)
 
 		setRaw(true)
@@ -141,6 +168,22 @@ func uiClaudeAliases() error {
 		}
 		msg = ""
 		for _, k := range keys {
+			// clicks become the equivalent key presses
+			if k.kind == keyClick {
+				id := hitAt(hits, k.x, k.y)
+				switch {
+				case strings.HasPrefix(id, "row:"):
+					sel, _ = strconv.Atoi(id[4:])
+					continue
+				case id == "":
+					continue
+				}
+				k = key{kind: keyRune, r: map[string]rune{"yes": 's', "no": 'n', "add": 'a', "del": 'x',
+					"default": 'd', "import": 'i', "back": 'q'}[id]}
+				if id == "edit" {
+					k = key{kind: keyEnter}
+				}
+			}
 			if confirmDelete {
 				confirmDelete = false
 				if k.kind == keyRune && (k.r == 's' || k.r == 'y') {

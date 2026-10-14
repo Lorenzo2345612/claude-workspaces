@@ -21,6 +21,7 @@ type newTabForm struct {
 	errMsg           string
 	claudeAliases    []ClaudeAlias
 	aliasIdx         int
+	hits             []hit
 }
 
 const fieldWidth = 46
@@ -83,6 +84,8 @@ func (f *newTabForm) draw() {
 	}
 	field(2, "Nombre", f.name, f.focus == 0)
 	field(3, "Directorio", f.dir, f.focus == 1)
+	s.zone(2, 4, fieldWidth+13, "f0")
+	s.zone(3, 4, fieldWidth+13, "f1")
 	row := 4
 	if f.focus == 1 {
 		for i, sg := range f.suggestions {
@@ -91,6 +94,7 @@ func (f *newTabForm) draw() {
 				tag = "reciente"
 			}
 			line := " " + fit(shortPath(sg.path), fieldWidth-11) + fit(tag, 9) + " "
+			s.zone(row, 17, fieldWidth, "sug:"+itoa(i))
 			if i == f.sel {
 				s.at(row, 17, sgrSel+line+sgrReset)
 			} else {
@@ -110,7 +114,7 @@ func (f *newTabForm) draw() {
 				style = "\033[48;5;24m\033[38;5;255m"
 			}
 		}
-		s.at(row, col, style+opt+sgrReset)
+		s.btn(row, col, style+opt+sgrReset, "start:"+itoa(i))
 		col += len([]rune(opt)) + 2
 	}
 	row++
@@ -122,11 +126,15 @@ func (f *newTabForm) draw() {
 		a := f.claudeAliases[f.aliasIdx]
 		s.at(row, 4, "Claude")
 		s.at(row, 17, style+" ‹ "+fit(a.Name, 20)+" › "+sgrReset+sgrDim+" "+fit(a.summary(), fieldWidth-26)+sgrReset)
+		s.zone(row, 17, 3, "aprev")
+		s.zone(row, 20, 20, "anext")
+		s.zone(row, 40, 3, "anext")
 		row++
 	}
 	aliasRow := row
 	if f.start == startClaude {
 		field(row, "Nombre", f.alias, f.focus == 3)
+		s.zone(row, 4, fieldWidth+13, "f3")
 		if len(f.alias) == 0 && f.focus != 3 {
 			s.at(row, 18, sgrField+sgrDim+string(f.name)+sgrReset)
 		}
@@ -137,20 +145,12 @@ func (f *newTabForm) draw() {
 		s.at(row, 4, sgrRed+f.errMsg+sgrReset)
 	}
 	row++
-	hint := "Tab siguiente · ↑↓ elegir · Esc cancelar"
 	if f.focus == 1 {
-		hint = "Tab completar · ↑↓ elegir · Enter aceptar · Esc"
-	} else if f.focus == 2 {
-		hint = "←→ o c / t / v elegir · Tab siguiente · Esc"
-	} else if f.focus == 5 {
-		hint = "←→ elegir alias de claude · Tab siguiente"
+		s.at(row-1, 17, sgrDim+" Tab completa la ruta"+sgrReset)
 	}
-	s.at(row, 3, sgrMuted+hint+sgrReset)
-	create := sgrField + " Crear " + sgrReset
-	if f.focus == 4 {
-		create = sgrSel + " Crear " + sgrReset
-	}
-	s.at(row, 17+fieldWidth-7, create)
+	s.btn(row, 17+fieldWidth-19, button("Cancelar", false, false), "cancel")
+	s.btn(row, 17+fieldWidth-7, button("Crear", true, f.focus == 4), "create")
+	f.hits = s.hits
 
 	// put the cursor at the end of the focused text field
 	switch f.focus {
@@ -178,6 +178,35 @@ func (f *newTabForm) run() bool {
 		}
 		for _, k := range keys {
 			f.errMsg = ""
+			if k.kind == keyClick {
+				switch id := hitAt(f.hits, k.x, k.y); {
+				case id == "cancel":
+					return false
+				case id == "create":
+					if f.validate() {
+						return true
+					}
+				case id == "f0" || id == "f1" || id == "f3":
+					f.focus = int(id[1] - '0')
+					if f.focus == 1 {
+						f.refresh()
+					}
+				case strings.HasPrefix(id, "sug:"):
+					i := int(id[4] - '0')
+					f.dir = []rune(shortPath(f.suggestions[i].path))
+					f.move(1)
+				case strings.HasPrefix(id, "start:"):
+					f.start, f.focus = int(id[6]-'0'), 2
+				case id == "aprev" || id == "anext":
+					d := 1
+					if id == "aprev" {
+						d = -1
+					}
+					f.focus = 5
+					f.aliasIdx = (f.aliasIdx + d + len(f.claudeAliases)) % len(f.claudeAliases)
+				}
+				continue
+			}
 			switch {
 			case k.kind == keyEsc:
 				return false

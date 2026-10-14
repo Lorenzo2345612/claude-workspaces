@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -49,7 +50,7 @@ func uiSessions(ws string) error {
 			return nil
 		}
 		sel = min(sel, len(rows)-1)
-		drawSessionList(rows, sel, confirm)
+		hits := drawSessionList(rows, sel, confirm)
 		setRaw(true)
 		keys, err := readKeys()
 		setRaw(false)
@@ -57,8 +58,16 @@ func uiSessions(ws string) error {
 			return nil
 		}
 		for _, k := range keys {
+			action := ""
+			if k.kind == keyClick {
+				action = hitAt(hits, k.x, k.y)
+				if strings.HasPrefix(action, "row:") {
+					sel, _ = strconv.Atoi(action[4:])
+					continue
+				}
+			}
 			if confirm != "" {
-				if k.kind == keyRune && (k.r == 's' || k.r == 'y') {
+				if action == "yes" || (k.kind == keyRune && (k.r == 's' || k.r == 'y')) {
 					var err error
 					if confirm == "x" {
 						err = closeWindow(ws, rows[sel].windowID)
@@ -69,22 +78,26 @@ func uiSessions(ws string) error {
 						pause("Error: " + err.Error())
 					}
 				}
-				confirm = ""
+				if action != "" || k.kind != keyClick {
+					confirm = ""
+				}
 				break
 			}
 			switch {
-			case k.kind == keyRune && (k.r == 'x' || k.r == 'w'):
-				confirm = string(k.r)
-			case k.kind == keyEsc || (k.kind == keyRune && k.r == 'q'):
+			case action == "closes" || (k.kind == keyRune && k.r == 'x'):
+				confirm = "x"
+			case action == "closet" || (k.kind == keyRune && k.r == 'w'):
+				confirm = "w"
+			case action == "quit" || k.kind == keyEsc || (k.kind == keyRune && k.r == 'q'):
 				return nil
-			case k.kind == keyUp:
+			case k.kind == keyUp || k.kind == keyWheelUp:
 				sel = (sel - 1 + len(rows)) % len(rows)
-			case k.kind == keyDown:
+			case k.kind == keyDown || k.kind == keyWheelDown:
 				sel = (sel + 1) % len(rows)
-			case k.kind == keyRune && k.r == 'i':
+			case action == "go" || (k.kind == keyRune && k.r == 'i'):
 				_, _ = t.Run("switch-client", "-c", client, "-t", rows[sel].session, ";", "select-window", "-t", rows[sel].windowID)
 				return nil
-			case k.kind == keyEnter:
+			case action == "edit" || k.kind == keyEnter:
 				if err := editSession(ws, rows[sel]); err != nil {
 					pause("Error: " + err.Error())
 				}
@@ -93,9 +106,9 @@ func uiSessions(ws string) error {
 	}
 }
 
-func drawSessionList(rows []sessionRow, sel int, confirm string) {
+func drawSessionList(rows []sessionRow, sel int, confirm string) []hit {
 	var s screen
-	s.at(1, 4, sgrMuted+fit("PESTAÑA", 16)+fit("NOMBRE", 24)+fit("CLAUDE", 17)+"ESTADO"+sgrReset)
+	s.at(2, 4, sgrMuted+fit("PESTAÑA", 16)+fit("NOMBRE", 24)+fit("CLAUDE", 17)+"ESTADO"+sgrReset)
 	for i, r := range rows {
 		kind, state := "❯ terminal", ""
 		if r.slot.Kind == kindClaude {
@@ -111,22 +124,32 @@ func drawSessionList(rows []sessionRow, sel int, confirm string) {
 		}
 		line := " " + fit(r.tab, 15) + " " + fit(r.slot.Alias, 23) + " " + fit(kind, 16) + " " + fit(state, 15) + " "
 		if i == sel {
-			s.at(2+i, 3, sgrSel+line+sgrReset)
+			s.btn(3+i, 3, sgrSel+line+sgrReset, "row:"+strconv.Itoa(i))
 		} else {
-			s.at(2+i, 3, line)
+			s.btn(3+i, 3, line, "row:"+strconv.Itoa(i))
 		}
 	}
+	foot := 4 + len(rows)
 	switch confirm {
 	case "x":
-		s.at(3+len(rows), 4, sgrRed+"¿Cerrar la sesión "+rows[sel].slot.Alias+"? (s/n)"+sgrReset)
+		s.at(foot, 4, sgrRed+"¿Cerrar la sesión "+rows[sel].slot.Alias+"?"+sgrReset)
+		s.place(foot+1, 4, []lineItem{buttonLine(0, btnDef{label: "Cerrar sesión", id: "yes", style: sgrDanger}, btnDef{label: "Cancelar", id: "no"})})
 	case "w":
-		s.at(3+len(rows), 4, sgrRed+"¿Cerrar la pestaña "+rows[sel].tab+" con todas sus sesiones? (s/n)"+sgrReset)
+		s.at(foot, 4, sgrRed+"¿Cerrar la pestaña "+rows[sel].tab+" con todas sus sesiones?"+sgrReset)
+		s.place(foot+1, 4, []lineItem{buttonLine(0, btnDef{label: "Cerrar pestaña", id: "yes", style: sgrDanger}, btnDef{label: "Cancelar", id: "no"})})
 	default:
-		s.at(3+len(rows), 4, sgrMuted+"↑↓ elegir · Enter editar (nombre, alias de claude, argumentos) · i ir"+sgrReset)
-		s.at(4+len(rows), 4, sgrDim+"x cerrar sesión · w cerrar pestaña · Esc salir"+sgrReset)
+		s.at(foot, 4, sgrDim+"Selecciona una sesión y elige qué hacer:"+sgrReset)
+		s.place(foot+1, 4, []lineItem{buttonLine(0,
+			btnDef{label: "Editar", id: "edit", primary: true},
+			btnDef{label: "Ir a la sesión", id: "go"},
+			btnDef{label: "Cerrar sesión", id: "closes"},
+			btnDef{label: "Cerrar pestaña", id: "closet"},
+			btnDef{label: "Salir", id: "quit"})})
 	}
 	s.b.WriteString("\033[?25l")
+	hits := s.hits
 	s.flush(true)
+	return hits
 }
 
 // editSession changes a session's alias and its own claude arguments. The alias renames the

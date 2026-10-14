@@ -259,78 +259,122 @@ func newClaudeDialog(ws, session string, resume *recentConv) error {
 var errCancelled = errors.New("cancelado")
 
 func uiConfig(ws string) error {
+	sel := 0
 	for {
 		cfg, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		lazy := "no (todas arrancan al iniciar)"
-		if cfg.LazyStart {
-			lazy = "sí (las ociosas esperan a que pulses Enter)"
+		onOff := func(b bool, on, off string) string {
+			if b {
+				return on
+			}
+			return off
 		}
-		fmt.Print("\033[H\033[2J")
-		fmt.Printf("  1) Mensaje de continuación: %q\n", cfg.ContinueMessage)
-		fmt.Printf("  2) Arranque diferido: %s\n", lazy)
-		fmt.Printf("  3) Argumentos extra para claude: %s\n", strings.Join(cfg.ClaudeArgs, " "))
-		fmt.Printf("  4) Autoguardado cada: %d s\n", cfg.AutosaveSeconds)
-		fmt.Printf("  5) Ventana al iniciar: %s (maximized, fullscreen o current)\n", cfg.Window)
-		bar := "arriba"
-		if cfg.BarPosition == barBottom {
-			bar = "abajo"
+		windowName := map[string]string{windowCurrent: "en la terminal actual", windowMaximized: "ventana maximizada",
+			windowFullscreen: "pantalla completa"}[cfg.Window]
+		items := []struct{ id, label, value string }{
+			{"msg", "Mensaje de continuación", "«" + shorten(cfg.ContinueMessage, 30) + "»"},
+			{"lazy", "Arranque diferido", onOff(cfg.LazyStart, "sí: las ociosas esperan", "no: todas arrancan")},
+			{"args", "Argumentos para todo claude", onOff(len(cfg.ClaudeArgs) > 0, shorten(joinArgs(cfg.ClaudeArgs), 30), "ninguno")},
+			{"autosave", "Autoguardado cada", itoa(cfg.AutosaveSeconds) + " s"},
+			{"window", "Al iniciar, abrir", windowName},
+			{"bar", "Barra de pestañas", onOff(cfg.BarPosition == barBottom, "abajo", "arriba")},
+			{"aliases", "Alias de claude", itoa(len(cfg.claudeAliases())) + " · por defecto " + cfg.defaultAlias()},
 		}
-		fmt.Printf("  6) Barra de pestañas: %s\n", bar)
-		fmt.Printf("  7) Alias de claude: %d registrados, por defecto %s\n", len(cfg.claudeAliases()), cfg.defaultAlias())
-		fmt.Printf("\n  Archivo: %s\n\n", shortPath(configFile()))
-		switch prompt("Opción (Enter para salir): ", "") {
-		case "1":
-			cfg.ContinueMessage = prompt("Nuevo mensaje: ", cfg.ContinueMessage)
-		case "2":
+		sel = min(sel, len(items)-1)
+		var sc screen
+		sc.at(2, 4, sgrMuted+"CONFIGURACIÓN"+sgrReset+sgrDim+"   clic en una opción para cambiarla"+sgrReset)
+		for i, it := range items {
+			line := " " + fit(it.label, 30) + " " + fit(it.value, 38) + " "
+			if i == sel {
+				line = sgrSel + line + sgrReset
+			}
+			sc.btn(4+i, 3, line, "item:"+itoa(i))
+		}
+		sc.at(5+len(items), 4, sgrDim+"Archivo: "+shortPath(configFile())+sgrReset)
+		sc.place(7+len(items), 4, []lineItem{buttonLine(0, btnDef{label: "Cerrar", id: "quit", primary: true})})
+		sc.b.WriteString("\033[?25l")
+		hits := sc.hits
+		sc.flush(true)
+
+		setRaw(true)
+		keys, err := readKeys()
+		setRaw(false)
+		if err != nil {
+			return nil
+		}
+		chosen := ""
+		for _, k := range keys {
+			switch {
+			case k.kind == keyClick:
+				switch id := hitAt(hits, k.x, k.y); {
+				case id == "quit":
+					return nil
+				case strings.HasPrefix(id, "item:"):
+					sel, _ = strconv.Atoi(id[5:])
+					chosen = items[sel].id
+				}
+			case k.kind == keyEsc || (k.kind == keyRune && k.r == 'q'):
+				return nil
+			case k.kind == keyUp || k.kind == keyWheelUp:
+				sel = (sel - 1 + len(items)) % len(items)
+			case k.kind == keyDown || k.kind == keyWheelDown || k.kind == keyTab:
+				sel = (sel + 1) % len(items)
+			case k.kind == keyEnter:
+				chosen = items[sel].id
+			}
+		}
+		if chosen == "" {
+			continue
+		}
+		switch chosen {
+		case "msg":
+			if v, ok := askText("Mensaje que reciben las sesiones que estaban trabajando", "Mensaje", cfg.ContinueMessage, "vacío = no mandar nada"); ok {
+				cfg.ContinueMessage = v
+			}
+		case "lazy":
 			cfg.LazyStart = !cfg.LazyStart
-		case "3":
-			cfg.ClaudeArgs = strings.Fields(prompt("Argumentos (separados por espacio, '-' para ninguno): ", strings.Join(cfg.ClaudeArgs, " ")))
-			if len(cfg.ClaudeArgs) == 1 && cfg.ClaudeArgs[0] == "-" {
-				cfg.ClaudeArgs = []string{}
+		case "args":
+			if v, ok := askText("Argumentos que se agregan a todas las sesiones de claude", "Argumentos", joinArgs(cfg.ClaudeArgs), "ej. --model opus"); ok {
+				cfg.ClaudeArgs = splitArgs(v)
 			}
-		case "4":
-			if n, err := strconv.Atoi(prompt("Segundos: ", strconv.Itoa(cfg.AutosaveSeconds))); err == nil && n >= 30 {
-				cfg.AutosaveSeconds = n
+		case "autosave":
+			if v, ok := askText("Cada cuánto se guarda solo el estado", "Segundos", itoa(cfg.AutosaveSeconds), "mínimo 30"); ok {
+				if n, err := strconv.Atoi(v); err == nil && n >= 30 {
+					cfg.AutosaveSeconds = n
+				}
 			}
-		case "5":
-			switch prompt("Ventana (maximized/fullscreen/current): ", cfg.Window) {
-			case windowMaximized:
-				cfg.Window = windowMaximized
-			case windowFullscreen:
-				cfg.Window = windowFullscreen
-			case windowCurrent:
-				cfg.Window = windowCurrent
-			}
-		case "7":
+		case "window":
+			cfg.Window = map[string]string{windowCurrent: windowMaximized, windowMaximized: windowFullscreen,
+				windowFullscreen: windowCurrent}[cfg.Window]
+		case "bar":
+			cfg.BarPosition = map[bool]string{true: barTop, false: barBottom}[cfg.BarPosition == barBottom]
+		case "aliases":
 			if err := uiClaudeAliases(); err != nil {
 				return err
 			}
-			continue
-		case "6":
-			if cfg.BarPosition == barBottom {
-				cfg.BarPosition = barTop
-			} else {
-				cfg.BarPosition = barBottom
-			}
-			if err := saveConfig(cfg); err != nil {
-				return err
-			}
-			if err := reloadConf(ws, cfg); err != nil {
-				return err
-			}
-			continue
-		case "":
-			return nil
-		default:
 			continue
 		}
 		if err := saveConfig(cfg); err != nil {
 			return err
 		}
+		if chosen == "bar" {
+			if err := reloadConf(ws, cfg); err != nil {
+				return err
+			}
+		}
 	}
+}
+
+// askText edits one value in a small form; ok is false when cancelled.
+func askText(heading, label, value, hint string) (string, bool) {
+	f := &textForm{heading: heading, labels: []string{label}, values: [][]rune{[]rune(value)}, hints: []string{hint},
+		check: func([]string) string { return "" }}
+	if !f.run() {
+		return "", false
+	}
+	return strings.TrimSpace(string(f.values[0])), true
 }
 
 // hookInput is the subset of Claude Code's hook payload cw uses.
@@ -465,7 +509,9 @@ func uiHelp() {
 		"  " + h("Alt+1..9") + fit("ir a la sesión N", 25) + h("Alt+m") + "menú",
 		"  " + fit("", 34) + h("Alt+e") + "todas las sesiones",
 		"  " + fit("", 34) + h("Alt+p") + "cambiar alias de claude",
-		"  " + sgrMuted + fit("clic", 9) + sgrReset + "en una pestaña o una sesión",
+		"  " + sgrMuted + fit("clic", 9) + sgrReset + "en una pestaña o una sesión · clic derecho: menú",
+		"  " + sgrMuted + "REORDENAR" + sgrReset + "   arrastra pestañas y sesiones en la barra",
+		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",
 		"",
 		"  " + sgrMuted + "ESTADOS" + sgrReset,
 		"  " + sgrBusy + "●" + sgrReset + " trabajando   " + sgrRed + "?" + sgrReset + " pide permiso   " +
@@ -476,11 +522,13 @@ func uiHelp() {
 		"  " + sgrMuted + "Rueda del ratón: desplaza; q o Esc vuelve." + sgrReset,
 		"  " + sgrMuted + "Prefijo de tmux: Alt+Espacio." + sgrReset,
 		"",
-		"  " + sgrMuted + "Cualquier tecla para cerrar" + sgrReset,
 	}
 	stdoutWrite("\033[?25l" + strings.Join(lines, "\r\n"))
+	var sc screen
+	sc.place(len(lines)+1, 3, []lineItem{buttonLine(0, btnDef{label: "Cerrar", id: "close", primary: true})})
+	sc.flush(false)
 	setRaw(true)
-	_, _ = readKeys()
+	_, _ = readKeys() // any key or click closes it
 	setRaw(false)
 }
 
@@ -539,21 +587,21 @@ func uiConfirm(ws, what string) error {
 		return fmt.Errorf("confirmación desconocida %q", what)
 	}
 	focusYes := false
+	var hits []hit
 	draw := func() {
 		var s screen
 		s.at(2, 4, sgrBold+question+sgrReset)
 		for i, line := range wrapWords(detail, 58, 3) {
 			s.at(4+i, 4, sgrMuted+line+sgrReset)
 		}
-		no, ok := sgrField+" Cancelar "+sgrReset, sgrField+" "+yes+" "+sgrReset
-		if focusYes {
-			ok = "\033[48;5;160m\033[38;5;255m\033[1m " + yes + " " + sgrReset
-		} else {
-			no = sgrSel + " Cancelar " + sgrReset
+		danger := "\033[48;5;160m\033[38;5;255m\033[1m " + yes + " " + sgrReset
+		if !focusYes {
+			danger = "\033[48;5;52m\033[38;5;217m " + yes + " " + sgrReset
 		}
-		s.at(8, 4, no+"   "+ok)
-		s.at(10, 4, sgrDim+"←→ elegir · Enter confirmar · Esc cancelar"+sgrReset)
+		s.btn(8, 4, button("Cancelar", false, !focusYes), "no")
+		s.btn(8, 18, danger, "yes")
 		s.b.WriteString("\033[?25l")
+		hits = s.hits
 		s.flush(true)
 	}
 	setRaw(true)
@@ -566,12 +614,14 @@ func uiConfirm(ws, what string) error {
 		}
 		for _, k := range keys {
 			switch {
-			case k.kind == keyEsc || (k.kind == keyRune && (k.r == 'n' || k.r == 'q')):
+			case k.kind == keyClick && hitAt(hits, k.x, k.y) == "no",
+				k.kind == keyEsc || (k.kind == keyRune && (k.r == 'n' || k.r == 'q')):
 				setRaw(false)
 				return nil
 			case k.kind == keyLeft || k.kind == keyRight || k.kind == keyTab:
 				focusYes = !focusYes
-			case (k.kind == keyEnter && focusYes) || (k.kind == keyRune && (k.r == 'y' || k.r == 's')):
+			case (k.kind == keyEnter && focusYes) || (k.kind == keyRune && (k.r == 'y' || k.r == 's')) ||
+				(k.kind == keyClick && hitAt(hits, k.x, k.y) == "yes"):
 				setRaw(false)
 				switch what {
 				case "close":

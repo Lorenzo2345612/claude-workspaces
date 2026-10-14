@@ -39,6 +39,7 @@ func refreshTabLabel(t Tmux, session string) {
 		label += " #[fg=" + colWait + "]?" + n
 		width += 2 + len(n)
 	}
+	width += 2 // the underline also spans the tab's " ✕"
 	_, _ = t.Run(
 		"set", "-t", session, "@cw_tab_label", label, ";",
 		"set", "-t", session, "@cw_tab_on", strings.Repeat("━", width), ";",

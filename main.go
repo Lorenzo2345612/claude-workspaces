@@ -92,6 +92,12 @@ func run(args []string) error {
 		return cmdUI(rest)
 	case "_respawn":
 		return cmdRespawn(rest)
+	case "_barclick":
+		return cmdBarClick(rest)
+	case "_configmenu":
+		return cmdConfigMenu(rest)
+	case "_conf":
+		return cmdConf(rest)
 	case "_winmove":
 		return cmdWinMove(rest)
 	case "_tabmove":

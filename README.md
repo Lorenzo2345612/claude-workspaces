@@ -22,6 +22,8 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - An empty tab offers to **resume recent conversations** of its directory.
 - Menus, dialogs and confirmations are floating popups, and everything is clickable: buttons,
   fields, lists, cards. Right-click a tab or a session for its menu.
+- Every tab and session has a ✕ to close it, and ⏻ in the corner stops the whole workspace.
+  Right-click any session to rename it; switch the claude alias of a whole tab or workspace at once.
 - **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
   `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 

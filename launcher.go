@@ -141,7 +141,7 @@ func (l *launcher) draw() {
 	var lines []lineItem
 	add := func(li lineItem) { lines = append(lines, li) }
 
-	add(plainLine(sgrAccent + sgrBold + "≡ cw" + sgrReset + "   " + sgrMuted + "workspaces de Claude Code" + sgrReset))
+	add(plainLine(sgrAccent + sgrBold + "≡ cw" + sgrReset + " " + sgrDim + version + sgrReset + "   " + sgrMuted + "workspaces de Claude Code" + sgrReset))
 	add(plainLine(""))
 	card := sgrDim
 	if l.sel == 0 {

@@ -145,6 +145,8 @@ func cmdUI(args []string) error {
 		err = uiBulkAlias(args[1], args[2])
 	case "aliases":
 		err = uiClaudeAliases()
+	case "combine":
+		err = uiCombine(args[1])
 	case "rename":
 		if len(args) != 3 {
 			return errors.New("uso: _ui rename <ws> tab|slot")
@@ -314,9 +316,9 @@ func cmdHook() error {
 	if status == "" {
 		return nil
 	}
-	args := []string{"set", "-w", "-t", pane, "@cw_status", status}
+	args := []string{"set", "-p", "-t", pane, "@cw_status", status}
 	if in.HookEventName == "SessionStart" && in.SessionID != "" {
-		args = append(args, ";", "set", "-w", "-t", pane, "@cw_sid", in.SessionID)
+		args = append(args, ";", "set", "-p", "-t", pane, "@cw_sid", in.SessionID)
 	}
 	t := Tmux{WS: ws}
 	_, _ = t.Run(args...)
@@ -339,7 +341,7 @@ func cmdWait(args []string) error {
 	fmt.Printf("\n  z  %s está dormida para ahorrar recursos.\n\n  Pulsa Enter para retomarla.\n", alias)
 	_, _ = stdin.ReadString('\n')
 	if pane := os.Getenv("TMUX_PANE"); pane != "" {
-		_, _ = Tmux{WS: ws}.Run("set", "-w", "-t", pane, "@cw_status", statusIdle)
+		_, _ = Tmux{WS: ws}.Run("set", "-p", "-t", pane, "@cw_status", statusIdle)
 	}
 	return syscall.Exec(argv[0], argv, os.Environ())
 }
@@ -402,8 +404,8 @@ func respawnSlot(ws, pane string, sendContinue bool) error {
 	if _, err := t.Run(cmd...); err != nil {
 		return err
 	}
-	_, err = t.Run("set", "-w", "-t", pane, "@cw_sid", s.SessionID, ";", "set", "-w", "-t", pane, "@cw_status", display,
-		";", "set", "-w", "-t", pane, "@cw_claude_alias", s.ClaudeAlias)
+	_, err = t.Run("set", "-p", "-t", pane, "@cw_sid", s.SessionID, ";", "set", "-p", "-t", pane, "@cw_status", display,
+		";", "set", "-p", "-t", pane, "@cw_claude_alias", s.ClaudeAlias)
 	return err
 }
 
@@ -421,6 +423,8 @@ func uiHelp() {
 		"  " + sgrMuted + fit("clic", 9) + sgrReset + "en una pestaña o una sesión · clic derecho: menú",
 		"  " + sgrMuted + "REORDENAR" + sgrReset + "   arrastra pestañas y sesiones en la barra",
 		"  " + sgrMuted + "CERRAR" + sgrReset + "      ✕ en cada pestaña o sesión · ⏻ arriba a la derecha apaga todo",
+		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  arrastra una sesión de la barra y suéltala sobre la terminal,",
+		"              o Alt+m → Combinar sesiones; clic derecho en un panel: separar",
 		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",
 		"",
 		"  " + sgrMuted + "ESTADOS" + sgrReset,
@@ -488,7 +492,7 @@ func uiConfirm(ws, what, explicit string) error {
 		if explicit != "" { // the ✕ of a specific session
 			args = append(args, "-t", explicit)
 		}
-		out, err := t.Run(append(args, "#{window_id}"+sep+"#{window_name}"+sep+"#{@cw_kind}")...)
+		out, err := t.Run(append(args, "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}"+sep+"#{window_panes}"+sep+"#{window_id}")...)
 		if err != nil {
 			return err
 		}
@@ -496,10 +500,16 @@ func uiConfirm(ws, what, explicit string) error {
 		target = f[0]
 		question = "¿Cerrar la sesión " + f[1] + "?"
 		detail = "La terminal se cierra y la sesión deja de guardarse en el workspace."
-		if len(f) > 2 && f[2] == kindClaude {
+		if f[2] == kindClaude {
 			detail = "Claude se cierra; la conversación queda en disco y puedes retomarla desde una pestaña vacía."
 		}
 		yes = "Cerrar"
+		if strings.HasPrefix(explicit, "@") && f[3] != "1" { // the ✕ of a combined view's pill
+			target = f[4]
+			question = "¿Cerrar la vista con sus " + f[3] + " sesiones?"
+			detail = "Se cierran todas las sesiones de esta vista. Las conversaciones de Claude quedan en disco."
+			yes = "Cerrar vista"
+		}
 	default:
 		return fmt.Errorf("confirmación desconocida %q", what)
 	}
@@ -562,8 +572,23 @@ func uiConfirm(ws, what, explicit string) error {
 
 // closeWindow closes one session. The last session of a tab leaves the tab on its start screen
 // instead of removing the tab with it.
-func closeWindow(ws, windowID string) error {
+func closeWindow(ws, target string) error {
 	t := Tmux{WS: ws}
+	// A pane of a view with other sessions closes alone; the view stays with the rest.
+	if strings.HasPrefix(target, "%") {
+		if n, _ := t.Run("display", "-p", "-t", target, "#{window_panes}"); n != "1" {
+			win, _ := t.Run("display", "-p", "-t", target, "#{window_id}")
+			if _, err := t.Run("kill-pane", "-t", target); err != nil {
+				return err
+			}
+			t.arrangeView(win, "")
+			return nil
+		}
+	}
+	windowID, err := t.Run("display", "-p", "-t", target, "#{window_id}")
+	if err != nil {
+		return err
+	}
 	session, err := t.Run("display", "-p", "-t", windowID, "#{session_name}")
 	if err != nil {
 		return err
@@ -627,16 +652,28 @@ func uiRename(ws, what string) error {
 		}
 		return t.setTabOptions(session, Tab{Title: cleanLabel(v), Dir: tabDir(t, session)})
 	}
-	out, err := t.Run("display", "-p", "-c", client, "#{window_id}"+sep+"#{window_name}")
+	pane, err := t.Run("display", "-p", "-c", client, "#{pane_id}")
 	if err != nil {
 		return err
 	}
-	f := strings.SplitN(out, sep, 2)
-	v, ok := askText("Nuevo nombre de la sesión", "Nombre", f[1], "")
+	return renameSlot(t, pane)
+}
+
+// renameSlot asks for a session's new name in a centred dialog and applies it to its pane (and
+// to its view's window name when the view shows only that session).
+func renameSlot(t Tmux, pane string) error {
+	cur, _ := t.Run("display", "-p", "-t", pane, "#{@cw_alias}")
+	v, ok := askText("Nuevo nombre de la sesión", "Nombre", cur, "")
 	if !ok || cleanLabel(v) == "" {
 		return nil
 	}
-	name := cleanLabel(v)
-	_, err = t.Run("rename-window", "-t", f[0], name, ";", "set", "-w", "-t", f[0], "@cw_alias", name)
+	return setSlotName(t, pane, cleanLabel(v))
+}
+
+func setSlotName(t Tmux, pane, name string) error {
+	_, err := t.Run("set", "-p", "-t", pane, "@cw_alias", name)
+	if n, _ := t.Run("display", "-p", "-t", pane, "#{window_panes}"); n == "1" {
+		_, _ = t.Run("rename-window", "-t", pane, name)
+	}
 	return err
 }

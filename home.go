@@ -83,7 +83,7 @@ func cmdHome(args []string) error {
 // openSessionIDs lists the Claude conversations already open in this workspace.
 func (h *homeScreen) openSessionIDs() map[string]bool {
 	ids := map[string]bool{}
-	if rows, err := h.t.Lines("list-windows", "-a", "-F", "#{@cw_sid}"); err == nil {
+	if rows, err := h.t.Lines("list-panes", "-a", "-F", "#{@cw_sid}"); err == nil {
 		for _, r := range rows {
 			ids[r[0]] = true
 		}
@@ -195,13 +195,13 @@ func (h *homeScreen) draw() {
 
 // closeHome removes the start screen of a tab once it has a real session.
 func closeHome(t Tmux, session string) {
-	rows, err := t.Lines("list-windows", "-t", session, "-F", "#{window_id}"+sep+"#{@cw_kind}")
+	rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{pane_id}"+sep+"#{@cw_kind}")
 	if err != nil {
 		return
 	}
 	for _, r := range rows {
 		if len(r) == 2 && r[1] == kindHome {
-			_, _ = t.Run("kill-window", "-t", r[0])
+			_, _ = t.Run("kill-pane", "-t", r[0])
 		}
 	}
 }

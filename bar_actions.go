@@ -264,7 +264,7 @@ func uiBulkAlias(ws, scope string) error {
 					if cfg.claudeAlias(r.slot.ClaudeAlias).Name == name {
 						continue
 					}
-					if _, err := t.Run("set", "-w", "-t", r.windowID, "@cw_claude_alias", name); err != nil {
+					if _, err := t.Run("set", "-p", "-t", r.paneID, "@cw_claude_alias", name); err != nil {
 						return err
 					}
 					if err := respawnSlot(ws, r.paneID, sendContinue); err != nil {

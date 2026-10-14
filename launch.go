@@ -110,8 +110,8 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 	return argv, display
 }
 
-// openSlot creates the tmux window for a slot (and the tab's session when first is true).
-func (l *Launcher) openSlot(t Tmux, session string, first bool, s *Slot, resuming bool) (string, error) {
+// slotSpec prepares what a slot runs (resolving a missing directory, the claude command…).
+func (l *Launcher) slotSpec(session string, first bool, s *Slot, resuming bool) windowSpec {
 	if s.ID == "" {
 		s.ID = newUUID()
 	}
@@ -127,10 +127,15 @@ func (l *Launcher) openSlot(t Tmux, session string, first bool, s *Slot, resumin
 	} else if spec.name == "" {
 		spec.name = "shell"
 	}
-	return t.createWindow(spec)
+	return spec
 }
 
-// openTab creates a whole tab: its tmux session, options and every slot in order.
+// openSlot creates the tmux window for a slot (and the tab's session when first is true).
+func (l *Launcher) openSlot(t Tmux, session string, first bool, s *Slot, resuming bool) (string, error) {
+	return t.createWindow(l.slotSpec(session, first, s, resuming))
+}
+
+// openTab creates a whole tab: its tmux session, options, and every view with its sessions.
 func (l *Launcher) openTab(t Tmux, session string, tab *Tab, resuming bool) error {
 	if !isDir(tab.Dir) {
 		tab.Dir = homeDir()
@@ -144,19 +149,47 @@ func (l *Launcher) openTab(t Tmux, session string, tab *Tab, resuming bool) erro
 		}
 		return t.setTabOptions(session, *tab)
 	}
+	viewWindow := map[int]string{}
+	var order []int
+	activeTarget := ""
 	for i := range tab.Slots {
-		if tab.Slots[i].Cwd == "" {
-			tab.Slots[i].Cwd = tab.Dir
+		s := &tab.Slots[i]
+		if s.Cwd == "" {
+			s.Cwd = tab.Dir
 		}
-		if _, err := l.openSlot(t, session, i == 0, &tab.Slots[i], resuming); err != nil {
-			return err
+		spec := l.slotSpec(session, i == 0, s, resuming)
+		target := ""
+		if win, ok := viewWindow[s.View]; ok {
+			pane, err := t.createPane(spec, win)
+			if err != nil {
+				return err
+			}
+			target = pane
+		} else {
+			win, err := t.createWindow(spec)
+			if err != nil {
+				return err
+			}
+			viewWindow[s.View] = win
+			order = append(order, s.View)
+			target = win
 		}
+		if i == tab.ActiveSlot {
+			activeTarget = target
+		}
+	}
+	for _, v := range order {
+		layout := ""
+		if v < len(tab.Layouts) {
+			layout = tab.Layouts[v]
+		}
+		t.arrangeView(viewWindow[v], layout)
 	}
 	if err := t.setTabOptions(session, *tab); err != nil {
 		return err
 	}
-	if tab.ActiveSlot >= 0 && tab.ActiveSlot < len(tab.Slots) {
-		_, _ = t.Run("select-window", "-t", fmt.Sprintf("%s:%d", session, tab.ActiveSlot+1))
+	if activeTarget != "" {
+		_, _ = t.Run("select-window", "-t", activeTarget, ";", "select-pane", "-t", activeTarget)
 	}
 	return nil
 }

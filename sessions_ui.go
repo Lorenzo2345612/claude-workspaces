@@ -12,8 +12,8 @@ type sessionRow struct {
 }
 
 func listSessionRows(t Tmux) []sessionRow {
-	rows, err := t.Lines("list-windows", "-a", "-F", strings.Join([]string{
-		"#{session_name}", "#{window_id}", "#{pane_id}", "#{@cw_title}", "#{window_name}",
+	rows, err := t.Lines("list-panes", "-a", "-F", strings.Join([]string{
+		"#{session_name}", "#{window_id}", "#{pane_id}", "#{@cw_title}", "#{@cw_alias}",
 		"#{@cw_kind}", "#{@cw_status}", "#{@cw_sid}", "#{@cw_cwd}", "#{@cw_slot}", "#{@cw_args}", "#{@cw_claude_alias}",
 	}, sep))
 	if err != nil {
@@ -28,8 +28,12 @@ func listSessionRows(t Tmux) []sessionRow {
 		if kind == "" {
 			kind = kindShell
 		}
+		name := r[4]
+		if name == "" {
+			name = "shell"
+		}
 		out = append(out, sessionRow{session: r[0], windowID: r[1], paneID: r[2], tab: r[3],
-			slot: Slot{Alias: r[4], Kind: kind, Status: r[6], SessionID: r[7], Cwd: r[8], ID: r[9], Args: argsFromOption(r[10]), ClaudeAlias: r[11]}})
+			slot: Slot{Alias: name, Kind: kind, Status: r[6], SessionID: r[7], Cwd: r[8], ID: r[9], Args: argsFromOption(r[10]), ClaudeAlias: r[11]}})
 	}
 	return out
 }
@@ -70,7 +74,7 @@ func uiSessions(ws string) error {
 				if action == "yes" || (k.kind == keyRune && (k.r == 's' || k.r == 'y')) {
 					var err error
 					if confirm == "x" {
-						err = closeWindow(ws, rows[sel].windowID)
+						err = closeWindow(ws, rows[sel].paneID)
 					} else {
 						err = closeTab(ws, rows[sel].session, client)
 					}
@@ -95,7 +99,7 @@ func uiSessions(ws string) error {
 			case k.kind == keyDown || k.kind == keyWheelDown:
 				sel = (sel + 1) % len(rows)
 			case action == "go" || (k.kind == keyRune && k.r == 'i'):
-				_, _ = t.Run("switch-client", "-c", client, "-t", rows[sel].session, ";", "select-window", "-t", rows[sel].windowID)
+				_, _ = t.Run("switch-client", "-c", client, "-t", rows[sel].session, ";", "select-window", "-t", rows[sel].windowID, ";", "select-pane", "-t", rows[sel].paneID)
 				return nil
 			case action == "edit" || k.kind == keyEnter:
 				if err := editSession(ws, rows[sel]); err != nil {
@@ -201,10 +205,11 @@ func editSession(ws string, r sessionRow) error {
 	}
 	alias := cleanLabel(string(f.alias))
 	args := splitArgs(string(f.args))
-	if _, err := t.Run("rename-window", "-t", r.windowID, alias, ";",
-		"set", "-w", "-t", r.windowID, "@cw_alias", alias, ";",
-		"set", "-w", "-t", r.windowID, "@cw_args", argsToOption(args), ";",
-		"set", "-w", "-t", r.windowID, "@cw_claude_alias", f.selectedAlias()); err != nil {
+	if err := setSlotName(t, r.paneID, alias); err != nil {
+		return err
+	}
+	if _, err := t.Run("set", "-p", "-t", r.paneID, "@cw_args", argsToOption(args), ";",
+		"set", "-p", "-t", r.paneID, "@cw_claude_alias", f.selectedAlias()); err != nil {
 		return err
 	}
 	if r.slot.Kind == kindClaude {

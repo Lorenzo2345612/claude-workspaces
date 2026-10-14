@@ -16,7 +16,7 @@ func refreshTabLabel(t Tmux, session string) {
 		title = session
 	}
 	busy, waiting := 0, 0
-	if rows, err := t.Lines("list-windows", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"); err == nil {
+	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"); err == nil {
 		for _, r := range rows {
 			if len(r) == 2 && r[0] == kindClaude {
 				switch r[1] {

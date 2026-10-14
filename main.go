@@ -95,6 +95,12 @@ func run(args []string) error {
 		return cmdUI(rest)
 	case "_respawn":
 		return cmdRespawn(rest)
+	case "_join":
+		return cmdJoin(rest)
+	case "_splitout":
+		return cmdSplitOut(rest)
+	case "_layout":
+		return cmdLayout(rest)
 	case "_barclick":
 		return cmdBarClick(rest)
 	case "_configmenu":

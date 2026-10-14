@@ -34,6 +34,8 @@ type Tab struct {
 	Dir        string `json:"dir"`
 	ActiveSlot int    `json:"active_slot"`
 	Slots      []Slot `json:"slots"`
+	// Layouts holds, per view, the tmux layout of a view that shows several sessions ("" for one).
+	Layouts []string `json:"layouts,omitempty"`
 }
 
 // Slot is one tmux window: a Claude session or a plain shell.
@@ -50,6 +52,8 @@ type Slot struct {
 	Args []string `json:"args,omitempty"`
 	// ClaudeAlias is the configured claude alias (env + args) the session runs with.
 	ClaudeAlias string `json:"claude_alias,omitempty"`
+	// View groups the sessions shown together: slots with the same View share one tmux window.
+	View int `json:"view,omitempty"`
 }
 
 func (s Slot) wasWorking() bool {

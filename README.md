@@ -50,6 +50,7 @@ cw                 # start screen: new workspace here, or resume one
 cw new             # new workspace in the current directory
 cw ls              # list workspaces
 cw stop NAME       # save and shut down
+cw update          # self-update to the latest release (--check only reports)
 cw help
 ```
 

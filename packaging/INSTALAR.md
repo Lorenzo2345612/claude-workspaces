@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.2.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.2.1-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.2.0-macos.tar.gz
-   cd cw-0.2.0-macos
+   tar xzf cw-0.2.1-macos.tar.gz
+   cd cw-0.2.1-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.2.0-linux.tar.gz
-cd cw-0.2.0-linux
+tar xzf cw-0.2.1-linux.tar.gz
+cd cw-0.2.1-linux
 sh install.sh
 ```
 
@@ -124,8 +124,15 @@ Comandos útiles: `cw ls` (lista workspaces), `cw stop NOMBRE` (guarda y apaga),
 
 ## Actualizar
 
-Descarga el paquete nuevo y vuelve a correr el instalador: reemplaza `cw` y conserva tus
-workspaces y tu configuración.
+```sh
+cw update            # descarga e instala la última versión publicada
+cw update --check    # solo avisa si hay una versión nueva
+```
+
+Verifica la descarga con su suma SHA-256 antes de reemplazar `cw`, y conserva tus workspaces y
+tu configuración. Si tienes workspaces abiertos, desconéctate y vuelve a entrar para usar la
+versión nueva. (Desde la versión 0.2.1; en versiones anteriores, descarga el paquete nuevo y
+vuelve a correr el instalador.)
 
 ## Desinstalar
 

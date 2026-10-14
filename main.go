@@ -21,17 +21,17 @@ Uso:
   cw                       inicio: crear un workspace en este directorio o retomar uno
   cw new                   crea directamente un workspace en este directorio
   cw start <nombre> [dir]  entra al workspace: si corre se reconecta, si está guardado lo
-                           restaura, y si no existe lo crea con una pestaña en [dir] (por defecto .).
-                           Abre su propia ventana maximizada (config "window"); --here usa esta terminal
+                           restaura, y si no existe lo crea con una pestaña en [dir] (por defecto .)
   cw ls                    lista los workspaces guardados y los que están corriendo
   cw save <nombre>         guarda el estado del workspace sin detenerlo
   cw stop <nombre>         guarda el estado y apaga el workspace (también: cw apagar)
   cw rm <nombre>           borra el estado guardado de un workspace apagado
   cw config                muestra la ruta y el contenido de la configuración
   cw version               muestra la versión
+  cw update [--check]      se actualiza a la última versión publicada (--check solo avisa)
 
-Dentro del workspace: Alt+m menú · Alt+t nueva pestaña · Alt+n nueva sesión ·
-Alt+←/→ sesiones · Alt+↑/↓ pestañas · Alt+1..9 ir a sesión · clic en la barra superior.
+Dentro del workspace: Alt+m menú · Alt+t nueva pestaña · Alt+n nueva sesión · Alt+h ayuda ·
+Alt+←/→ sesiones · Alt+↑/↓ pestañas · todo con clic; clic derecho y arrastrar para reordenar.
 `
 
 func main() {
@@ -77,6 +77,8 @@ func run(args []string) error {
 		return withName(rest, cmdRemove)
 	case "config":
 		return cmdConfig()
+	case "update", "actualizar":
+		return cmdUpdate(rest)
 	case "version", "--version", "-v":
 		fmt.Println("cw", version)
 		return nil

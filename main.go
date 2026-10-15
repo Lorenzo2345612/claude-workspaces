@@ -447,7 +447,7 @@ func cmdNewFromID(query string) error {
 	if err != nil {
 		return err
 	}
-	found := findConversations(query, cfg.claudeAliases())
+	found := findConversations(query, cfg)
 	switch len(found) {
 	case 0:
 		return fmt.Errorf("no encontré ninguna conversación de Claude con el ID %q", query)

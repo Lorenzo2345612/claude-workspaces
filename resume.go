@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // foundConv is a conversation located on disk from (part of) its ID.
@@ -18,7 +19,8 @@ type foundConv struct {
 
 // findConversations looks a session ID (or its first characters, or a transcript path) up in
 // the config dir of every claude alias. Config dirs that share one projects folder are read once.
-func findConversations(query string, aliases []ClaudeAlias) []foundConv {
+func findConversations(query string, cfg Config) []foundConv {
+	aliases := cfg.claudeAliases()
 	q := strings.TrimSpace(query)
 	if q == "" {
 		return nil
@@ -47,7 +49,7 @@ func findConversations(query string, aliases []ClaudeAlias) []foundConv {
 			seenID[id] = true
 			title, first := readTranscriptSummary(m)
 			st, _ := os.Stat(m)
-			c := recentConv{ID: id, Title: title, First: first, Alias: a.Name}
+			c := recentConv{ID: id, Title: title, First: first, Alias: guessAlias(cfg, id, m)}
 			if st != nil {
 				c.Modified = st.ModTime()
 			}
@@ -99,7 +101,7 @@ func uiResumeByID(ws string) error {
 			open[r.slot.SessionID] = r.slot.Alias + " (pestaña " + r.tab + ")"
 		}
 	}
-	f, err := pickConversation(cfg.claudeAliases(), open)
+	f, err := pickConversation(cfg, open)
 	if err != nil || f == nil {
 		return err
 	}
@@ -114,14 +116,14 @@ func uiResumeByID(ws string) error {
 
 // pickConversation asks for a conversation ID (or its first characters) and shows what it
 // matches; it returns nil when the user cancels. open marks conversations already in a session.
-func pickConversation(aliases []ClaudeAlias, open map[string]string) (*foundConv, error) {
+func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 	var input []rune
 	var found []foundConv
 	sel := 0
 	msg := ""
 	var hits []hit
 	lookup := func() {
-		found = findConversations(string(input), aliases)
+		found = findConversations(string(input), cfg)
 		sel = 0
 		msg = ""
 	}
@@ -213,4 +215,75 @@ func pickConversation(aliases []ClaudeAlias, open map[string]string) (*foundConv
 		}
 		draw()
 	}
+}
+
+// guessAlias proposes the claude alias to reopen a conversation with. Aliases often share one
+// projects folder, so several can reach the same transcript; prefer, in order: the alias cw last
+// ran it with, the default alias, an alias that skips permissions when the conversation did,
+// and finally the first alias that reaches it.
+func guessAlias(cfg Config, id, path string) string {
+	var lastAt time.Time
+	last := ""
+	for _, n := range savedWorkspaces() {
+		w, err := loadWorkspace(n)
+		if err != nil || !w.SavedAt.After(lastAt) {
+			continue
+		}
+		for _, t := range w.Tabs {
+			for _, s := range t.Slots {
+				if s.SessionID == id && s.ClaudeAlias != "" {
+					last, lastAt = s.ClaudeAlias, w.SavedAt
+				}
+			}
+		}
+	}
+	bypassed := transcriptBypassed(path)
+	if last != "" {
+		a := cfg.claudeAlias(last)
+		// A record that contradicts the conversation (an alias that asks for permissions on a
+		// conversation that ran without them) comes from the 0.6.1-and-older guess: skip it.
+		if !bypassed || strings.Contains(a.summary(), "dangerously-skip-permissions") {
+			return a.Name
+		}
+	}
+	projects, _ := filepath.EvalSymlinks(filepath.Dir(filepath.Dir(path)))
+	var reach []ClaudeAlias
+	for _, a := range cfg.claudeAliases() {
+		if p, err := filepath.EvalSymlinks(filepath.Join(a.configDir(), "projects")); err == nil && p == projects {
+			reach = append(reach, a)
+		}
+	}
+	if len(reach) == 0 {
+		return cfg.defaultAlias()
+	}
+	for _, a := range reach {
+		if a.Name == cfg.defaultAlias() {
+			return a.Name
+		}
+	}
+	if bypassed {
+		for _, a := range reach {
+			if strings.Contains(a.summary(), "dangerously-skip-permissions") {
+				return a.Name
+			}
+		}
+	}
+	return reach[0].Name
+}
+
+// transcriptBypassed reports whether the conversation ran without permission prompts.
+func transcriptBypassed(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	sc := bufio.NewScanner(f)
+	sc.Buffer(make([]byte, 1<<20), 16<<20)
+	for i := 0; i < 50 && sc.Scan(); i++ {
+		if strings.Contains(sc.Text(), `"permissionMode":"bypassPermissions"`) {
+			return true
+		}
+	}
+	return false
 }

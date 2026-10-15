@@ -187,13 +187,22 @@ func uiBulkAlias(ws, scope string) error {
 	if err != nil {
 		return err
 	}
+	view := ""
+	if scope == "view" {
+		client, _, _ := currentClient(t)
+		view, _ = t.Run("display", "-p", "-c", client, "#{window_id}")
+	}
 	var targets []sessionRow
 	for _, r := range listSessionRows(t) {
-		if r.slot.Kind == kindClaude && (scope == "all" || r.session == session) {
+		in := scope == "all" || (scope == "tab" && r.session == session) || (scope == "view" && r.windowID == view)
+		if r.slot.Kind == kindClaude && in {
 			targets = append(targets, r)
 		}
 	}
 	where := "todo el workspace " + ws
+	if scope == "view" {
+		where = "esta vista"
+	}
 	if scope == "tab" {
 		title, _ := t.Run("show", "-t", session, "-qv", "@cw_title")
 		where = "la pestaña " + title

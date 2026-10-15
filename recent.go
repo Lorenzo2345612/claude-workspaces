@@ -30,7 +30,8 @@ func claudeProjectDir(configDir, dir string) string {
 
 // recentConversations returns the latest conversations started in dir under any claude alias
 // (each alias may have its own config dir), newest first.
-func recentConversations(dir string, limit int, exclude map[string]bool, aliases []ClaudeAlias) []recentConv {
+func recentConversations(dir string, limit int, exclude map[string]bool, cfg Config) []recentConv {
+	aliases := cfg.claudeAliases()
 	type fileAt struct {
 		path, alias string
 		mod         time.Time
@@ -66,7 +67,7 @@ func recentConversations(dir string, limit int, exclude map[string]bool, aliases
 		if first == "" {
 			continue // never got a real prompt
 		}
-		out = append(out, recentConv{ID: id, Title: title, First: first, Alias: f.alias, Modified: f.mod})
+		out = append(out, recentConv{ID: id, Title: title, First: first, Alias: guessAlias(cfg, id, f.path), Modified: f.mod})
 	}
 	return out
 }

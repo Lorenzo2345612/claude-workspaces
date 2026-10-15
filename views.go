@@ -181,16 +181,36 @@ func cmdSlotMenu(args []string) error {
 	}
 	add("⧉ Combinar con sesiones de otras pestañas…",
 		fmt.Sprintf("select-window -t %s ; %s", win, popup("Combinar sesiones en esta vista", 78, 24, "_ui", "combine", ws)))
-	if len(f) == 3 && f[0] != "1" {
-		add("⇱ Separar la sesión activa", shell("_splitout", ws, win+"."))
+	// One group per session of the view: every action names the pane it acts on, so in a
+	// combined view each session can be renamed, edited or given another alias on its own.
+	panes, _ := t.Lines("list-panes", "-t", win, "-F", "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}")
+	for _, p := range panes {
+		if len(p) != 3 || p[2] == kindHome {
+			continue
+		}
+		name := p[1]
+		if name == "" {
+			name = "shell"
+		}
+		menu = append(menu, "", "", "")
+		if len(panes) > 1 {
+			menu = append(menu, "-"+q(shorten(name, 34)), "", "")
+		}
+		if p[2] == kindClaude {
+			add("  ✦ Cambiar alias de claude", popup("Cambiar alias de claude", 72, 24, "_ui", "editpane", ws, p[0]))
+		}
+		add("  ▸ Renombrar", popup("Renombrar sesión", 70, 10, "_ui", "rename", ws, "slot", p[0]))
+		add("  ▸ Editar sesión", popup("Editar sesión", 72, 24, "_ui", "editpane", ws, p[0]))
+		if len(panes) > 1 {
+			add("  ⇱ Separar de la vista", shell("_splitout", ws, p[0]))
+		}
+		add("  ✕ Cerrar", popup("Cerrar sesión", 66, 13, "_ui", "confirm", ws, "close", p[0]))
 	}
-	menu = append(menu, "", "", "")
-	add("▸ Renombrar", fmt.Sprintf("select-window -t %s ; %s", win, popup("Renombrar sesión", 70, 10, "_ui", "rename", ws, "slot")))
-	add("▸ Editar sesión", fmt.Sprintf("select-window -t %s ; %s", win, popup("Editar sesión", 72, 24, "_ui", "editcurrent", ws)))
-	if len(f) == 3 && f[1] == kindClaude {
-		add("✦ Cambiar alias de claude", fmt.Sprintf("select-window -t %s ; %s", win, popup("Cambiar alias de claude", 72, 24, "_ui", "editcurrent", ws)))
+	if len(panes) > 1 {
+		menu = append(menu, "", "", "")
+		add("✦ Cambiar alias de toda la vista…", fmt.Sprintf("select-window -t %s ; %s", win, popup("Alias de claude de la vista", 70, 16, "_ui", "bulkalias", ws, "view")))
+		add("✕ Cerrar la vista", popup("Cerrar vista", 66, 13, "_ui", "confirm", ws, "close", win))
 	}
-	add("✕ Cerrar", popup("Cerrar sesión", 66, 13, "_ui", "confirm", ws, "close", win))
 	// The menu is written as a tmux command for the click's own binding to source: a menu opened
 	// from outside the click would close as soon as the mouse button is released.
 	return writeFileAtomic(slotMenuFile(ws), []byte(tmuxQuoteCommand(menu)+"\n"))

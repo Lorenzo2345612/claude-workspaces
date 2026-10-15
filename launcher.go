@@ -32,7 +32,7 @@ func cmdLauncher() error {
 			return err
 		}
 		os.Stdout.WriteString("\033[?1049h")
-		f, err := pickConversation(cfg.claudeAliases(), nil)
+		f, err := pickConversation(cfg, nil)
 		os.Stdout.WriteString("\033[?25h\033[?1049l")
 		if err != nil || f == nil {
 			return err

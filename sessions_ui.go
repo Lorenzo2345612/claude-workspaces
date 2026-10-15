@@ -252,3 +252,16 @@ func shorten(s string, n int) string {
 	}
 	return s
 }
+
+// uiEditPane opens the editor on one given session (a pane of a view).
+func uiEditPane(ws, pane string) error {
+	t := Tmux{WS: ws}
+	migrateLegacyOptions(t)
+	for _, r := range listSessionRows(t) {
+		if r.paneID == pane {
+			return editSession(ws, r)
+		}
+	}
+	pause("Esa sesión ya no existe.")
+	return nil
+}

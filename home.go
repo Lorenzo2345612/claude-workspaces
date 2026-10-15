@@ -45,7 +45,7 @@ func cmdHome(args []string) error {
 		}
 	}
 	cfg, _ := loadConfig()
-	h.recents = recentConversations(h.dir, 5, h.openSessionIDs(), cfg.claudeAliases())
+	h.recents = recentConversations(h.dir, 5, h.openSessionIDs(), cfg)
 
 	// Keys are read on this goroutine only: the new-session form reads the same terminal while it
 	// is open, so a background reader would steal its keystrokes. Resizes redraw from a goroutine.

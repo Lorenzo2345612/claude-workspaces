@@ -140,7 +140,7 @@ func cmdUI(args []string) error {
 		err = uiConfirm(args[1], args[2], explicit)
 	case "bulkalias":
 		if len(args) != 3 {
-			return errors.New("uso: _ui bulkalias <ws> tab|all")
+			return errors.New("uso: _ui bulkalias <ws> tab|view|all")
 		}
 		err = uiBulkAlias(args[1], args[2])
 	case "aliases":
@@ -149,13 +149,22 @@ func cmdUI(args []string) error {
 		err = uiResumeByID(args[1])
 	case "combine":
 		err = uiCombine(args[1])
+	case "editpane":
+		if len(args) != 3 {
+			return errors.New("uso: _ui editpane <ws> <panel>")
+		}
+		err = uiEditPane(args[1], args[2])
 	case "renamews":
 		err = uiRenameWorkspace(args[1])
 	case "rename":
-		if len(args) != 3 {
-			return errors.New("uso: _ui rename <ws> tab|slot")
+		switch {
+		case len(args) == 4 && args[2] == "slot":
+			err = renameSlot(Tmux{WS: args[1]}, args[3])
+		case len(args) == 3:
+			err = uiRename(args[1], args[2])
+		default:
+			return errors.New("uso: _ui rename <ws> tab|slot [panel]")
 		}
-		err = uiRename(args[1], args[2])
 	case "setconf":
 		if len(args) != 3 {
 			return errors.New("uso: _ui setconf <ws> msg|args|autosave")

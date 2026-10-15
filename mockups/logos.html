@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Claude Workspaces · propuestas de logo</title>
+<style>
+  body { margin: 0; background: #0f0f10; color: #e7e5e1; font: 14px/1.5 "Inter", "Segoe UI", system-ui, sans-serif; }
+  .page { max-width: 1240px; margin: 0 auto; padding: 40px 32px 80px; }
+  h1 { font-size: 24px; margin: 0 0 6px; font-weight: 600; }
+  p.lead { color: #9a978f; margin: 0 0 28px; max-width: 900px; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+  .card { background: #151515; border: 1px solid #242424; border-radius: 14px; padding: 18px 20px; }
+  .card h2 { font-size: 15px; margin: 0 0 2px; }
+  .card p { color: #8f8c86; font-size: 12.5px; margin: 0 0 14px; }
+  .row { display: flex; align-items: center; gap: 22px; flex-wrap: wrap; }
+  .tile { display: grid; place-items: center; border-radius: 12px; }
+  .dark { background: #141414; border: 1px solid #262626; }
+  .light { background: #f7f6f3; border: 1px solid #ddd; }
+  .t96 { width: 112px; height: 112px; } .t48 { width: 64px; height: 64px; } .t20 { width: 36px; height: 36px; }
+  .word { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 10px; }
+  .word span { font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
+  .dark .word span, .word.dark span { color: #e9e7e3; } .word.light span { color: #23221f; }
+  .dock { display: flex; gap: 10px; align-items: end; padding: 10px 14px; border-radius: 14px; background: rgba(255,255,255,.06); }
+  .dock .o { width: 42px; height: 42px; border-radius: 10px; background: #3a3a3a; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>Claude Workspaces · propuestas de logo</h1>
+  <p class="lead">Seis direcciones, todas en vectores (se ven nítidas en cualquier tamaño) y con la paleta sobria de la app.
+  Cada una se muestra en grande, mediana, tamaño de pestaña/favicon, sobre fondo claro y junto al nombre.
+  Dime cuál (o qué combinar) y la convierto en todos los íconos: app, menú Inicio, Dock, favicon.</p>
+  <div class="grid" id="grid"></div>
+</div>
+<script>
+// Each logo is an SVG drawn on a 64×64 grid.
+const L = {
+  A: { name: 'A · Pestañas apiladas', desc: 'Tres pestañas escalonadas: workspaces con sesiones dentro. La de adelante en el acento.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <rect x="14" y="13" width="30" height="22" rx="5" fill="none" stroke="${fg}" stroke-opacity=".35" stroke-width="2.4"/>
+    <rect x="18" y="20" width="30" height="22" rx="5" fill="none" stroke="${fg}" stroke-opacity=".6" stroke-width="2.4"/>
+    <rect x="22" y="27" width="30" height="24" rx="5" fill="${acc}"/>
+    <path d="M28 36l5 3.5-5 3.5" fill="none" stroke="${bg}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="36" y="41.5" width="9" height="2.6" rx="1.3" fill="${bg}"/>` },
+  B: { name: 'B · Destello en ventana', desc: 'Una ventana con su barra de pestañas y el destello de Claude dentro. Reconocible como “Claude” sin copiar su logo.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <rect x="11" y="14" width="42" height="36" rx="7" fill="none" stroke="${fg}" stroke-opacity=".55" stroke-width="2.4"/>
+    <path d="M11 22h42" stroke="${fg}" stroke-opacity=".55" stroke-width="2.4"/>
+    <circle cx="17" cy="18" r="1.3" fill="${fg}" fill-opacity=".55"/><circle cx="21.5" cy="18" r="1.3" fill="${fg}" fill-opacity=".55"/>
+    <g transform="translate(32 36)" fill="${acc}">
+      <path d="M0-9 1.6-1.6 9 0 1.6 1.6 0 9-1.6 1.6-9 0-1.6-1.6z"/>
+    </g>` },
+  C: { name: 'C · Monograma cw', desc: 'Las letras c y w en trazo continuo, como una sola línea de terminal. Sobrio, tipográfico.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <path d="M27 24.5a9 9 0 1 0 0 15" fill="none" stroke="${fg}" stroke-width="4.2" stroke-linecap="round"/>
+    <path d="M31 25l3.6 14 4.4-11 4.4 11 3.6-14" fill="none" stroke="${acc}" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>` },
+  D: { name: 'D · Cuadrícula de paneles', desc: 'Cuatro paneles (vistas combinadas); uno encendido en el acento, como la sesión enfocada.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <rect x="13" y="13" width="17" height="17" rx="4.5" fill="${acc}"/>
+    <rect x="34" y="13" width="17" height="17" rx="4.5" fill="none" stroke="${fg}" stroke-opacity=".55" stroke-width="2.4"/>
+    <rect x="13" y="34" width="17" height="17" rx="4.5" fill="none" stroke="${fg}" stroke-opacity=".55" stroke-width="2.4"/>
+    <rect x="34" y="34" width="17" height="17" rx="4.5" fill="none" stroke="${fg}" stroke-opacity=".55" stroke-width="2.4"/>
+    <circle cx="21.5" cy="21.5" r="2.6" fill="${bg}"/>` },
+  E: { name: 'E · Prompt con estados', desc: 'El símbolo ❯ y tres puntos de estado (trabajando, lista, suspendida): lo que la app te muestra de cada sesión.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <path d="M16 22l11 10-11 10" fill="none" stroke="${fg}" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="36" cy="42" r="3.4" fill="#d6a24b"/>
+    <circle cx="45" cy="42" r="3.4" fill="${acc}"/>
+    <circle cx="54" cy="42" r="3.1" fill="none" stroke="${fg}" stroke-opacity=".5" stroke-width="1.8"/>` },
+  F: { name: 'F · Órbita', desc: 'Un núcleo (Claude) con sesiones en órbita. Más abstracto y suave; funciona muy bien en tamaño chico.', svg: (bg, fg, acc) => `
+    <rect width="64" height="64" rx="15" fill="${bg}"/>
+    <ellipse cx="32" cy="32" rx="20" ry="9" fill="none" stroke="${fg}" stroke-opacity=".45" stroke-width="2.2" transform="rotate(-28 32 32)"/>
+    <ellipse cx="32" cy="32" rx="20" ry="9" fill="none" stroke="${fg}" stroke-opacity=".25" stroke-width="2.2" transform="rotate(32 32 32)"/>
+    <circle cx="32" cy="32" r="7.5" fill="${acc}"/>
+    <circle cx="48.5" cy="22.6" r="3.2" fill="${fg}"/>` },
+};
+const dark = ['#1c1c1d', '#e9e7e3', '#8c95cf'];
+const light = ['#ffffff', '#2b2a27', '#5561b3'];
+const grad = id => `<defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a2b33"/><stop offset="1" stop-color="#15151a"/></linearGradient></defs>`;
+const svg = (k, size, pal, useGrad) => {
+  const id = 'g' + k + size + Math.random().toString(36).slice(2, 6);
+  const body = L[k].svg(useGrad ? `url(#${id})` : pal[0], pal[1], pal[2]).replaceAll(`fill="url(#${id})"/>\n    <path`, '');
+  return `<svg width="${size}" height="${size}" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${useGrad ? grad(id) : ''}${body}</svg>`;
+};
+// In the shapes, the background colour also paints details over the accent: keep a flat colour there.
+const flat = (k, size, pal) => `<svg width="${size}" height="${size}" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">${L[k].svg(pal[0], pal[1], pal[2])}</svg>`;
+const g = document.getElementById('grid');
+for (const k of Object.keys(L)) {
+  g.insertAdjacentHTML('beforeend', `<div class="card"><h2>${L[k].name}</h2><p>${L[k].desc}</p>
+    <div class="row">
+      <div class="tile dark t96">${flat(k, 96, dark)}</div>
+      <div class="tile dark t48">${flat(k, 48, dark)}</div>
+      <div class="tile dark t20">${flat(k, 20, dark)}</div>
+      <div class="tile light t48">${flat(k, 48, light)}</div>
+      <div class="word dark">${flat(k, 26, dark)}<span>Claude Workspaces</span></div>
+      <div class="dock"><div class="o"></div>${flat(k, 46, dark)}<div class="o"></div></div>
+    </div></div>`);
+}
+</script>
+</body>
+</html>

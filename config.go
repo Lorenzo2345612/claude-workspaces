@@ -35,6 +35,11 @@ type Config struct {
 	AppPort int `json:"app_port,omitempty"`
 	// AppFontSize is the font size of the app's terminals; 0 means the default.
 	AppFontSize int `json:"app_font_size,omitempty"`
+	// AutoSwitchAlias moves a session whose Claude account ran out of quota to an alias of an
+	// account that still has it; nil means on.
+	AutoSwitchAlias *bool `json:"auto_switch_alias,omitempty"`
+	// HideClaudeAlias drops the plain "claude" alias from the list (when there are others).
+	HideClaudeAlias bool `json:"hide_claude_alias,omitempty"`
 	// AppMode is the app's light or dark mode ("light" or "dark"); "" means dark.
 	AppMode string `json:"app_mode,omitempty"`
 	// BrowserKeys turns on the browser shortcuts for the sessions of a tab (Ctrl+T, Ctrl+W,
@@ -114,3 +119,5 @@ func writeFileAtomic(path string, data []byte) error {
 	}
 	return os.Rename(tmp.Name(), path)
 }
+
+func (c Config) autoSwitchAlias() bool { return c.AutoSwitchAlias == nil || *c.AutoSwitchAlias }

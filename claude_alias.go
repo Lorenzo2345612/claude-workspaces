@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -58,7 +60,8 @@ func (a ClaudeAlias) resolve() ClaudeAlias {
 
 const builtinAlias = "claude"
 
-// claudeAliases returns the configured aliases, always including the plain "claude".
+// claudeAliases returns the configured aliases, with the plain "claude" first unless the user
+// removed it (and there is another one to use).
 func (c Config) claudeAliases() []ClaudeAlias {
 	out := []ClaudeAlias{}
 	hasBuiltin := false
@@ -68,22 +71,59 @@ func (c Config) claudeAliases() []ClaudeAlias {
 		}
 		out = append(out, a.resolve())
 	}
-	if !hasBuiltin {
+	if !hasBuiltin && (!c.HideClaudeAlias || len(out) == 0) {
 		out = append([]ClaudeAlias{{Name: builtinAlias}}, out...)
 	}
 	return out
+}
+
+// deleteAlias removes an alias from the configuration; the plain "claude" can go too, as long
+// as another alias is left.
+func deleteAlias(cfg *Config, name string) error {
+	var kept []ClaudeAlias
+	for _, a := range cfg.ClaudeAliases {
+		if a.Name != name {
+			kept = append(kept, a)
+		}
+	}
+	hide := cfg.HideClaudeAlias || name == builtinAlias
+	others := 0
+	for _, a := range kept {
+		if a.Name != builtinAlias || !hide {
+			others++
+		}
+	}
+	if !hide {
+		others++ // the plain "claude" stays
+	}
+	if others == 0 {
+		return fmt.Errorf("no puedes borrar %s: es el único alias de Claude", name)
+	}
+	cfg.ClaudeAliases, cfg.HideClaudeAlias = kept, hide
+	if cfg.DefaultClaudeAlias == name {
+		cfg.DefaultClaudeAlias = ""
+	}
+	return nil
 }
 
 func (c Config) claudeAlias(name string) ClaudeAlias {
 	if name == "" {
 		name = c.defaultAlias()
 	}
-	for _, a := range c.claudeAliases() {
+	list := c.claudeAliases()
+	for _, a := range list {
 		if a.Name == name {
 			return a
 		}
 	}
-	return ClaudeAlias{Name: builtinAlias}
+	// An alias that no longer exists: the default one.
+	def := c.defaultAlias()
+	for _, a := range list {
+		if a.Name == def {
+			return a
+		}
+	}
+	return list[0]
 }
 
 func (c Config) defaultAlias() string {
@@ -94,7 +134,7 @@ func (c Config) defaultAlias() string {
 			}
 		}
 	}
-	return builtinAlias
+	return c.claudeAliases()[0].Name
 }
 
 func (c Config) aliasNames() []string {
@@ -103,6 +143,25 @@ func (c Config) aliasNames() []string {
 		names = append(names, a.Name)
 	}
 	return names
+}
+
+// accountDir is the config dir a session of this alias really runs with. An alias without its
+// own CLAUDE_CONFIG_DIR gets the variable removed when another alias sets one
+// (unsetOtherAliasVars), so it runs on the default ~/.claude, not on an inherited value.
+func (c Config) accountDir(a ClaudeAlias) string {
+	for _, kv := range a.Env {
+		if k, v, ok := strings.Cut(kv, "="); ok && k == "CLAUDE_CONFIG_DIR" && v != "" {
+			return expandHome(v)
+		}
+	}
+	for _, o := range c.claudeAliases() {
+		for _, kv := range o.Env {
+			if k, _, _ := strings.Cut(kv, "="); k == "CLAUDE_CONFIG_DIR" {
+				return filepath.Join(homeDir(), ".claude")
+			}
+		}
+	}
+	return claudeConfigDir()
 }
 
 // configDir is the Claude config directory this alias uses, where its transcripts live.
@@ -154,6 +213,33 @@ var aliasListRe = regexp.MustCompile(`^(?:alias\s+)?([A-Za-z0-9_.+-]+)=(.*)$`)
 // first (`$SHELL -ic alias`), which sees aliases from any file or plugin and in any syntax, and
 // falls back to reading the usual rc files.
 func importShellAliases() []ClaudeAlias {
+	// Starting the user's interactive shell takes from half a second to several (zsh with
+	// plugins): every cw process (dialogs, hooks, the app's server) shares one reading for a while.
+	cache := filepath.Join(runDir(), "shell-aliases.json")
+	if st, err := os.Stat(cache); err == nil && time.Since(st.ModTime()) < shellAliasesTTL {
+		var list []ClaudeAlias
+		if data, err := os.ReadFile(cache); err == nil && json.Unmarshal(data, &list) == nil {
+			return list
+		}
+	}
+	list := readShellAliases()
+	if data, err := json.Marshal(list); err == nil {
+		_ = writeFileAtomic(cache, data)
+	}
+	return list
+}
+
+const shellAliasesTTL = 10 * time.Minute
+
+// forgetShellAliases makes the next importShellAliases read the shell again (after the user
+// added or imported an alias).
+func forgetShellAliases() {
+	shellAliasCache = nil
+	_ = os.Remove(filepath.Join(runDir(), "shell-aliases.json"))
+}
+
+// readShellAliases asks the shell for its aliases that launch claude (see importShellAliases).
+func readShellAliases() []ClaudeAlias {
 	defs := map[string]string{}
 	var order []string
 	for name, body := range shellAliasesFromShell() {

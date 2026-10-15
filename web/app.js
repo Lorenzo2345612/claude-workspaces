@@ -300,7 +300,9 @@ function render() {
   renderBar($('.bar', app));
   renderStage($('.stage', app));
   renderStatus($('.status', app));
-  renderCtx();
+  // An open menu is left alone (rebuilding it on every status change made it flicker and closed
+  // its submenus); it only closes when what it acts on is gone.
+  if (ctx && ctx.kind !== 'menu' && !(ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id))) closeCtx();
   document.title = S.state.title + ' — Claude Workspaces';
 }
 
@@ -352,12 +354,13 @@ function renderSide(side) {
   });
   side.replaceChildren(
     h('div', { class: 'wsrow', title: 'Workspace (Alt+M)', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); wsMenu(r.left + 6, r.bottom + 4); } },
-      h('div', { class: 'mark' }, '≡'), h('b', {}, st.title), h('span', { class: 'chev' }, '⌄')),
+      h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('b', {}, st.title), h('span', { class: 'chev' }, '⌄')),
     h('div', { class: 'grp' }, h('span', {}, 'Pestañas'), h('span', { class: 'gadd', title: 'Nueva pestaña (Alt+T)', onclick: () => dlgNewTab() }, '+')),
     tree,
     h('div', { class: 'foot' },
-      h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes'),
-      h('span', { class: 'ver' }, st.version),
+      h('span', { class: 'ib', title: 'Ajustes', onclick: () => dlgSettings('general') }, '⚙'),
+      h('span', { class: 'ib', title: 'Uso de Claude por cuenta', onclick: () => dlgUsage() }, '◔ Uso'),
+      h('span', { class: 'ib', title: 'Memoria y CPU de cada sesión', onclick: () => dlgResources() }, '▤ Recursos'),
       h('span', { class: 'ib pw', title: 'Apagar y guardar', onclick: () => confirmStop() }, '⏻')));
 }
 
@@ -508,7 +511,8 @@ function renderHome(root) {
   stageKey = '';
   const launch = S.launchDir || S.info?.launchDir || '';
   root.replaceChildren(h('div', { class: 'home' },
-    h('div', { class: 'top' }, h('div', { class: 'mark' }, '≡'), h('span', { class: 'brand' }, 'Claude Workspaces'), h('span', { class: 'sp' }),
+    h('div', { class: 'top' }, h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('span', { class: 'brand' }, 'Claude Workspaces'), h('span', { class: 'sp' }),
+      h('span', { class: 'ib', onclick: () => dlgUsage() }, '◔ Uso de Claude'),
       h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes')),
     h('h3', {}, 'Workspaces'),
     h('p', { class: 'lead' }, 'Retoma uno o crea uno nuevo.'),
@@ -570,6 +574,7 @@ function listen() {
     if (st.ws !== S.ws) return;
     const was = S.state;
     S.state = st;
+    if (st.notice && was && was.notice !== st.notice) { try { toast(JSON.parse(st.notice).text); } catch (e) {} }
     if (was && was.mode === 'app' && st.mode !== 'app') { go(null); return; }
     render();
   });
@@ -701,6 +706,8 @@ function wsMenu(x, y) {
     { label: 'Guardar ahora', run: () => act('ws.save').then(() => toast('Estado guardado')) },
     { label: 'Reabrir sesión cerrada', k: 'Ctrl ⇧ T', run: () => act('slot.reopen', { tab: curTab()?.id, ...stageSize() }) },
     { label: 'Alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
+    { label: 'Uso de Claude…', run: () => dlgUsage() },
+    { label: 'Recursos…', run: () => dlgResources() },
     ...(others.length ? ['-', ...others.map(w => ({ label: w.title, k: 'abierto', run: () => go(w.name) }))] : []),
     '-',
     { label: 'Ajustes', k: 'Alt ,', run: () => dlgSettings('general') },
@@ -1006,6 +1013,8 @@ async function dlgSettings(section) {
         h('div', { class: 'setrow' }, h('div', {}, 'Mensaje de continuación', h('small', {}, 'Lo reciben las sesiones que estaban trabajando al apagar o reiniciar.')), msg),
         h('div', { class: 'setrow' }, h('div', {}, 'Arranque diferido', h('small', {}, 'Al retomar un workspace, las sesiones ociosas esperan a que pulses Enter en ellas.')),
           h('button', { class: 'toggle' + (c.lazy_start ? ' on' : ''), onclick: () => set({ lazy_start: !c.lazy_start }).then(draw) }, h('i'))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Cambiar de alias sin cuota', h('small', {}, 'Si una cuenta de Claude llega al límite (5 horas o semanal), sus sesiones detenidas pasan a un alias de otra cuenta con cuota y continúan.')),
+          h('button', { class: 'toggle' + (c.auto_switch_alias !== false ? ' on' : ''), onclick: () => set({ auto_switch_alias: c.auto_switch_alias === false }).then(draw) }, h('i'))),
         h('div', { class: 'setrow' }, h('div', {}, 'Atajos de navegador', h('small', {}, 'Ctrl+T, Ctrl+W, Ctrl+Tab… actúan sobre las sesiones de la pestaña. Apágalos si los quieres para Claude (Ctrl+W borra una palabra).')),
           h('button', { class: 'toggle' + (c.browser_keys !== false ? ' on' : ''), onclick: () => set({ browser_keys: c.browser_keys === false }).then(draw) }, h('i'))),
         h('div', { class: 'setrow' }, h('div', {}, 'Autoguardado', h('small', {}, 'Cada cuánto se guarda el estado del workspace.')),
@@ -1018,8 +1027,8 @@ async function dlgSettings(section) {
         ...S.aliases.map(a => h('div', { class: 'acard' },
           h('div', { class: 'tx' }, h('b', {}, a.name), a.name === S.defaultAlias ? h('span', { class: 'star' }, '★ por defecto') : null, h('div', {}, a.summary)),
           a.name !== S.defaultAlias ? h('button', { class: 'btn', onclick: () => set({ default_claude_alias: a.name }).then(draw) }, 'Por defecto') : null,
-          !a.builtin ? h('button', { class: 'btn', onclick: () => dlgAlias(a, draw) }, 'Editar') : null,
-          !a.builtin ? h('button', { class: 'btn', onclick: () => dlgConfirm('¿Borrar el alias ' + a.name + '?', 'Las sesiones que lo usan pasan al alias por defecto la próxima vez que se abran.', 'Borrar', async () => { await api.do('alias.delete', { name: a.name }); await loadConfig(); draw(); }) }, '✕') : null)),
+          h('button', { class: 'btn', onclick: () => dlgAlias(a, draw) }, 'Editar'),
+          S.aliases.length > 1 ? h('button', { class: 'btn', onclick: () => dlgConfirm('¿Borrar el alias ' + a.name + '?', 'Las sesiones que lo usan pasan al alias por defecto la próxima vez que se abran.', 'Borrar', async () => { await api.do('alias.delete', { name: a.name }); await loadConfig(); draw(); }) }, '✕') : null)),
         h('button', { class: 'btn primary', style: { marginTop: '6px' }, onclick: () => dlgAlias(null, draw) }, '＋ Agregar alias'),
         S.shellAliases.length ? h('div', { style: { marginTop: '22px' } },
           h('div', { class: 'hint', style: { marginBottom: '8px' } }, 'Detectados en tu shell — clic para agregarlos:'),
@@ -1067,6 +1076,72 @@ function dlgAlias(a, after) {
       await api.do('alias.save', { old: a ? a.name : '', name: name.value.trim(), env: env.value.split('\n'), argList: args.value.trim() ? args.value.trim().split(/\s+/) : [] });
       await loadConfig(); after();
     } }] });
+}
+
+// ---------- usage and resources ----------
+const fmtTok = n => n >= 1e9 ? (n / 1e9).toFixed(1).replace(/\.0$/, '') + ' mil M' : n >= 1e6 ? (n / 1e6).toFixed(1).replace(/\.0$/, '') + ' M' : n >= 1e3 ? Math.round(n / 1e3) + ' k' : String(n);
+const fmtMB = mb => mb >= 1024 ? (mb / 1024).toFixed(1) + ' GB' : Math.round(mb) + ' MB';
+function fmtReset(iso) {
+  if (!iso || iso.startsWith('0001')) return '';
+  const t = new Date(iso), d = t - Date.now();
+  const inTxt = d <= 0 ? 'ya' : d < 3600e3 ? 'en ' + Math.ceil(d / 60e3) + ' min' : d < 86400e3 ? 'en ' + Math.floor(d / 3600e3) + ' h ' + Math.floor(d / 60e3) % 60 + ' min' : 'en ' + Math.floor(d / 86400e3) + (Math.floor(d / 86400e3) === 1 ? ' día' : ' días');
+  const hm = t.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const same = t.toDateString() === new Date().toDateString();
+  return same ? 'a las ' + hm + ' (' + inTxt + ')' : t.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + hm + ' (' + inTxt + ')';
+}
+function usageBar(label, w) {
+  if (!w) return null;
+  const pct = Math.round(w.pct), lvl = pct >= 90 ? 'hi' : pct >= 70 ? 'mid' : '';
+  return h('div', { class: 'urow' }, h('span', { class: 'ul' }, label),
+    h('div', { class: 'ubar ' + lvl }, h('i', { style: { width: Math.min(100, pct) + '%' } })),
+    h('b', {}, pct + ' %'), h('span', { class: 'ur' }, 'se reinicia ' + fmtReset(w.resetsAt)));
+}
+async function dlgUsage() {
+  const body = h('div', { class: 'stack' }, h('div', { class: 'hint' }, 'Consultando el uso de cada cuenta…'));
+  const m = modal({ title: 'Uso de Claude', sub: 'Por cuenta: la ventana de 5 horas, la semanal y los tokens gastados.', width: '640px', body,
+    buttons: [{ label: 'Actualizar', run: async () => { await fill(true); return true; } }, { label: 'Cerrar', primary: true }] });
+  async function fill(fresh) {
+    let rows;
+    try { rows = await api.get('usage', { fresh: fresh ? '1' : null }); } catch (e) { body.replaceChildren(h('div', { class: 'hint err' }, e.message)); return; }
+    body.replaceChildren(...rows.map(a => {
+      const card = h('div', { class: 'ucard' }, h('div', { class: 'uh' }, h('b', {}, a.aliases.join(' · ')), h('span', {}, [a.plan, a.short].filter(Boolean).join(' · '))));
+      if (a.external) { card.append(h('div', { class: 'hint' }, 'Proveedor externo (' + a.external + '): sin límites de Claude.')); return card; }
+      if (a.error) card.append(h('div', { class: 'hint warn' }, a.error));
+      [usageBar('Sesión (5 h)', a.session), usageBar('Semana', a.week), usageBar('Semana · Opus', a.weekOpus), usageBar('Semana · Sonnet', a.weekSonnet)].forEach(x => x && card.append(x));
+      const tok = (label, t) => h('div', { class: 'utok' }, h('span', { class: 'ul' }, label), h('b', {}, fmtTok(t.in + t.out + t.cacheW + t.cacheR)),
+        h('span', { class: 'ur' }, 'entrada ' + fmtTok(t.in) + ' · salida ' + fmtTok(t.out) + ' · caché ' + fmtTok(t.cacheW + t.cacheR)));
+      card.append(tok('Tokens · sesión', a.tokSession), tok('Tokens · semana', a.tokWeek));
+      if (a.sharedWith && a.sharedWith.length) card.append(h('div', { class: 'hint' }, 'Tokens sumados con ' + a.sharedWith.join(', ') + ': comparten la carpeta de conversaciones.'));
+      return card;
+    }));
+  }
+  fill(false);
+  return m;
+}
+async function dlgResources() {
+  if (!S.ws) return;
+  const body = h('div', { class: 'stack' }, h('div', { class: 'hint' }, 'Midiendo…'));
+  let alive = true;
+  modal({ title: 'Recursos', sub: 'Memoria y CPU de cada sesión con todos sus procesos; se actualiza cada 2 segundos.', width: '680px', body,
+    buttons: [{ label: 'Cerrar', primary: true }], onclose: () => { alive = false; } });
+  while (alive) {
+    try {
+      const r = await api.get('resources', { ws: S.ws });
+      const maxMB = Math.max(1, ...(r.sessions || []).map(s => s.rssMB));
+      body.replaceChildren(
+        h('div', { class: 'rsum' },
+          h('div', {}, h('span', {}, 'Claude'), h('b', {}, fmtMB(r.claudeMB)), h('small', {}, Math.round(r.claudeCPU) + ' % CPU')),
+          h('div', {}, h('span', {}, 'Terminales'), h('b', {}, fmtMB(r.shellMB)), h('small', {}, Math.round(r.shellCPU) + ' % CPU')),
+          r.machineMB ? h('div', {}, h('span', {}, 'Equipo'), h('b', {}, fmtMB(r.machineMB - r.machineFreeMB)), h('small', {}, 'de ' + fmtMB(r.machineMB))) : null),
+        h('div', { class: 'rtable' }, (r.sessions || []).map(s => h('div', { class: 'rrow' },
+          h('span', { class: 'rn' }, s.kind === 'claude' ? '✦ ' : '❯ ', h('b', {}, s.name), h('small', {}, s.tab)),
+          h('div', { class: 'rbar' }, h('i', { style: { width: (s.rssMB / maxMB * 100) + '%' } })),
+          h('span', { class: 'rv' }, fmtMB(s.rssMB)), h('span', { class: 'rv' + (s.cpu >= 50 ? ' hot' : '') }, Math.round(s.cpu) + ' %'),
+          h('span', { class: 'rv dim' }, s.procs + ' proc.')))),
+        r.outsideN ? h('div', { class: 'hint' }, 'Fuera de este workspace hay ' + r.outsideN + ' procesos de Claude que usan ' + fmtMB(r.outsideMB) + '.') : null);
+    } catch (e) { body.replaceChildren(h('div', { class: 'hint err' }, e.message)); }
+    await new Promise(r => setTimeout(r, 2000));
+  }
 }
 
 // ---------- new version ----------

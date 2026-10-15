@@ -84,6 +84,7 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, item("Arranque diferido", yesNo(cfg.LazyStart), "l", toggle("lazy"))...)
 	menu = append(menu, item("Argumentos para todo claude", args2, "g",
 		popup("Argumentos para claude", 13, "_ui", "setconf", ws, "args"))...)
+	menu = append(menu, item("Cambiar de alias sin cuota", yesNo(cfg.autoSwitchAlias()), "c", toggle("autoswitch"))...)
 	menu = append(menu, item("Alias de claude", itoa(len(cfg.claudeAliases()))+" · por defecto "+cfg.defaultAlias(), "a",
 		fmt.Sprintf(`display-popup -E -w 90 -h 30 -T " Alias de claude " "%s"`, q(joinArgs([]string{bin, "_ui", "aliases", ws}))))...)
 	menu = append(menu, "-APARIENCIA", "", "")
@@ -128,6 +129,9 @@ func cmdConf(args []string) error {
 	case "browser":
 		on := !cfg.browserKeys()
 		cfg.BrowserKeys = &on
+	case "autoswitch":
+		on := !cfg.autoSwitchAlias()
+		cfg.AutoSwitchAlias = &on
 	default:
 		return fmt.Errorf("opción desconocida %q", what)
 	}

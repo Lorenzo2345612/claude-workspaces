@@ -343,6 +343,7 @@ func serveApp(launchDir string) error {
 	srv := &appServer{info: info, launchDir: launchDir, quit: make(chan struct{})}
 	hs := &http.Server{Handler: srv.routes(), ReadHeaderTimeout: 10 * time.Second}
 	go srv.autosaveLoop()
+	go func() { time.Sleep(4 * time.Second); cachedUsage(false) }() // the first scan of the transcripts takes seconds
 	fmt.Println("cw app", version, "escuchando en", info.base())
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, syscall.SIGTERM, syscall.SIGINT, syscall.SIGHUP)
@@ -526,7 +527,7 @@ func (s *appServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 				fl.Flush()
 			}
 		}
-		if n%5 == 0 {
+		if n%12 == 0 {
 			data, _ := json.Marshal(listUIWorkspaces())
 			if string(data) != lastList {
 				lastList = string(data)
@@ -557,6 +558,7 @@ func (s *appServer) autosaveLoop() {
 			return
 		case <-time.After(20 * time.Second):
 		}
+		quotaTick()
 		cfg, _ := loadConfig()
 		for _, ws := range runningWorkspaces() {
 			t := Tmux{WS: ws}

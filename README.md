@@ -23,6 +23,12 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   the settings (Ctrl+W otherwise deletes a word in Claude's prompt).
 - **Suspend** a session or a whole tab: Claude stops running (no memory, no CPU) while the session
   keeps its place and its conversation, also across stop/start; Enter or ▶ resumes it.
+- **Claude usage per account** (`cw uso`, Alt+u, the app's «Uso»): how much of the 5-hour and the
+  weekly windows each account behind the aliases has used, when they reset, and the tokens spent.
+- **Resources**: memory and CPU of every session with all its processes (Alt+m → Recursos, the
+  app's «Recursos»).
+- **Switch alias when out of quota** (on by default): sessions stopped by an exhausted account
+  move to an alias of an account with quota and continue.
 - **Folders**: change a tab's folder (where its new sessions start) and the workspace's default
   folder (where new tabs start).
 - **Workspaces** — named sets of tabs. `cw` opens a start screen to create one in the current

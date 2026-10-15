@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -56,32 +57,47 @@ type uiState struct {
 	Dir     string            `json:"dir"`
 	DirS    string            `json:"dirShort"`
 	Closed  int               `json:"closed"` // sessions that Ctrl+Shift+T can reopen
+	Notice  string            `json:"notice"` // the last event to show ({"at", "text"}), e.g. an alias switched for quota
 }
 
 // appSnapshot is the state the window draws, read from tmux (and tidied up) on every call.
 func appSnapshot(ws string) uiState {
 	st := uiState{WS: ws, Title: ws, Version: version, Slots: map[string]uiSlot{}}
 	t := Tmux{WS: ws}
-	if !t.Running() {
+	// One tmux call for every server option the window needs (it runs every 400 ms per window;
+	// starting processes is what costs, notably on macOS). An error means the server is down.
+	opts, err := t.Run("display", "-p", strings.Join([]string{"#{@cw_app}", "#{@cw_ws_title}", "#{@cw_ws_dir}", "#{@cw_launch_dir}", "#{@cw_closed}", "#{@cw_notice}"}, sep))
+	f := strings.Split(opts, sep)
+	if err != nil || len(f) != 6 {
 		if w, err := loadWorkspace(ws); err == nil {
 			st.Title = w.displayTitle()
+		}
+		if t.Running() { // running, but without a session to display options from
+			st.Running, st.Mode = true, "terminal"
 		}
 		return st
 	}
 	st.Running = true
-	if !appMode(t) {
+	if f[0] != "1" {
 		st.Mode = "terminal"
 		return st
 	}
 	st.Mode = "app"
-	if title, _ := t.Run("show", "-gqv", optWSTitle); title != "" {
-		st.Title = title
+	if f[1] != "" {
+		st.Title = f[1]
 	}
-	st.Dir = workspaceDir(t)
+	st.Dir = homeDir()
+	for _, d := range []string{f[2], f[3]} {
+		if d != "" && isDir(d) {
+			st.Dir = d
+			break
+		}
+	}
 	st.DirS = shortPath(st.Dir)
-	if v, _ := t.Run("show", "-gqv", optClosed); v != "" {
+	st.Notice = f[5]
+	if f[4] != "" {
 		var list []closedSlot
-		_ = json.Unmarshal([]byte(v), &list)
+		_ = json.Unmarshal([]byte(f[4]), &list)
 		st.Closed = len(list)
 	}
 	a := appWS(ws)
@@ -254,6 +270,18 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, listUIWorkspaces())
 	case "update":
 		writeJSON(w, map[string]string{"current": version, "latest": availableUpdate()})
+	case "usage":
+		writeJSON(w, cachedUsage(q.Get("fresh") == "1"))
+	case "resources":
+		ws := q.Get("ws")
+		t := Tmux{WS: ws}
+		l := t.loadLayout()
+		writeJSON(w, workspaceResources(ws, func(session, _ string) string {
+			if at, _ := l.findSlot(strings.TrimPrefix(session, slotPrefix)); at != nil {
+				return at.Title
+			}
+			return ""
+		}))
 	case "state":
 		writeJSON(w, appSnapshot(q.Get("ws")))
 	case "info":
@@ -266,7 +294,7 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 		for _, a := range cfg.claudeAliases() {
 			have[a.Name] = true
 		}
-		for _, a := range importShellAliases() {
+		for _, a := range cachedShellAliases() {
 			if !have[a.Name] {
 				shell = append(shell, uiAlias{Name: a.Name, Summary: a.summary(), Env: a.Env, Args: a.Args})
 			}
@@ -381,6 +409,7 @@ type doReq struct {
 		DefaultClaudeAlias *string   `json:"default_claude_alias"`
 		BrowserKeys        *bool     `json:"browser_keys"`
 		AppMode            *string   `json:"app_mode"`
+		AutoSwitchAlias    *bool     `json:"auto_switch_alias"`
 		AppFontSize        *int      `json:"app_font_size"`
 	} `json:"config"`
 }
@@ -521,15 +550,8 @@ func (s *appServer) do(q *doReq) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		var kept []ClaudeAlias
-		for _, a := range cfg.ClaudeAliases {
-			if a.Name != q.Name {
-				kept = append(kept, a)
-			}
-		}
-		cfg.ClaudeAliases = kept
-		if cfg.DefaultClaudeAlias == q.Name {
-			cfg.DefaultClaudeAlias = ""
+		if err := deleteAlias(&cfg, q.Name); err != nil {
+			return nil, err
 		}
 		return nil, saveConfig(cfg)
 	case "alias.import":
@@ -540,7 +562,7 @@ func (s *appServer) do(q *doReq) (map[string]any, error) {
 		for _, a := range importShellAliases() {
 			if a.Name == q.Name {
 				cfg.ClaudeAliases = append(cfg.ClaudeAliases, ClaudeAlias{Name: a.Name})
-				shellAliasCache = nil
+				forgetShellAliases()
 				return nil, saveConfig(cfg)
 			}
 		}
@@ -615,6 +637,9 @@ func applyConfigPatch(q *doReq) error {
 		if c.BrowserKeys != nil {
 			cfg.BrowserKeys = c.BrowserKeys
 		}
+		if c.AutoSwitchAlias != nil {
+			cfg.AutoSwitchAlias = c.AutoSwitchAlias
+		}
 		if c.AppMode != nil && (*c.AppMode == "light" || *c.AppMode == "dark") {
 			cfg.AppMode = *c.AppMode
 		}
@@ -666,10 +691,13 @@ func saveAliasFromUI(old, name string, env, args []string) error {
 		}
 		cfg.ClaudeAliases = append(cfg.ClaudeAliases, a)
 	}
+	if name == builtinAlias {
+		cfg.HideClaudeAlias = false // adding "claude" back
+	}
 	if old != "" && old != name && cfg.DefaultClaudeAlias == old {
 		cfg.DefaultClaudeAlias = name
 	}
-	shellAliasCache = nil
+	forgetShellAliases()
 	return saveConfig(cfg)
 }
 
@@ -777,4 +805,54 @@ func osName() string {
 		return "unix"
 	}
 	return strings.TrimSpace(string(out))
+}
+
+var (
+	usageMu   sync.Mutex
+	usageAt   time.Time
+	usageLast []accountUsage
+)
+
+// cachedUsage answers from a copy at most a minute old: every window that opens the panel would
+// otherwise hit the usage service and rescan transcripts.
+func cachedUsage(fresh bool) []accountUsage {
+	usageMu.Lock()
+	defer usageMu.Unlock()
+	if fresh || usageLast == nil || time.Since(usageAt) > time.Minute {
+		cfg, _ := loadConfig()
+		usageLast = claudeUsage(cfg)
+		sortAccounts(usageLast)
+		usageAt = time.Now()
+	}
+	return usageLast
+}
+
+var (
+	shellAliasesMu   sync.Mutex
+	shellAliasesAt   time.Time
+	shellAliasesLast []ClaudeAlias
+	shellAliasesBusy bool
+)
+
+// cachedShellAliases lists the shell aliases that launch claude without starting the user's
+// interactive shell on every request (1–4 s with zsh and its plugins): the list is refreshed in
+// the background when older than five minutes.
+func cachedShellAliases() []ClaudeAlias {
+	shellAliasesMu.Lock()
+	defer shellAliasesMu.Unlock()
+	refresh := func() {
+		list := importShellAliases()
+		shellAliasesMu.Lock()
+		shellAliasesLast, shellAliasesAt, shellAliasesBusy = list, time.Now(), false
+		shellAliasesMu.Unlock()
+	}
+	if shellAliasesAt.IsZero() {
+		shellAliasesMu.Unlock()
+		refresh()
+		shellAliasesMu.Lock()
+	} else if time.Since(shellAliasesAt) > 5*time.Minute && !shellAliasesBusy {
+		shellAliasesBusy = true
+		go refresh()
+	}
+	return shellAliasesLast
 }

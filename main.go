@@ -28,6 +28,7 @@ Uso:
   cw save <nombre>         guarda el estado del workspace sin detenerlo
   cw stop <nombre>         guarda el estado y apaga el workspace (también: cw apagar)
   cw rm <nombre>           borra el estado guardado de un workspace apagado
+  cw uso                   uso de Claude de cada cuenta: sesión de 5 h, semana, reinicios y tokens
   cw config                muestra la ruta y el contenido de la configuración
   cw version               muestra la versión
   cw update [--check]      se actualiza a la última versión publicada (--check solo avisa)
@@ -149,6 +150,8 @@ func run(args []string) error {
 		return withName(rest, cmdRemove)
 	case "config":
 		return cmdConfig()
+	case "uso", "usage":
+		return cmdUso()
 	case "app":
 		return cmdApp(rest)
 	case "_idle":
@@ -399,6 +402,7 @@ func cmdStop(ws string) error {
 }
 
 func cmdAutosave(ws string) error {
+	quotaTick()
 	cfg, _ := loadConfig()
 	if st, err := os.Stat(workspaceFile(ws)); err == nil &&
 		time.Since(st.ModTime()) < time.Duration(cfg.AutosaveSeconds)*time.Second {

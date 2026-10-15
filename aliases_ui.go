@@ -189,20 +189,14 @@ func uiClaudeAliases() error {
 				confirmDelete = false
 				if k.kind == keyRune && (k.r == 's' || k.r == 'y') {
 					name := list[sel].Name
-					var kept []ClaudeAlias
-					for _, a := range cfg.ClaudeAliases {
-						if a.Name != name {
-							kept = append(kept, a)
-						}
-					}
-					cfg.ClaudeAliases = kept
-					if cfg.DefaultClaudeAlias == name {
-						cfg.DefaultClaudeAlias = ""
+					if err := deleteAlias(&cfg, name); err != nil {
+						msg = err.Error()
+						continue
 					}
 					if err := saveConfig(cfg); err != nil {
 						return err
 					}
-					msg = "Borrado " + name + ". Las sesiones que lo usaban arrancarán con " + builtinAlias + "."
+					msg = "Borrado " + name + ". Las sesiones que lo usaban arrancarán con " + cfg.defaultAlias() + "."
 				}
 				continue
 			}
@@ -244,11 +238,7 @@ func uiClaudeAliases() error {
 					}
 				}
 			case k.kind == keyRune && k.r == 'x':
-				if list[sel].Name == builtinAlias {
-					msg = "El alias " + builtinAlias + " siempre existe; puedes editarlo pero no borrarlo."
-				} else {
-					confirmDelete = true
-				}
+				confirmDelete = true
 			case k.kind == keyRune && k.r == 'd':
 				cfg.DefaultClaudeAlias = list[sel].Name
 				if err := saveConfig(cfg); err != nil {

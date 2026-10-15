@@ -53,11 +53,11 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	layoutCmd := func(name string) string {
 		return fmt.Sprintf(`run-shell "%s _layout %s '#{window_id}' %s || true"`, bq, ws, name)
 	}
-	lifePane := fmt.Sprintf(`run-shell "%s _life %s toggle '#{pane_id}' || true"`, bq, ws)
-	lifeTab := fmt.Sprintf(`run-shell "%s _life %s toggle '#{session_name}' || true"`, bq, ws)
 	reopen := fmt.Sprintf(`run-shell "%s _reopen %s '#{client_name}' || true"`, bq, ws)
 	tabDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta de la pestaña " "%s _ui tabdir %s"`, bq, ws)
 	wsDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta del workspace " "%s _ui wsdir %s"`, bq, ws)
+	usagePopup := fmt.Sprintf(`display-popup -E -w 110 -h 30 -T " Uso de Claude " "%s _ui uso %s"`, bq, ws)
+	resourcesPopup := fmt.Sprintf(`display-popup -E -w 84 -h 26 -T " Recursos " "%s _ui recursos %s"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
 	confirmClose := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar sesión " "%s _ui confirm %s close"`, bq, ws)
@@ -82,8 +82,6 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		fmt.Sprintf(`"  ✦ Cambiar alias de claude" p { %s }`, switchAliasPopup),
 		fmt.Sprintf(`"  ✦ Alias de claude de la pestaña" k { %s }`, bulkTab),
 		fmt.Sprintf(`"  ≡ Todas las sesiones" e { %s }`, sessionsPopup),
-		fmt.Sprintf(`"#{?#{==:#{@cw_kind},claude},,-}  #{?#{==:#{@cw_status},sleeping},▶ Reanudar,⏾ Suspender} sesión actual" S { %s }`, lifePane),
-		fmt.Sprintf(`"  ⏾ Suspender o reanudar la pestaña" Z { %s }`, lifeTab),
 		fmt.Sprintf(`"  ▸ Carpeta de la pestaña…" f { %s }`, tabDirPopup),
 		`"-VISTA" "" ""`,
 		fmt.Sprintf(`"  ⧉ Combinar sesiones en esta vista…" v { %s }`, combinePopup),
@@ -98,6 +96,8 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		fmt.Sprintf(`"  ▸ Renombrar workspace…" W { display-popup -E -w 70 -h 10 -T " Renombrar workspace " "%s _ui renamews %s" }`, bq, ws),
 		fmt.Sprintf(`"  ✦ Alias de claude de todo el workspace" K { %s }`, bulkAll),
 		fmt.Sprintf(`"  ▸ Carpeta por defecto…" F { %s }`, wsDirPopup),
+		fmt.Sprintf(`"  ◔ Uso de Claude…" u { %s }`, usagePopup),
+		fmt.Sprintf(`"  ▤ Recursos…" R { %s }`, resourcesPopup),
 		fmt.Sprintf(`"  ◆ Configuración" o { %s }`, configMenu),
 		fmt.Sprintf(`"  ? Ayuda" h { %s }`, helpPopup),
 		`"  ⇥ Desconectar" d detach-client`,
@@ -207,6 +207,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`bind -n M-h { %s }`, helpPopup)
 	w(`bind -n M-e { %s }`, sessionsPopup)
 	w(`bind -n M-p { %s }`, switchAliasPopup)
+	w(`bind -n M-u { %s }`, usagePopup)
 	// Closing a session changes its tab's counters.
 	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s || true" }`, bq, ws)
 	// Enter on a session that exited with an error reopens it; anywhere else it is a plain Enter.

@@ -90,6 +90,8 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, item("Tema de color", themeLabel(cfg.Theme), "t", toggle("theme"))...)
 	menu = append(menu, item("Barra de pestañas", bar, "b", toggle("bar"))...)
 	menu = append(menu, item("Al iniciar, abrir en", window, "v", toggle("window"))...)
+	menu = append(menu, "-TECLADO", "", "")
+	menu = append(menu, item("Atajos de navegador", yesNo(cfg.browserKeys())+" · Ctrl+T, Ctrl+W, Ctrl+Tab…", "n", toggle("browser"))...)
 	menu = append(menu, "-GUARDADO", "", "")
 	menu = append(menu, item("Autoguardado cada", itoa(cfg.AutosaveSeconds)+" s", "s",
 		popup("Autoguardado", 13, "_ui", "setconf", ws, "autosave"))...)
@@ -123,13 +125,16 @@ func cmdConf(args []string) error {
 	case "window":
 		cfg.Window = map[string]string{windowCurrent: windowMaximized, windowMaximized: windowFullscreen,
 			windowFullscreen: windowCurrent}[cfg.Window]
+	case "browser":
+		on := !cfg.browserKeys()
+		cfg.BrowserKeys = &on
 	default:
 		return fmt.Errorf("opción desconocida %q", what)
 	}
 	if err := saveConfig(cfg); err != nil {
 		return err
 	}
-	if what == "bar" || what == "theme" {
+	if what == "bar" || what == "theme" || what == "browser" {
 		if err := reloadConf(ws, cfg); err != nil {
 			return err
 		}

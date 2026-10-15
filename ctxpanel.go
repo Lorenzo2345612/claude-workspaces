@@ -70,6 +70,7 @@ var ctxDialogs = map[string]struct {
 	"tab-rename": {"Renombrar pestaña", 70, 10},
 	"tab-alias":  {"Alias de claude de la pestaña", 70, 16},
 	"tab-close":  {"Cerrar pestaña", 66, 13},
+	"tab-dir":    {"Carpeta de la pestaña", 76, 10},
 	"combine":    {"Combinar sesiones en esta vista", 78, 24},
 	"view-alias": {"Alias de claude de la vista", 70, 16},
 	"view-close": {"Cerrar vista", 66, 13},
@@ -324,6 +325,24 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		add("← Mover a la izquierda", "tab-left")
 		add("→ Mover a la derecha", "tab-right")
 		add("▸ Renombrar pestaña", "tab-rename")
+		add("▸ Cambiar la carpeta de la pestaña…", "tab-dir")
+		running, asleep := 0, 0
+		if rows, err := t.Lines("list-panes", "-s", "-t", target, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"); err == nil {
+			for _, r := range rows {
+				if len(r) == 2 && r[0] == kindClaude {
+					if r[1] == statusSleeping {
+						asleep++
+					} else {
+						running++
+					}
+				}
+			}
+		}
+		if running > 0 {
+			add("⏾ Suspender la pestaña (sus "+itoa(running)+" de Claude dejan de correr)", "tab-life")
+		} else if asleep > 0 {
+			add("▶ Reanudar la pestaña", "tab-life")
+		}
 		add("✦ Cambiar alias de claude de la pestaña…", "tab-alias")
 		add("✕ Cerrar pestaña", "tab-close")
 		return "Pestaña " + name, items, true
@@ -334,14 +353,14 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		return "", nil, false
 	}
 	session, _ := t.Run("display", "-p", "-t", win, "#{session_name}")
-	panes, _ := t.Lines("list-panes", "-t", win, "-F", "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}")
+	panes, _ := t.Lines("list-panes", "-t", win, "-F", "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}"+sep+"#{@cw_status}")
 	onlyPane := ""
 	if strings.HasPrefix(target, "%") {
 		onlyPane = target
 	}
 	var names []string
 	for _, p := range panes {
-		if len(p) == 3 && p[2] != kindHome {
+		if len(p) == 4 && p[2] != kindHome {
 			n := p[1]
 			if n == "" {
 				n = "shell"
@@ -369,7 +388,7 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		}
 	}
 	for _, p := range panes {
-		if len(p) != 3 || p[2] == kindHome || (onlyPane != "" && p[0] != onlyPane) {
+		if len(p) != 4 || p[2] == kindHome || (onlyPane != "" && p[0] != onlyPane) {
 			continue
 		}
 		name := p[1]
@@ -386,6 +405,11 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		add("▸ Editar sesión", "edit:"+p[0])
 		if p[2] == kindClaude {
 			add("✦ Cambiar alias de claude", "edit:"+p[0])
+			if p[3] == statusSleeping {
+				add("▶ Reanudar", "life:"+p[0])
+			} else {
+				add("⏾ Suspender (Claude deja de correr; la conversación queda)", "life:"+p[0])
+			}
 		}
 		if len(names) > 1 {
 			add("⇱ Separar de la vista", "split:"+p[0])
@@ -435,6 +459,20 @@ func ctxRun(t Tmux, ws, kind, target, id string) error {
 			return err
 		}
 		return uiConfirm(ws, "closetab", session)
+	case "tab-dir":
+		session, err := t.Run("display", "-p", "-t", target, "#{session_name}")
+		if err != nil {
+			return err
+		}
+		return uiTabDir(ws, session)
+	case "tab-life":
+		session, err := t.Run("display", "-p", "-t", target, "#{session_name}")
+		if err != nil {
+			return err
+		}
+		return cmdLife([]string{ws, "toggle", session})
+	case "life":
+		return cmdLife([]string{ws, "toggle", arg})
 	case "view-left", "view-right":
 		idx, err := t.Run("display", "-p", "-t", win, "#{window_index}")
 		if err != nil {

@@ -17,6 +17,14 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   mode, served by a small local cw server; sessions keep running in tmux when the window closes
   and reappear when it opens again. On Windows the installer adds a «Claude Workspaces» shortcut
   (Start menu and desktop) that runs it inside WSL.
+- **Browser shortcuts for the sessions of a tab** (0.9, both versions): Ctrl+T new Claude session,
+  Ctrl+W close it, Ctrl+Shift+T reopen the last closed, Ctrl+Tab / Ctrl+PgDn and Ctrl+Shift+Tab /
+  Ctrl+PgUp to switch, Ctrl+Shift+PgUp/PgDn to move, Ctrl+1…8 and Ctrl+9. They can be turned off in
+  the settings (Ctrl+W otherwise deletes a word in Claude's prompt).
+- **Suspend** a session or a whole tab: Claude stops running (no memory, no CPU) while the session
+  keeps its place and its conversation, also across stop/start; Enter or ▶ resumes it.
+- **Folders**: change a tab's folder (where its new sessions start) and the workspace's default
+  folder (where new tabs start).
 - **Workspaces** — named sets of tabs. `cw` opens a start screen to create one in the current
   directory or resume a saved one. **Stop** saves the exact state (tabs, directories, sessions,
   their names and which ones were working); **start** reopens everything with `claude --resume`

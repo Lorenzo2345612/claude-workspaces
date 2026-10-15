@@ -103,7 +103,7 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 	}
 	argv = l.unsetOtherAliasVars(alias, argv)
 
-	if display != statusBusy && resuming && l.Cfg.LazyStart {
+	if s.Suspended || (display != statusBusy && resuming && l.Cfg.LazyStart) {
 		display = statusSleeping
 		argv = append([]string{l.Bin, "_wait", l.WS, s.Alias, "--"}, argv...)
 	}

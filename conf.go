@@ -31,7 +31,7 @@ const (
 //	   [fix-matriz ○] [review ●] [shell]    + Claude   + Terminal       ~/work/x
 //
 // Tab labels and their underlines come from refreshTabLabel, which keeps both the same width.
-func tmuxConf(ws, bin string, barTop bool) string {
+func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	bq := "'" + bin + "'" // sh-quoted binary, used inside tmux double-quoted strings
 
 	newTabPopup := fmt.Sprintf(`display-popup -E -w 72 -h 18 -T " Nueva pestaña " "%s _ui newtab %s"`, bq, ws)
@@ -53,6 +53,11 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	layoutCmd := func(name string) string {
 		return fmt.Sprintf(`run-shell "%s _layout %s '#{window_id}' %s || true"`, bq, ws, name)
 	}
+	lifePane := fmt.Sprintf(`run-shell "%s _life %s toggle '#{pane_id}' || true"`, bq, ws)
+	lifeTab := fmt.Sprintf(`run-shell "%s _life %s toggle '#{session_name}' || true"`, bq, ws)
+	reopen := fmt.Sprintf(`run-shell "%s _reopen %s '#{client_name}' || true"`, bq, ws)
+	tabDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta de la pestaña " "%s _ui tabdir %s"`, bq, ws)
+	wsDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta del workspace " "%s _ui wsdir %s"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
 	confirmClose := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar sesión " "%s _ui confirm %s close"`, bq, ws)
@@ -69,6 +74,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		fmt.Sprintf(`"  ↻ Retomar sesión por ID…" i { %s }`, resumeIDPopup),
 		fmt.Sprintf(`"  ❯ Terminal" s { %s }`, newShell),
 		fmt.Sprintf(`"  ▤ Pestaña" t { %s }`, newTabPopup),
+		fmt.Sprintf(`"  ↺ Reabrir sesión cerrada" z { %s }`, reopen),
 		`"-ESTA PESTAÑA" "" ""`,
 		fmt.Sprintf(`"  ▸ Renombrar pestaña" r { %s }`, renameTab),
 		fmt.Sprintf(`"  ▸ Renombrar sesión" n { %s }`, renameSlot),
@@ -76,6 +82,9 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		fmt.Sprintf(`"  ✦ Cambiar alias de claude" p { %s }`, switchAliasPopup),
 		fmt.Sprintf(`"  ✦ Alias de claude de la pestaña" k { %s }`, bulkTab),
 		fmt.Sprintf(`"  ≡ Todas las sesiones" e { %s }`, sessionsPopup),
+		fmt.Sprintf(`"#{?#{==:#{@cw_kind},claude},,-}  #{?#{==:#{@cw_status},sleeping},▶ Reanudar,⏾ Suspender} sesión actual" S { %s }`, lifePane),
+		fmt.Sprintf(`"  ⏾ Suspender o reanudar la pestaña" Z { %s }`, lifeTab),
+		fmt.Sprintf(`"  ▸ Carpeta de la pestaña…" f { %s }`, tabDirPopup),
 		`"-VISTA" "" ""`,
 		fmt.Sprintf(`"  ⧉ Combinar sesiones en esta vista…" v { %s }`, combinePopup),
 		fmt.Sprintf(`"#{?#{e|>:#{window_panes},1},,-}  ⇱ Separar esta sesión de la vista" u { %s }`, splitOut),
@@ -88,6 +97,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		fmt.Sprintf(`"  ↓ Guardar ahora" g { %s }`, save),
 		fmt.Sprintf(`"  ▸ Renombrar workspace…" W { display-popup -E -w 70 -h 10 -T " Renombrar workspace " "%s _ui renamews %s" }`, bq, ws),
 		fmt.Sprintf(`"  ✦ Alias de claude de todo el workspace" K { %s }`, bulkAll),
+		fmt.Sprintf(`"  ▸ Carpeta por defecto…" F { %s }`, wsDirPopup),
 		fmt.Sprintf(`"  ◆ Configuración" o { %s }`, configMenu),
 		fmt.Sprintf(`"  ? Ayuda" h { %s }`, helpPopup),
 		`"  ⇥ Desconectar" d detach-client`,
@@ -229,6 +239,31 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// Menus open when the button comes up: one opened on press closes as soon as it is released
 	// away from an item, and keeping it open (-O) stops its items from taking clicks.
 	w(`bind -n MouseUp1Status { if -F "#{==:#{mouse_status_range},menu}" { %s } }`, mainMenu)
+	if browserKeys {
+		// The browser's tab shortcuts, for the sessions of the current tab: Ctrl+T new session,
+		// Ctrl+W close it, Ctrl+Shift+T reopen the last closed, Ctrl+Tab / Ctrl+PgDn next,
+		// Ctrl+Shift+Tab / Ctrl+PgUp previous, Ctrl+Shift+PgUp/PgDn move it, Ctrl+1…8 and Ctrl+9.
+		// Ctrl+Tab, Ctrl+Shift+T and Ctrl+digits arrive only from terminals that report them.
+		w(`bind -n C-t { %s }`, newClaudePopup)
+		w(`bind -n C-w { %s }`, confirmClose)
+		w(`bind -n C-S-t { %s }`, reopen)
+		w(`bind -n C-Tab next-window`)
+		w(`bind -n C-NPage next-window`)
+		w(`bind -n C-S-Tab previous-window`)
+		w(`bind -n C-PPage previous-window`)
+		w(`bind -n C-S-NPage swap-window -d -t +1`)
+		w(`bind -n C-S-PPage swap-window -d -t -1`)
+		for i := 1; i <= 8; i++ {
+			w(`bind -n C-%d select-window -t :=%d`, i, i)
+		}
+		w(`bind -n C-9 select-window -t :$`)
+	} else {
+		// Sourced over a running server: drop the shortcuts a previous configuration bound.
+		for _, k := range []string{"C-t", "C-w", "C-S-t", "C-Tab", "C-NPage", "C-S-Tab", "C-PPage", "C-S-NPage", "C-S-PPage",
+			"C-1", "C-2", "C-3", "C-4", "C-5", "C-6", "C-7", "C-8", "C-9"} {
+			w(`unbind -q -n %s`, k)
+		}
+	}
 	w(`bind -n M-Left previous-window`)
 	w(`bind -n M-Right next-window`)
 	w(`bind -n M-Up switch-client -p`)

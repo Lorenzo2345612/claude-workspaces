@@ -26,6 +26,7 @@ type uiSlot struct {
 	SID        string   `json:"sid"`
 	Args       []string `json:"args"`
 	Dead       bool     `json:"dead"`
+	Suspended  bool     `json:"suspended"`
 	DeadStatus string   `json:"deadStatus"`
 }
 
@@ -51,6 +52,9 @@ type uiState struct {
 	Active  string            `json:"active"`
 	Slots   map[string]uiSlot `json:"slots"`
 	Version string            `json:"version"`
+	Dir     string            `json:"dir"`
+	DirS    string            `json:"dirShort"`
+	Closed  int               `json:"closed"` // sessions that Ctrl+Shift+T can reopen
 }
 
 // appSnapshot is the state the window draws, read from tmux (and tidied up) on every call.
@@ -71,6 +75,13 @@ func appSnapshot(ws string) uiState {
 	st.Mode = "app"
 	if title, _ := t.Run("show", "-gqv", optWSTitle); title != "" {
 		st.Title = title
+	}
+	st.Dir = workspaceDir(t)
+	st.DirS = shortPath(st.Dir)
+	if v, _ := t.Run("show", "-gqv", optClosed); v != "" {
+		var list []closedSlot
+		_ = json.Unmarshal([]byte(v), &list)
+		st.Closed = len(list)
 	}
 	a := appWS(ws)
 	a.mu.Lock()
@@ -131,7 +142,8 @@ func appSnapshot(ws string) uiState {
 			alias = cfg.claudeAlias(p.slot.ClaudeAlias).Name
 		}
 		st.Slots[id] = uiSlot{ID: id, Name: name, Kind: p.slot.Kind, Status: p.slot.Status, Alias: alias, Cwd: cwd,
-			Short: shortPath(cwd), SID: p.slot.SessionID, Args: p.slot.Args, Dead: p.dead, DeadStatus: p.deadStatus}
+			Short: shortPath(cwd), SID: p.slot.SessionID, Args: p.slot.Args, Dead: p.dead, DeadStatus: p.deadStatus,
+			Suspended: p.slot.Suspended}
 	}
 	return st
 }
@@ -364,6 +376,7 @@ type doReq struct {
 		ClaudeArgs         *[]string `json:"claude_args"`
 		Theme              *string   `json:"theme"`
 		DefaultClaudeAlias *string   `json:"default_claude_alias"`
+		BrowserKeys        *bool     `json:"browser_keys"`
 		AppFontSize        *int      `json:"app_font_size"`
 	} `json:"config"`
 }
@@ -587,6 +600,9 @@ func applyConfigPatch(q *doReq) error {
 		}
 		if c.DefaultClaudeAlias != nil {
 			cfg.DefaultClaudeAlias = *c.DefaultClaudeAlias
+		}
+		if c.BrowserKeys != nil {
+			cfg.BrowserKeys = c.BrowserKeys
 		}
 		if c.AppFontSize != nil && *c.AppFontSize >= 9 && *c.AppFontSize <= 24 {
 			cfg.AppFontSize = *c.AppFontSize

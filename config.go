@@ -35,7 +35,12 @@ type Config struct {
 	AppPort int `json:"app_port,omitempty"`
 	// AppFontSize is the font size of the app's terminals; 0 means the default.
 	AppFontSize int `json:"app_font_size,omitempty"`
+	// BrowserKeys turns on the browser shortcuts for the sessions of a tab (Ctrl+T, Ctrl+W,
+	// Ctrl+Tab…); nil means on.
+	BrowserKeys *bool `json:"browser_keys,omitempty"`
 }
+
+func (c Config) browserKeys() bool { return c.BrowserKeys == nil || *c.BrowserKeys }
 
 const (
 	barTop    = "top"

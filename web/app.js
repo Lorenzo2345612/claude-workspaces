@@ -48,7 +48,7 @@ async function act(action, body) {
   try { return await api.do(action, { ws: S.ws, ...body }); }
   catch (e) { toast(e.message, true); throw e; }
 }
-const statusText = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'dormida · Enter para retomarla' };
+const statusText = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida · no corre Claude' };
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 const THEMES = { azul: ['#7c8cff', '#a78bfa'], morado: ['#a78bfa', '#c084fc'], verde: ['#4ade80', '#2dd4bf'],
   naranja: ['#fb923c', '#fbbf24'], rosa: ['#f472b6', '#c084fc'], gris: ['#9ca3af', '#cbd5e1'] };
@@ -182,6 +182,7 @@ function pruneTerms() {
 // ---------- keyboard ----------
 function shortcut(ev) {
   if (!S.ws || !S.state || $('.scrim')) return false;
+  if (browserShortcut(ev)) return true;
   if (!ev.altKey || ev.ctrlKey || ev.metaKey) return false;
   const tab = curTab(), view = curView();
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
@@ -209,6 +210,32 @@ function shortcut(ev) {
   if (/^[1-9]$/.test(k)) { const v = views[+k - 1]; if (v) selectView(v.id); return true; }
   return false;
 }
+// The browser's tab shortcuts, applied to the sessions of the current tab (not to the tabs):
+// Ctrl+T new Claude session, Ctrl+W close the session, Ctrl+Shift+T reopen the last closed,
+// Ctrl+Tab / Ctrl+PgDn next, Ctrl+Shift+Tab / Ctrl+PgUp previous, Ctrl+Shift+PgUp/PgDn move it,
+// Ctrl+1…8 the Nth, Ctrl+9 the last. They can be turned off in the settings.
+function browserShortcut(ev) {
+  if (!(ev.ctrlKey || ev.metaKey) || ev.altKey || (S.config && S.config.browser_keys === false)) return false;
+  const tab = curTab(), view = curView();
+  if (!tab) return false;
+  const views = tab.views, vi = view ? views.indexOf(view) : -1;
+  const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
+  const go = d => { if (views.length) selectView(views[(vi + d + views.length) % views.length].id); };
+  switch (k) {
+    case 't': if (ev.shiftKey) act('slot.reopen', { tab: tab.id, ...stageSize() }).catch(() => {}); else dlgNewSession(tab.id, 'claude'); return true;
+    case 'w': if (!ev.shiftKey && view?.focus) { confirmCloseSlot(view.focus); return true; } return false;
+    case 'Tab': go(ev.shiftKey ? -1 : 1); return true;
+    case 'PageDown': if (ev.shiftKey) { if (view && vi < views.length - 1) act('view.move', { view: view.id, to: vi + 1 }); } else go(1); return true;
+    case 'PageUp': if (ev.shiftKey) { if (view && vi > 0) act('view.move', { view: view.id, to: vi - 1 }); } else go(-1); return true;
+  }
+  if (!ev.shiftKey && /^[1-9]$/.test(k)) {
+    const v = k === '9' ? views[views.length - 1] : views[+k - 1];
+    if (v) selectView(v.id);
+    return true;
+  }
+  return false;
+}
+
 document.addEventListener('keydown', ev => {
   if (ev.key === 'Escape') {
     if (closeCtx()) { ev.preventDefault(); return; }
@@ -377,6 +404,9 @@ function renderStage(stage) {
     if (s) meta.push(s.short);
     head.replaceChildren(dotFor(s), h('b', {}, s ? s.name : '…'), h('span', { class: 'meta' }, '· ' + meta.join(' · ')),
       h('span', { class: 'act' },
+        s && s.kind === 'claude' && !s.dead ? (s.status === 'sleeping'
+          ? h('button', { title: 'Reanudar: vuelve a correr Claude en su conversación', onclick: () => act('slot.wake', { slot: id }) }, '▶')
+          : h('button', { title: 'Suspender: Claude deja de correr y de consumir recursos; la conversación queda', onclick: () => act('slot.suspend', { slot: id }) }, '⏾')) : null,
         multi ? h('button', { title: 'Separar de la vista', onclick: () => act('slot.split', { slot: id }) }, '⇱') : null,
         h('button', { title: 'Acciones', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); openCtx('slot', id, r.right - 300, r.bottom + 4); } }, '⋯'),
         h('button', { class: 'danger', title: 'Cerrar sesión', onclick: () => confirmCloseSlot(id) }, '✕')));
@@ -544,6 +574,14 @@ function tabItems(id) {
     i > 0 && { ic: '↑', label: 'Mover arriba', run: () => act('tab.move', { tab: id, to: i - 1 }) },
     i < st.tabs.length - 1 && { ic: '↓', label: 'Mover abajo', run: () => act('tab.move', { tab: id, to: i + 1 }) },
     { ic: '▸', label: 'Renombrar pestaña', run: () => dlgPrompt('Renombrar pestaña', 'Nombre', t.title, v => act('tab.rename', { tab: id, title: v })) },
+    { ic: '▸', label: 'Cambiar la carpeta de la pestaña…', k: t.short, run: () => dlgDir('Carpeta de la pestaña ' + t.title, 'Las sesiones nuevas de la pestaña empiezan aquí.', t.short, v => act('tab.dir', { tab: id, dir: v })) },
+    ...(() => {
+      const claude = t.views.flatMap(v => v.slots).map(slotOf).filter(s => s && s.kind === 'claude' && !s.dead);
+      const running = claude.filter(s => s.status !== 'sleeping').length;
+      if (running) return [{ ic: '⏾', label: 'Suspender la pestaña', k: running + ' de Claude', run: () => act('tab.suspend', { tab: id }) }];
+      if (claude.length) return [{ ic: '▶', label: 'Reanudar la pestaña', run: () => act('tab.wake', { tab: id }) }];
+      return [];
+    })(),
     { ic: '✦', label: 'Nueva sesión de Claude aquí', run: () => dlgNewSession(id, 'claude'), close: true },
     hasClaude && { ic: '✦', label: 'Cambiar alias de Claude de la pestaña…', run: () => dlgBulkAlias('tab', id) },
     { ic: '✕', label: 'Cerrar pestaña', danger: true, run: () => confirmCloseTab(id), close: true },
@@ -571,6 +609,8 @@ function slotItems(id) {
     items.push({ ic: '✎', label: 'Editar sesión…', run: () => dlgEditSession(id) });
     items.push({ ic: '✦', label: 'Cambiar alias de Claude', k: s.alias, run: () => dlgBulkAlias('slot', id) });
     items.push({ ic: '↻', label: 'Reiniciar', run: () => act('slot.respawn', { slot: id }) });
+    if (s.status === 'sleeping') items.push({ ic: '▶', label: 'Reanudar', run: () => act('slot.wake', { slot: id }) });
+    else if (!s.dead) items.push({ ic: '⏾', label: 'Suspender', k: 'deja de correr', run: () => act('slot.suspend', { slot: id }) });
   }
   if (multi) items.push({ ic: '⇱', label: 'Separar de la vista', run: () => act('slot.split', { slot: id }) });
   items.push({ ic: '✕', label: 'Cerrar sesión', danger: true, run: () => confirmCloseSlot(id), close: true });
@@ -594,6 +634,8 @@ function wsMenu(x, y) {
     { ic: '←', label: 'Todos los workspaces', run: () => go(null) },
     { ic: '▸', label: 'Renombrar workspace', run: () => dlgPrompt('Renombrar workspace', 'Nombre', S.state.title, v => act('ws.rename', { title: v })) },
     { ic: '↓', label: 'Guardar ahora', run: () => act('ws.save').then(() => toast('Estado guardado')) },
+    { ic: '▸', label: 'Carpeta por defecto…', k: S.state.dirShort, run: () => dlgDir('Carpeta por defecto del workspace', 'Las pestañas nuevas empiezan aquí.', S.state.dirShort, v => act('ws.dir', { dir: v })) },
+    { ic: '↺', label: 'Reabrir sesión cerrada', k: 'Ctrl+⇧T', run: () => act('slot.reopen', { tab: curTab()?.id, ...stageSize() }) },
     { ic: '✦', label: 'Cambiar alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
     { ic: '⚙', label: 'Configuración', k: 'Alt+,', run: () => dlgSettings('general') },
     { ic: '?', label: 'Atajos de teclado', k: 'Alt+H', run: () => dlgSettings('keys') },
@@ -768,11 +810,18 @@ function dirInput(value) {
   return wrap;
 }
 
+function dlgDir(title, sub, value, run) {
+  const dir = dirInput(value);
+  modal({ title, sub, body: field('Carpeta', dir), buttons: [{ label: 'Cancelar' }, { label: 'Guardar', primary: true, run: async () => {
+    const v = dir.input.value.trim(); if (!v) throw new Error('Escribe una carpeta.'); await run(v);
+  } }] });
+}
+
 function dlgNewTab() {
   const tab = curTab();
   let start = 'claude', alias = S.defaultAlias;
   const name = h('input', { class: 'input', placeholder: 'p. ej. bug-185' });
-  const dir = dirInput(tab ? tab.short : (S.info?.launchShort || '~'));
+  const dir = dirInput(S.state.dirShort || (tab ? tab.short : '~'));
   const sess = h('input', { class: 'input', placeholder: 'igual que la pestaña' });
   const extra = h('div', { style: { display: 'grid', gap: '14px' } });
   const drawExtra = () => extra.replaceChildren(...(start === 'claude' ? [field('Nombre de la sesión', sess), field('Alias de Claude', aliasSeg(alias, v => alias = v))] : []));
@@ -891,6 +940,8 @@ async function dlgSettings(section) {
         h('div', { class: 'setrow' }, h('div', {}, 'Mensaje de continuación', h('small', {}, 'Lo reciben las sesiones que estaban trabajando al apagar o reiniciar.')), msg),
         h('div', { class: 'setrow' }, h('div', {}, 'Arranque diferido', h('small', {}, 'Al retomar un workspace, las sesiones ociosas esperan a que pulses Enter en ellas.')),
           h('button', { class: 'toggle' + (c.lazy_start ? ' on' : ''), onclick: () => set({ lazy_start: !c.lazy_start }).then(draw) }, h('i'))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Atajos de navegador', h('small', {}, 'Ctrl+T, Ctrl+W, Ctrl+Tab… actúan sobre las sesiones de la pestaña. Apágalos si los quieres para Claude (Ctrl+W borra una palabra).')),
+          h('button', { class: 'toggle' + (c.browser_keys !== false ? ' on' : ''), onclick: () => set({ browser_keys: c.browser_keys === false }).then(draw) }, h('i'))),
         h('div', { class: 'setrow' }, h('div', {}, 'Autoguardado', h('small', {}, 'Cada cuánto se guarda el estado del workspace.')),
           seg([60, 120, 300].map(v => ({ value: v, label: v / 60 + ' min' })), c.autosave_seconds, v => set({ autosave_seconds: v }))),
         h('div', { class: 'setrow' }, h('div', {}, 'Argumentos para todas las sesiones', h('small', {}, 'Se agregan a cada sesión de Claude que se abra.')), cargs),
@@ -923,6 +974,9 @@ async function dlgSettings(section) {
         k('Alt+← Alt+→', 'sesión (vista) anterior / siguiente'), k('Alt+↑ Alt+↓', 'pestaña anterior / siguiente'), k('Alt+1…9', 'ir a la sesión N'),
         k('Alt+N', 'nueva sesión de Claude'), k('Alt+Y', 'nueva terminal'), k('Alt+I', 'retomar una conversación por su ID'), k('Alt+T', 'nueva pestaña'),
         k('Alt+R', 'editar la sesión actual'), k('Alt+P', 'cambiar el alias de Claude de la sesión'), k('Alt+W', 'cerrar la sesión actual'),
+        k('Ctrl+T', 'nueva sesión de Claude en la pestaña'), k('Ctrl+W', 'cerrar la sesión'), k('Ctrl+Shift+T', 'reabrir la última sesión cerrada'),
+        k('Ctrl+Tab Ctrl+PgDn', 'sesión siguiente'), k('Ctrl+Shift+Tab Ctrl+PgUp', 'sesión anterior'), k('Ctrl+Shift+PgUp/PgDn', 'mover la sesión'),
+        k('Ctrl+1…8 Ctrl+9', 'ir a la sesión N / a la última'),
         k('Alt+M', 'menú del workspace'), k('Alt+,', 'configuración'), k('Alt+H', 'estos atajos'), k('Esc', 'cierra paneles y diálogos'),
         k('Ctrl+C', 'copia si hay texto seleccionado (si no, lo recibe la sesión)'), k('Ctrl+V', 'pega'),
         k('Arrastrar', 'selecciona y copia texto de una sesión; Mayús+arrastrar selecciona sin pasar por tmux'),

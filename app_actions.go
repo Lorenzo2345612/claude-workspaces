@@ -106,7 +106,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		at := l.Tabs[i]
 		for _, v := range at.Views {
 			for _, s := range v.Slots {
-				_, _ = t.Run("kill-session", "-t", "="+slotSession(s))
+				closeAppSlot(t, s, "")
 			}
 		}
 		l.Tabs = append(l.Tabs[:i], l.Tabs[i+1:]...)
@@ -181,8 +181,9 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		if v == nil {
 			return nil, nil
 		}
+		at, _ := l.findView(q.View)
 		for _, s := range append([]string{}, v.Slots...) {
-			_, _ = t.Run("kill-session", "-t", "="+slotSession(s))
+			closeAppSlot(t, s, at.ID)
 			l.removeSlot(s)
 		}
 		return nil, save()
@@ -251,7 +252,11 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		v.Focus, at.Active, l.Active = q.Slot, v.ID, at.ID
 		return nil, save()
 	case "slot.close":
-		_, _ = t.Run("kill-session", "-t", "="+slotSession(q.Slot))
+		tabID := ""
+		if at, _ := l.findSlot(q.Slot); at != nil {
+			tabID = at.ID
+		}
+		closeAppSlot(t, q.Slot, tabID)
 		l.removeSlot(q.Slot)
 		return nil, save()
 	case "slot.rename":
@@ -310,6 +315,76 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		i := at.viewIndex(v.ID)
 		at.Views = append(at.Views[:i+1], append([]*appView{nv}, at.Views[i+1:]...)...)
 		return nil, save()
+	case "slot.suspend", "slot.wake", "tab.suspend", "tab.wake":
+		var ids []string
+		if q.Action[:4] == "slot" {
+			ids = []string{q.Slot}
+		} else if at := l.tab(q.Tab); at != nil {
+			for _, v := range at.Views {
+				ids = append(ids, v.Slots...)
+			}
+		}
+		for _, id := range ids {
+			pane, err := paneOf(id)
+			if err != nil {
+				continue
+			}
+			if q.Action[len(q.Action)-4:] == "wake" {
+				err = wakePane(t.WS, pane)
+			} else {
+				err = suspendPane(t.WS, pane)
+			}
+			if err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	case "slot.reopen":
+		c, ok := popClosed(t)
+		if !ok {
+			return nil, errors.New("no hay sesiones cerradas para reabrir")
+		}
+		at := l.tab(c.Tab)
+		if at == nil {
+			at = l.tab(q.Tab)
+		}
+		if at == nil {
+			at = l.activeTab()
+		}
+		if at == nil {
+			return nil, errors.New("no hay ninguna pestaña")
+		}
+		sizeHint()
+		ln, err := launcher(false)
+		if err != nil {
+			return nil, err
+		}
+		s := c.Slot
+		if err := appOpenSlot(t, ln, &s, s.Kind == kindClaude && s.SessionID != ""); err != nil {
+			return nil, err
+		}
+		v := &appView{ID: shortID(), Layout: layoutCols, Slots: []string{s.ID}, Focus: s.ID}
+		at.Views = append(at.Views, v)
+		at.Active, l.Active = v.ID, at.ID
+		return map[string]any{"slot": s.ID}, save()
+	case "tab.dir":
+		at, err := tabOf(q.Tab)
+		if err != nil {
+			return nil, err
+		}
+		dir, err := checkDir(q.Dir)
+		if err != nil {
+			return nil, err
+		}
+		at.Dir = dir
+		return nil, save()
+	case "ws.dir":
+		dir, err := checkDir(q.Dir)
+		if err != nil {
+			return nil, err
+		}
+		_, err = t.Run("set", "-g", optWSDir, dir)
+		return nil, err
 	case "alias.bulk":
 		var targets []string
 		switch q.Scope {
@@ -355,4 +430,14 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		return map[string]any{"changed": changed}, nil
 	}
 	return nil, fmt.Errorf("acción desconocida %q", q.Action)
+}
+
+// closeAppSlot ends a session of the app, remembering it so it can be reopened.
+func closeAppSlot(t Tmux, id, tabID string) {
+	if pane, err := t.Run("display", "-p", "-t", "="+slotSession(id)+":", "#{pane_id}"); err == nil {
+		if s, err := paneSlot(t, pane); err == nil {
+			pushClosed(t, s, tabID)
+		}
+	}
+	_, _ = t.Run("kill-session", "-t", "="+slotSession(id))
 }

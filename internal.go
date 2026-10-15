@@ -167,6 +167,14 @@ func cmdUI(args []string) error {
 		err = uiEditPane(args[1], args[2])
 	case "renamews":
 		err = uiRenameWorkspace(args[1])
+	case "wsdir":
+		err = uiWorkspaceDir(args[1])
+	case "tabdir":
+		session := ""
+		if len(args) > 2 {
+			session = args[2]
+		}
+		err = uiTabDir(args[1], session)
 	case "rename":
 		switch {
 		case len(args) == 4 && args[2] == "slot":
@@ -212,10 +220,7 @@ func uiNewTab(ws string) error {
 	if err != nil {
 		return err
 	}
-	curDir, _ := Tmux{WS: ws}.Run("show", "-gqv", "@cw_launch_dir")
-	if curDir == "" || !isDir(curDir) {
-		curDir = homeDir()
-	}
+	curDir := workspaceDir(Tmux{WS: ws})
 	t := Tmux{WS: ws}
 	cfg, err := loadConfig()
 	if err != nil {
@@ -369,11 +374,11 @@ func cmdWait(args []string) error {
 		return errors.New("uso: _wait <ws> <alias> -- <comando…>")
 	}
 	ws, alias, argv := args[0], args[1], args[i+1:]
-	fmt.Printf("\n  z  %s está dormida para ahorrar recursos.\n\n  Pulsa Enter para retomarla.\n", alias)
+	fmt.Printf("\n  z  %s está suspendida: no corre Claude, así que no consume recursos.\n\n  Pulsa Enter para reanudarla en su conversación.\n", alias)
 	_, _ = stdin.ReadString('\n')
 	if pane := os.Getenv("TMUX_PANE"); pane != "" {
 		t := Tmux{WS: ws}
-		_, _ = t.Run("set", "-p", "-t", pane, "@cw_status", statusIdle)
+		_, _ = t.Run("set", "-p", "-t", pane, "@cw_status", statusIdle, ";", "set", "-p", "-t", pane, "@cw_suspended", "")
 		if session, err := t.Run("display", "-p", "-t", pane, "#{session_name}"); err == nil {
 			refreshTabLabel(t, session)
 		}
@@ -394,6 +399,12 @@ func cmdRespawn(args []string) error {
 // respawnSlot restarts the process of a pane. With sendContinue, a Claude session that has a
 // conversation resumes it and gets the configured continue message.
 func respawnSlot(ws, pane string, sendContinue bool) error {
+	return respawnSlotMode(ws, pane, sendContinue, false)
+}
+
+// respawnSlotMode restarts a pane's process; with suspend, a Claude session restarts as the
+// placeholder that waits for Enter (no Claude process until then).
+func respawnSlotMode(ws, pane string, sendContinue, suspend bool) error {
 	t := Tmux{WS: ws}
 	out, err := t.Run("display", "-p", "-t", pane, strings.Join([]string{
 		"#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}", "#{@cw_args}", "#{@cw_claude_alias}"}, sep))
@@ -411,7 +422,7 @@ func respawnSlot(ws, pane string, sendContinue bool) error {
 		status = statusBusy // makes claudeArgv append the continue message
 	}
 	s := Slot{ID: f[0], Kind: f[1], Alias: f[2], Cwd: f[3], SessionID: f[4], Status: status,
-		Args: argsFromOption(f[5]), ClaudeAlias: f[6]}
+		Args: argsFromOption(f[5]), ClaudeAlias: f[6], Suspended: suspend}
 	if !isDir(s.Cwd) {
 		s.Cwd = homeDir()
 	}
@@ -442,7 +453,7 @@ func respawnSlot(ws, pane string, sendContinue bool) error {
 		return err
 	}
 	_, err = t.Run("set", "-p", "-t", pane, "@cw_sid", s.SessionID, ";", "set", "-p", "-t", pane, "@cw_status", display,
-		";", "set", "-p", "-t", pane, "@cw_claude_alias", s.ClaudeAlias)
+		";", "set", "-p", "-t", pane, "@cw_claude_alias", s.ClaudeAlias, ";", "set", "-p", "-t", pane, "@cw_suspended", boolOpt(suspend))
 	return err
 }
 
@@ -463,6 +474,8 @@ func uiHelp() {
 		"  " + sgrMuted + "POR ID" + sgrReset + "      Alt+n → Claude por ID… trae una conversación abierta fuera de cw",
 		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  clic derecho en una sesión → Ver junto a…, o Alt+m → Combinar",
 		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",
+		"  " + sgrMuted + "NAVEGADOR" + sgrReset + "   Ctrl+T nueva · Ctrl+W cierra · Ctrl+⇧T reabre · Ctrl+PgUp/PgDn",
+		"  " + sgrMuted + "SUSPENDER" + sgrReset + "   clic derecho → Suspender (no corre Claude) · Enter reanuda",
 		"",
 		"  " + sgrMuted + "ESTADOS" + sgrReset,
 		"  " + sgrBusy + "●" + sgrReset + " trabajando   " + sgrRed + "?" + sgrReset + " pide permiso   " +
@@ -489,7 +502,7 @@ func reloadConf(ws string, cfg Config) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFileAtomic(tmuxConfFile(ws), []byte(tmuxConf(ws, bin, cfg.BarPosition != barBottom))); err != nil {
+	if err := writeFileAtomic(tmuxConfFile(ws), []byte(tmuxConf(ws, bin, cfg.BarPosition != barBottom, cfg.browserKeys()))); err != nil {
 		return err
 	}
 	_, err = Tmux{WS: ws}.Run("source-file", tmuxConfFile(ws))
@@ -612,6 +625,20 @@ func uiConfirm(ws, what, explicit string) error {
 // instead of removing the tab with it.
 func closeWindow(ws, target string) error {
 	t := Tmux{WS: ws}
+	// Remember what closes, so Ctrl+Shift+T (Reabrir sesión cerrada) can bring it back.
+	if panes, err := t.Lines("list-panes", "-t", target, "-F", "#{pane_id}"+sep+"#{session_name}"); err == nil {
+		if strings.HasPrefix(target, "%") {
+			panes = [][]string{{target, ""}}
+			if s, err := t.Run("display", "-p", "-t", target, "#{session_name}"); err == nil {
+				panes[0][1] = s
+			}
+		}
+		for _, p := range panes {
+			if s, err := paneSlot(t, p[0]); err == nil && len(p) == 2 {
+				pushClosed(t, s, p[1])
+			}
+		}
+	}
 	// A pane of a view with other sessions closes alone; the view stays with the rest.
 	if strings.HasPrefix(target, "%") {
 		if n, _ := t.Run("display", "-p", "-t", target, "#{window_panes}"); n != "1" {
@@ -651,10 +678,7 @@ func closeWindow(ws, target string) error {
 func closeTab(ws, session, client string) error {
 	t := Tmux{WS: ws}
 	if rows, _ := t.Lines("list-sessions", "-F", "#{session_name}"); len(rows) == 1 {
-		dir, _ := t.Run("show", "-gqv", "@cw_launch_dir")
-		if !isDir(dir) {
-			dir = homeDir()
-		}
+		dir := workspaceDir(t)
 		cfg, err := loadConfig()
 		if err != nil {
 			return err

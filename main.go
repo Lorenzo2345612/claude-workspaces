@@ -64,7 +64,7 @@ func saveAfterAction(cmd string, rest []string) {
 		if len(rest) > 1 {
 			ws = rest[1]
 		}
-	case "_ctxpopup", "_barclick", "_respawn", "_join", "_splitout", "_layout", "_tabmove", "_winmove", "_title":
+	case "_ctxpopup", "_barclick", "_respawn", "_join", "_splitout", "_layout", "_tabmove", "_winmove", "_title", "_life", "_reopen":
 		if len(rest) > 0 {
 			ws = rest[0]
 		}
@@ -87,7 +87,7 @@ func saveNow(ws string) {
 func quietInternal(cmd string) bool {
 	switch cmd {
 	case "_ctxpopup", "_barclick", "_configmenu", "_conf", "_new", "_splitout", "_layout", "_labels",
-		"_respawn", "_tabmove", "_winmove", "_join", "_title":
+		"_respawn", "_tabmove", "_winmove", "_join", "_title", "_life", "_reopen":
 		return true
 	}
 	return false
@@ -170,6 +170,10 @@ func run(args []string) error {
 		return cmdRespawn(rest)
 	case "_ctxpopup":
 		return cmdCtxPopup(rest)
+	case "_life":
+		return cmdLife(rest)
+	case "_reopen":
+		return cmdReopen(rest)
 	case "_join":
 		return cmdJoin(rest)
 	case "_splitout":
@@ -245,7 +249,7 @@ func startWorkspace(ws, dir string, here bool, seed *Tab, title string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeFileAtomic(tmuxConfFile(ws), []byte(tmuxConf(ws, l.Bin, cfg.BarPosition != barBottom))); err != nil {
+	if err := writeFileAtomic(tmuxConfFile(ws), []byte(tmuxConf(ws, l.Bin, cfg.BarPosition != barBottom, cfg.browserKeys()))); err != nil {
 		return err
 	}
 	t := Tmux{WS: ws}
@@ -297,6 +301,9 @@ func startWorkspace(ws, dir string, here bool, seed *Tab, title string) error {
 }
 
 func restore(t Tmux, l *Launcher, w *Workspace) error {
+	if w.Dir != "" {
+		_, _ = t.Run("set", "-g", optWSDir, w.Dir)
+	}
 	if len(w.Tabs) == 0 {
 		w.Tabs = []Tab{{Title: "inicio", Dir: homeDir()}}
 	}

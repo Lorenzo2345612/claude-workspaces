@@ -129,7 +129,8 @@ func (t Tmux) setSlotOptions(pane string, w windowSpec) error {
 		"set", "-p", "-t", pane, "@cw_sid", w.slot.SessionID, ";",
 		"set", "-p", "-t", pane, "@cw_status", w.display, ";",
 		"set", "-p", "-t", pane, "@cw_args", argsToOption(w.slot.Args), ";",
-		"set", "-p", "-t", pane, "@cw_claude_alias", w.slot.ClaudeAlias,
+		"set", "-p", "-t", pane, "@cw_claude_alias", w.slot.ClaudeAlias, ";",
+		"set", "-p", "-t", pane, "@cw_suspended", boolOpt(w.slot.Suspended),
 	)
 	return err
 }
@@ -158,7 +159,7 @@ func (t Tmux) capture() (*Workspace, error) {
 	panes, err := t.Lines("list-panes", "-a", "-F", strings.Join([]string{
 		"#{session_name}", "#{window_index}", "#{window_active}", "#{pane_index}", "#{pane_active}",
 		"#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}", "#{@cw_status}",
-		"#{pane_current_path}", "#{@cw_args}", "#{@cw_claude_alias}", "#{window_layout}", "#{window_panes}",
+		"#{pane_current_path}", "#{@cw_args}", "#{@cw_claude_alias}", "#{window_layout}", "#{window_panes}", "#{@cw_suspended}",
 	}, sep))
 	if err != nil {
 		return nil, err
@@ -180,6 +181,7 @@ func (t Tmux) capture() (*Workspace, error) {
 	if title, _ := t.Run("show", "-gqv", "@cw_ws_title"); title != t.WS {
 		w.Title = title
 	}
+	w.Dir, _ = t.Run("show", "-gqv", optWSDir)
 	for _, s := range sessions {
 		tab := Tab{Title: s[1], Dir: s[2]}
 		if tab.Title == "" {
@@ -203,7 +205,7 @@ func (t Tmux) capture() (*Workspace, error) {
 				tab.Layouts = append(tab.Layouts, layout)
 			}
 			slot := Slot{ID: p[5], Kind: p[6], Alias: p[7], Cwd: p[8], SessionID: p[9], Status: p[10],
-				Args: argsFromOption(p[12]), ClaudeAlias: p[13], View: view}
+				Args: argsFromOption(p[12]), ClaudeAlias: p[13], View: view, Suspended: p[16] == "1"}
 			if slot.Kind == "" { // a pane opened with plain tmux keys: keep it as a shell
 				slot.Kind = kindShell
 			}

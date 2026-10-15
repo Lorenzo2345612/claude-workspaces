@@ -200,13 +200,14 @@ func (t Tmux) listSlotPanes() (map[string]paneInfo, error) {
 	rows, err := t.Lines("list-panes", "-a", "-F", strings.Join([]string{
 		"#{session_name}", "#{pane_id}", "#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}",
 		"#{@cw_status}", "#{@cw_args}", "#{@cw_claude_alias}", "#{pane_dead}", "#{pane_dead_status}", "#{pane_current_path}",
+		"#{@cw_suspended}",
 	}, sep))
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]paneInfo{}
 	for _, r := range rows {
-		if len(r) != 13 || !strings.HasPrefix(r[0], slotPrefix) {
+		if len(r) != 14 || !strings.HasPrefix(r[0], slotPrefix) {
 			continue
 		}
 		id := strings.TrimPrefix(r[0], slotPrefix)
@@ -219,7 +220,7 @@ func (t Tmux) listSlotPanes() (map[string]paneInfo, error) {
 		}
 		out[id] = paneInfo{session: r[0], pane: r[1], dead: r[10] == "1", deadStatus: r[11], path: r[12],
 			slot: Slot{ID: id, Kind: kind, Alias: r[4], Cwd: r[5], SessionID: r[6], Status: r[7],
-				Args: argsFromOption(r[8]), ClaudeAlias: r[9]}}
+				Args: argsFromOption(r[8]), ClaudeAlias: r[9], Suspended: r[13] == "1"}}
 	}
 	return out, nil
 }
@@ -312,6 +313,7 @@ func appCapture(t Tmux) (*Workspace, error) {
 	if title, _ := t.Run("show", "-gqv", optWSTitle); title != t.WS {
 		w.Title = title
 	}
+	w.Dir, _ = t.Run("show", "-gqv", optWSDir)
 	for ti, at := range l.Tabs {
 		tab := Tab{Title: at.Title, Dir: at.Dir}
 		if at.ID == l.Active {
@@ -406,6 +408,9 @@ func appRestore(t Tmux, l *Launcher, w *Workspace) error {
 		title = w.Name
 	}
 	_, _ = t.Run("set", "-g", optWSTitle, title)
+	if w.Dir != "" {
+		_, _ = t.Run("set", "-g", optWSDir, w.Dir)
+	}
 	lay := &appLayout{}
 	if len(w.Tabs) == 0 {
 		w.Tabs = []Tab{{Title: "inicio", Dir: homeDir()}}
@@ -493,7 +498,7 @@ func appEnsure(ws, dir, title string, seed *Tab) error {
 	case err == nil:
 		return appRestore(t, l, saved)
 	case errors.Is(err, os.ErrNotExist):
-		w := &Workspace{Name: ws, Title: title}
+		w := &Workspace{Name: ws, Title: title, Dir: dir}
 		if seed != nil {
 			l.Cfg.LazyStart = false
 			w.Tabs = []Tab{*seed}

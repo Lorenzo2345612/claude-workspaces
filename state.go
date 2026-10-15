@@ -29,6 +29,8 @@ type Workspace struct {
 	SavedAt   time.Time `json:"saved_at"`
 	ActiveTab int       `json:"active_tab"`
 	Tabs      []Tab     `json:"tabs"`
+	// Dir is the workspace's default folder: where new tabs start.
+	Dir string `json:"dir,omitempty"`
 }
 
 // Tab groups the sessions of one task under a title and a base directory.
@@ -57,6 +59,9 @@ type Slot struct {
 	ClaudeAlias string `json:"claude_alias,omitempty"`
 	// View groups the sessions shown together: slots with the same View share one tmux window.
 	View int `json:"view,omitempty"`
+	// Suspended sessions keep their place and conversation but run no Claude process until
+	// they are resumed (Enter in the session, or Reanudar).
+	Suspended bool `json:"suspended,omitempty"`
 }
 
 func (s Slot) wasWorking() bool {

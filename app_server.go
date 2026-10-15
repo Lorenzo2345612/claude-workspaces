@@ -95,6 +95,8 @@ func cmdApp(args []string) error {
 			hold = true
 		case "--servidor":
 			foreground = true
+		case "--diagnostico":
+			return cmdPTYDiag()
 		default:
 			return errors.New(appUsage)
 		}

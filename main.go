@@ -95,6 +95,8 @@ func run(args []string) error {
 		return cmdUI(rest)
 	case "_respawn":
 		return cmdRespawn(rest)
+	case "_slotmenu":
+		return cmdSlotMenu(rest)
 	case "_join":
 		return cmdJoin(rest)
 	case "_splitout":
@@ -168,6 +170,7 @@ func cmdStart(ws, dir string, here bool) error {
 
 	if t.Running() {
 		_, _ = t.Run("source-file", tmuxConfFile(ws)) // pick up a rebuilt binary or new styles
+		migrateLegacyOptions(t)
 		if rows, err := t.Lines("list-sessions", "-F", "#{session_name}"+sep+"#{@cw_title}"+sep+"#{@cw_dir}"); err == nil {
 			for _, r := range rows {
 				_ = t.setTabOptions(r[0], Tab{Title: r[1], Dir: r[2]})

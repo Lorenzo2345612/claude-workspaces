@@ -40,32 +40,33 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	editCurrentPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Editar sesión " "%s _ui editcurrent %s"`, bq, ws)
 	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}'"`, bq, ws)
 	renameTab := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar pestaña " "%s _ui rename %s tab"`, bq, ws)
-	configMenu := fmt.Sprintf(`run-shell "%s _configmenu %s '#{client_name}'"`, bq, ws)
+	configMenu := fmt.Sprintf(`run-shell -b "%s _configmenu %s '#{client_name}'"`, bq, ws)
 	renameSlot := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar sesión " "%s _ui rename %s slot"`, bq, ws)
 	bulkTab := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude de la pestaña " "%s _ui bulkalias %s tab"`, bq, ws)
 	bulkAll := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude del workspace " "%s _ui bulkalias %s all"`, bq, ws)
 	switchAliasPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Cambiar alias de claude " "%s _ui editcurrent %s"`, bq, ws)
-	helpPopup := fmt.Sprintf(`display-popup -E -w 80 -h 29 -T " Ayuda " "%s _ui help %s"`, bq, ws)
+	helpPopup := fmt.Sprintf(`display-popup -E -w 82 -h 30 -T " Ayuda " "%s _ui help %s"`, bq, ws)
 	save := fmt.Sprintf(`run-shell "%s save %s" ; display-message "Estado guardado"`, bq, ws)
+	resumeIDPopup := fmt.Sprintf(`display-popup -E -w 84 -h 20 -T " Retomar sesión de Claude por ID " "%s _ui resumeid %s"`, bq, ws)
 	combinePopup := fmt.Sprintf(`display-popup -E -w 78 -h 24 -T " Combinar sesiones en esta vista " "%s _ui combine %s"`, bq, ws)
 	splitOut := fmt.Sprintf(`run-shell "%s _splitout %s '#{pane_id}'"`, bq, ws)
 	layoutCmd := func(name string) string {
 		return fmt.Sprintf(`run-shell "%s _layout %s '#{window_id}' %s"`, bq, ws, name)
 	}
-	joinPrev := fmt.Sprintf(`run-shell "%s _join %s '#{window_id}' '#{@cw_prevwin}'"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
 	confirmClose := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar sesión " "%s _ui confirm %s close"`, bq, ws)
 
-	slotMenu := fmt.Sprintf(`display-menu -O -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude" c { %s } "❯ Terminal" s { %s }`,
-		newClaudePopup, newShell)
+	slotMenu := fmt.Sprintf(`display-menu -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude" c { %s } "↻ Claude por ID…" i { %s } "❯ Terminal" s { %s }`,
+		newClaudePopup, resumeIDPopup, newShell)
 
 	// Items whose name starts with "-" are disabled: they serve as group headings.
 	mainMenu := strings.Join([]string{
 		// "--" ends the options: otherwise the first heading ("-CREAR") parses as a flag.
-		fmt.Sprintf(`display-menu -O -T "#[align=centre] cw %s · %s " -x C -y C --`, version, ws),
+		fmt.Sprintf(`display-menu -T "#[align=centre] cw %s · %s " -x C -y C --`, version, ws),
 		`"-CREAR" "" ""`,
 		fmt.Sprintf(`"  ✦ Sesión de Claude" c { %s }`, newClaudePopup),
+		fmt.Sprintf(`"  ↻ Retomar sesión por ID…" i { %s }`, resumeIDPopup),
 		fmt.Sprintf(`"  ❯ Terminal" s { %s }`, newShell),
 		fmt.Sprintf(`"  ▤ Pestaña" t { %s }`, newTabPopup),
 		`"-ESTA PESTAÑA" "" ""`,
@@ -207,12 +208,15 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	tabDir := fmt.Sprintf(`#{||:#{&&:%s,#{>:#{session_name},#{client_session}}},#{&&:%s,#{<:#{session_name},#{client_session}}}}`, right, left)
 	w(`bind -n MouseDrag1Status { if -F "#{&&:#{==:#{mouse_status_range},window},%s}" { run-shell -C "swap-window -s #{session_name}:#{active_window_index} -t #{session_name}:#{window_index} ; select-window -t #{session_name}:#{window_index}" } { if -F "#{&&:#{==:#{mouse_status_range},session},%s}" { run-shell -t = -C "rename-session -t #{client_session} cw-swap ; rename-session -t #{session_name} #{client_session} ; rename-session -t cw-swap #{session_name} ; set -g @cw_active #{session_name}" } } ; set -gF @cw_dragx "#{mouse_x}" }`, winDir, tabDir)
 	// Right click: a context menu for the tab or the session under the mouse.
-	// -O keeps a menu open after the right button is released, until an item or outside is clicked.
-	tabMenu := fmt.Sprintf(`display-menu -O -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✦ Alias de claude de la pestaña" "" { %[5]s } "✕ Cerrar pestaña" "" { %[4]s }`,
+	tabMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✦ Alias de claude de la pestaña" "" { %[5]s } "✕ Cerrar pestaña" "" { %[4]s }`,
 		bq, ws, renameTab, confirmCloseTab, bulkTab)
-	slotCtx := fmt.Sprintf(`display-menu -O -T "#[align=centre] #{@cw_alias} " -x M -y S "← Mover a la izquierda" "" { swap-window -t -1 } "→ Mover a la derecha" "" { swap-window -t +1 } "" "#{?#{!=:#{session_name}:#{window_index},#{@cw_prevwin}},,-}⧉ Juntar con la vista que tenías abierta" "" { %s } "#{?#{e|>:#{window_panes},1},,-}⇱ Separar esta sesión" "" { %s } "" "▸ Renombrar" "" { %s } "▸ Editar sesión" "" { %s } "#{?#{==:#{@cw_kind},claude},,-}✦ Cambiar alias de claude" "" { %s } "✕ Cerrar sesión" "" { %s }`,
-		joinPrev, splitOut, renameSlot, editCurrentPopup, switchAliasPopup, confirmClose)
-	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = ; %s } { if -F "#{==:#{mouse_status_range},window}" { run-shell -C "set -g @cw_prevwin #{session_name}:#{active_window_index}" ; select-window -t = ; %s } } }`, tabMenu, slotCtx)
+	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = } { if -F "#{==:#{mouse_status_range},window}" { run-shell -t = "%s _slotmenu %s '#{client_name}' '#{window_id}' '#{mouse_x}' '#{mouse_y}'" } } }`, bq, ws)
+	// The session menu is prepared on press and opened on release: a menu opened after the
+	// press's run-shell closes as soon as the button comes up.
+	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{==:#{mouse_status_range},window}" { source-file -q "%s" } } }`, tabMenu, slotMenuFile(ws))
+	// Menus open when the button comes up: one opened on press closes as soon as it is released
+	// away from an item, and keeping it open (-O) stops its items from taking clicks.
+	w(`bind -n MouseUp1Status { if -F "#{==:#{mouse_status_range},menu}" { %s } }`, mainMenu)
 	w(`bind -n M-Left previous-window`)
 	w(`bind -n M-Right next-window`)
 	w(`bind -n M-Up switch-client -p`)
@@ -224,7 +228,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// tmux would sit in copy mode ("[0/0]") swallowing keystrokes. -e leaves it at the bottom.
 	w(`bind -n WheelUpPane { if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send -M } { if -F "#{history_size}" { copy-mode -e } } }`)
 	clicks := []struct{ rng, cmd string }{
-		{"menu", mainMenu}, {"newtab", newTabPopup}, {"newclaude", newClaudePopup}, {"newshell", newShell},
+		{"newtab", newTabPopup}, {"newclaude", newClaudePopup}, {"newshell", newShell},
 		{"help", helpPopup}, {"stop", confirmStop},
 	}
 	// A click on a session pill selects that window; a click on a tab switches to that tab.
@@ -241,8 +245,9 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	w(`bind -n MouseDragEnd1Pane { if -F "#{&&:#{@cw_dragwin},#{==:#{@cw_dragging},1}}" { run-shell -t = "%s _join %s '#{@cw_dragwin}' '#{pane_id}'" } { if -F "#{mouse_any_flag}" { send-keys -M } } ; set -g @cw_dragwin "" ; set -g @cw_dragging 0 }`, bq, ws)
 	w(`bind -n MouseDragEnd1Status { set -g @cw_dragwin "" ; set -g @cw_dragging 0 }`)
 	// Right click inside a session (unless the program there uses the mouse): its own menu.
-	paneMenu := fmt.Sprintf(`display-menu -O -T "#[align=centre] #{@cw_alias} " -x M -y M "#{?#{e|>:#{window_panes},1},,-}⇱ Separar esta sesión" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▥ Lado a lado" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▤ Arriba y abajo" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▦ Cuadrícula" "" { %s } "" "⧉ Combinar sesiones aquí…" "" { %s } "▸ Renombrar" "" { %s } "✕ Cerrar sesión" "" { %s }`,
+	paneMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_alias} " -x M -y M "#{?#{e|>:#{window_panes},1},,-}⇱ Separar esta sesión" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▥ Lado a lado" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▤ Arriba y abajo" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▦ Cuadrícula" "" { %s } "" "⧉ Combinar sesiones aquí…" "" { %s } "▸ Renombrar" "" { %s } "✕ Cerrar sesión" "" { %s }`,
 		splitOut, layoutCmd("lado"), layoutCmd("apilado"), layoutCmd("cuadricula"), combinePopup, renameSlot, confirmClose)
-	w(`bind -n MouseDown3Pane { select-pane -t = ; if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { %s } }`, paneMenu)
+	w(`bind -n MouseDown3Pane { select-pane -t = ; if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } }`)
+	w(`bind -n MouseUp3Pane { if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { %s } }`, paneMenu)
 	return b.String()
 }

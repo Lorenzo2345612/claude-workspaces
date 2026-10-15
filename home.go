@@ -99,6 +99,16 @@ func (h *homeScreen) handle(k key) (bool, error) {
 	switch {
 	case action == "claude" || (k.kind == keyRune && (k.r == 'c' || k.r == 'C')):
 		return h.dialog(nil)
+	case action == "byid" || (k.kind == keyRune && (k.r == 'i' || k.r == 'I')):
+		h.inDialog = true
+		setRaw(false)
+		err := uiResumeByID(h.ws)
+		h.inDialog = false
+		if kind, _ := h.t.Run("display", "-p", "-t", h.pane, "#{@cw_kind}"); kind == kindHome {
+			setRaw(true) // still an empty tab (cancelled): back to the start screen
+			return false, err
+		}
+		return true, err
 	case action == "shell" || (k.kind == keyRune && (k.r == 't' || k.r == 'T')):
 		setRaw(false)
 		return true, addSlot(h.ws, h.session, kindShell, "shell")
@@ -185,6 +195,8 @@ func (h *homeScreen) draw() {
 	} else {
 		add(plainLine("   " + sgrDim + "No hay conversaciones anteriores de Claude en este directorio." + sgrReset))
 	}
+	add(plainLine(""))
+	add(buttonLine(3, btnDef{label: "↻ Retomar una conversación por su ID…", id: "byid"}))
 
 	var s screen
 	s.place(max((ht-len(lines))/2, 0)+1, left, lines)

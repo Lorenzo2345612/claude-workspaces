@@ -19,7 +19,8 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - **Claude aliases** — named ways of launching claude (env vars + arguments, or your own shell
   alias such as `yolo`, run through your shell). Pick one per session; switching it restarts the
   session in the same conversation, optionally sending the continue message.
-- An empty tab offers to **resume recent conversations** of its directory.
+- An empty tab offers to **resume recent conversations** of its directory, and any conversation
+  can be brought in **by its ID** (full or first characters) — for sessions started outside cw.
 - Menus, dialogs and confirmations are floating popups, and everything is clickable: buttons,
   fields, lists, cards. Right-click a tab or a session for its menu.
 - Every tab and session has a ✕ to close it, and ⏻ in the corner stops the whole workspace.

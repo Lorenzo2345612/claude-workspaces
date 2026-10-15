@@ -145,6 +145,8 @@ func cmdUI(args []string) error {
 		err = uiBulkAlias(args[1], args[2])
 	case "aliases":
 		err = uiClaudeAliases()
+	case "resumeid":
+		err = uiResumeByID(args[1])
 	case "combine":
 		err = uiCombine(args[1])
 	case "rename":
@@ -263,6 +265,9 @@ func newClaudeDialog(ws, session string, resume *recentConv) error {
 		sid, resuming = resume.ID, true
 		heading = "Retomar «" + fit(resume.First, 30) + "» en " + title
 		f.alias = []rune(resume.Title)
+		if len(f.alias) == 0 { // unnamed conversation: suggest its first words
+			f.alias = []rune(cleanLabel(shorten(strings.Join(strings.Fields(resume.First), "-"), 24)))
+		}
 		f.selectAlias(resume.Alias)
 	}
 	f.heading = heading
@@ -272,7 +277,11 @@ func newClaudeDialog(ws, session string, resume *recentConv) error {
 	if f.run() == actCancel {
 		return errCancelled
 	}
-	return openInTab(ws, session, Slot{Kind: kindClaude, Alias: cleanLabel(string(f.alias)), Cwd: tabDir(t, session),
+	cwd := tabDir(t, session)
+	if resume != nil && resume.Cwd != "" && isDir(resume.Cwd) {
+		cwd = resume.Cwd // a conversation brought in by ID reopens where it was started
+	}
+	return openInTab(ws, session, Slot{Kind: kindClaude, Alias: cleanLabel(string(f.alias)), Cwd: cwd,
 		Args: splitArgs(string(f.args)), ClaudeAlias: f.selectedAlias(), SessionID: sid}, resuming)
 }
 
@@ -423,6 +432,7 @@ func uiHelp() {
 		"  " + sgrMuted + fit("clic", 9) + sgrReset + "en una pestaña o una sesión · clic derecho: menú",
 		"  " + sgrMuted + "REORDENAR" + sgrReset + "   arrastra pestañas y sesiones en la barra",
 		"  " + sgrMuted + "CERRAR" + sgrReset + "      ✕ en cada pestaña o sesión · ⏻ arriba a la derecha apaga todo",
+		"  " + sgrMuted + "POR ID" + sgrReset + "      Alt+n → Claude por ID… trae una conversación abierta fuera de cw",
 		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  arrastra una sesión de la barra y suéltala sobre la terminal,",
 		"              o Alt+m → Combinar sesiones; clic derecho en un panel: separar",
 		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",

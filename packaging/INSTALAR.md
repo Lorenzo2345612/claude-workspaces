@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.4.1-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.5.0-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.4.1-macos.tar.gz
-   cd cw-0.4.1-macos
+   tar xzf cw-0.5.0-macos.tar.gz
+   cd cw-0.5.0-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.4.1-linux.tar.gz
-cd cw-0.4.1-linux
+tar xzf cw-0.5.0-linux.tar.gz
+cd cw-0.5.0-linux
 sh install.sh
 ```
 
@@ -119,6 +119,10 @@ En Windows se pasan igual: `install.cmd -Yes -NoClaude`.
    pestañas y sesiones en la barra para reordenarlas, la ✕ de cada pestaña o sesión para
    cerrarla y ⏻ (arriba a la derecha) para apagar y guardar todo. El color se cambia en
    *Alt+m → Configuración → Tema de color*.
+
+   **Traer una conversación que abriste fuera de cw:** *Alt+n → Claude por ID…* (o en una
+   pestaña vacía, *Retomar una conversación por su ID…*): pega el ID completo o sus primeros
+   caracteres y se abre en la carpeta donde empezó.
 
    **Ver varias sesiones a la vez:** arrastra una sesión de la barra y suéltala sobre la
    terminal para verla junto a la que tienes abierta, o usa *Alt+m → Combinar sesiones en esta

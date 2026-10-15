@@ -17,6 +17,7 @@ import (
 type recentConv struct {
 	ID, Title, First string
 	Alias            string // claude alias whose config dir holds it
+	Cwd              string // where it was started, when known (resume by ID); else the tab's dir
 	Modified         time.Time
 }
 

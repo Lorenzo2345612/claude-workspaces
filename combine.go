@@ -41,6 +41,7 @@ func listViews(t Tmux) []viewInfo {
 // the view arranges them.
 func uiCombine(ws string) error {
 	t := Tmux{WS: ws}
+	migrateLegacyOptions(t)
 	client, _, err := currentClient(t)
 	if err != nil {
 		return err

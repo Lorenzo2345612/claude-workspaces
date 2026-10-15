@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 // popupCmd builds a display-popup command line for the client the user is on.
@@ -76,7 +77,7 @@ func cmdConfigMenu(args []string) error {
 	item := func(label, value, key, cmd string) []string {
 		return []string{fmt.Sprintf("  %s  #[fg=colour245]%s", fit(label, 28), q(value)), key, cmd}
 	}
-	menu := []string{"display-menu", "-c", client, "-O", "-T", "#[align=centre] Configuración · cw " + version + " ", "-x", "C", "-y", "C", "--"}
+	menu := []string{"display-menu", "-c", client, "-T", "#[align=centre] Configuración · cw " + version + " ", "-x", "C", "-y", "C", "--"}
 	menu = append(menu, "-SESIONES", "", "")
 	menu = append(menu, item("Mensaje de continuación", "«"+shorten(cfg.ContinueMessage, 20)+"»", "m",
 		popup("Mensaje de continuación", 13, "_ui", "setconf", ws, "msg"))...)
@@ -94,6 +95,9 @@ func cmdConfigMenu(args []string) error {
 		popup("Autoguardado", 13, "_ui", "setconf", ws, "autosave"))...)
 	menu = append(menu, "", "", "")
 	menu = append(menu, "  Archivo: "+q(shortPath(configFile())), "", "")
+	// Opened from a click on another menu's item, the button is often still down; a menu that
+	// appears before it comes up closes on the release. Give the click time to finish.
+	time.Sleep(250 * time.Millisecond)
 	_, err = Tmux{WS: ws}.Run(menu...)
 	return err
 }

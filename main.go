@@ -38,6 +38,9 @@ Alt+←/→ sesiones · Alt+↑/↓ pestañas · todo con clic; clic derecho y a
 
 func main() {
 	err := run(os.Args[1:])
+	if len(os.Args) > 1 {
+		saveAfterAction(os.Args[1], os.Args[2:])
+	}
 	if err != nil && len(os.Args) > 1 && quietInternal(os.Args[1]) {
 		// Called by a binding of the bar through run-shell: tmux would paint the error over the
 		// session in view mode. Log it and show it as a brief message instead.
@@ -47,6 +50,35 @@ func main() {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "cw:", err)
 		os.Exit(1)
+	}
+}
+
+// saveAfterAction saves the workspace right after an internal command that can change it (the
+// dialogs, the right-click panel, the bar's buttons), so what goes through cw is never lost.
+// What happens without cw — a drag in the bar, a `cd` in a shell, a session that exits, Claude's
+// status — is caught by the periodic autosave.
+func saveAfterAction(cmd string, rest []string) {
+	ws := ""
+	switch cmd {
+	case "_ui", "_new":
+		if len(rest) > 1 {
+			ws = rest[1]
+		}
+	case "_ctxpopup", "_barclick", "_respawn", "_join", "_splitout", "_layout", "_tabmove", "_winmove", "_title":
+		if len(rest) > 0 {
+			ws = rest[0]
+		}
+	}
+	saveNow(ws)
+}
+
+// saveNow saves a running workspace quietly; it does nothing for an unknown or stopped one.
+func saveNow(ws string) {
+	if ws == "" || validWorkspaceName(ws) != nil {
+		return
+	}
+	if (Tmux{WS: ws}).Running() {
+		_ = cmdSave(ws, true)
 	}
 }
 

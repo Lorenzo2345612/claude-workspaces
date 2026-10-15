@@ -81,6 +81,7 @@ func openInTab(ws, session string, s Slot, resuming bool) error {
 		return err
 	}
 	_, err = t.Run("select-window", "-t", id)
+	saveNow(ws) // before closeHome: it may kill this very process (the start screen of the tab)
 	closeHome(t, session)
 	return err
 }

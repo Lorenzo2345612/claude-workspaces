@@ -518,7 +518,11 @@ func (s *appServer) do(q *doReq) (map[string]any, error) {
 	a := appWS(q.WS)
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return wsAction(t, q)
+	res, err := wsAction(t, q)
+	if err == nil {
+		_ = appSave(q.WS) // what goes through the window is saved at once; the autosave covers the rest
+	}
+	return res, err
 }
 
 func checkWorkspaceTitle(ws, title string) error {

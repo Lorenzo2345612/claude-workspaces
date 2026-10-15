@@ -221,6 +221,7 @@ func uiContext(ws, kind, target, resFile string) error {
 		if err := ctxRun(t, ws, kind, target, chosen); err != nil && err != errCancelled {
 			msg = err.Error()
 		}
+		saveNow(ws)
 	}
 }
 

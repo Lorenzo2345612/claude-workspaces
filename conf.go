@@ -218,12 +218,14 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	tabDir := fmt.Sprintf(`#{||:#{&&:%s,#{>:#{session_name},#{client_session}}},#{&&:%s,#{<:#{session_name},#{client_session}}}}`, right, left)
 	w(`bind -n MouseDrag1Status { if -F "#{&&:#{==:#{mouse_status_range},window},%s}" { run-shell -C "swap-window -s #{session_name}:#{active_window_index} -t #{session_name}:#{window_index} ; select-window -t #{session_name}:#{window_index}" } { if -F "#{&&:#{==:#{mouse_status_range},session},%s}" { run-shell -t = -C "rename-session -t #{client_session} cw-swap ; rename-session -t #{session_name} #{client_session} ; rename-session -t cw-swap #{session_name} ; set -g @cw_active #{session_name}" } } ; set -gF @cw_dragx "#{mouse_x}" }`, winDir, tabDir)
 	// Right click: a context menu for the tab or the session under the mouse.
-	tabMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✦ Alias de claude de la pestaña" "" { %[5]s } "✕ Cerrar pestaña" "" { %[4]s }`,
-		bq, ws, renameTab, confirmCloseTab, bulkTab)
-	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = } { if -F "#{==:#{mouse_status_range},window}" { run-shell -t = "%[1]s _slotmenu %[2]s '#{client_name}' '#{window_id}' '#{mouse_x}' '#{mouse_y}'" } { if -F "#{m:sp:*,#{mouse_status_range}}" { run-shell "%[1]s _slotmenu %[2]s '#{client_name}' '#{s/^sp.//:mouse_status_range}' '#{mouse_x}' '#{mouse_y}'" } } } }`, bq, ws)
+	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = } }`)
 	// The session menu is prepared on press and opened on release: a menu opened after the
 	// press's run-shell closes as soon as the button comes up.
-	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{||:#{==:#{mouse_status_range},window},#{m:sp:*,#{mouse_status_range}}}" { source-file -q "%s" } } }`, tabMenu, slotMenuFile(ws))
+	ctx := func(kind, target string) string {
+		return fmt.Sprintf(`run-shell -b -t = "%s _ctxpopup %s '#{client_name}' %s '%s'"`, bq, ws, kind, target)
+	}
+	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{==:#{mouse_status_range},window}" { %s } { if -F "#{m:sp:*,#{mouse_status_range}}" { %s } } } }`,
+		ctx("tab", "#{session_id}"), ctx("slot", "#{window_id}"), ctx("slot", "#{s/^sp.//:mouse_status_range}"))
 	// Menus open when the button comes up: one opened on press closes as soon as it is released
 	// away from an item, and keeping it open (-O) stops its items from taking clicks.
 	w(`bind -n MouseUp1Status { if -F "#{==:#{mouse_status_range},menu}" { %s } }`, mainMenu)
@@ -247,17 +249,14 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	for i := len(clicks) - 1; i >= 0; i-- {
 		click = fmt.Sprintf(`if -F "#{==:#{mouse_status_range},%s}" { %s } { %s }`, clicks[i].rng, clicks[i].cmd, click)
 	}
-	// Drag and drop: pressing a session pill remembers it and the view that was open; dragging it
-	// down onto the terminal goes back to that view, and releasing over a session shows both
-	// together (split next to the pane under the mouse).
-	w(`bind -n MouseDown1Status { set -gF @cw_dragx "#{mouse_x}" ; set -gF @cw_dragwin "#{?#{==:#{mouse_status_range},window},#{window_id},}" ; run-shell -C "set -g @cw_prevwin #{session_name}:#{active_window_index}" ; set -g @cw_dragging 0 ; %s }`, click)
-	w(`bind -n MouseDrag1Pane { if -F "#{@cw_dragwin}" { if -F "#{!=:#{@cw_dragging},1}" { set -g @cw_dragging 1 ; run-shell -C "select-window -t #{@cw_prevwin}" ; display-message -d 4000 " Suelta sobre una sesión para verlas juntas" } } { if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } { copy-mode -M } } }`)
-	w(`bind -n MouseDragEnd1Pane { if -F "#{&&:#{@cw_dragwin},#{==:#{@cw_dragging},1}}" { run-shell -t = "%s _join %s '#{@cw_dragwin}' '#{pane_id}'" } { if -F "#{mouse_any_flag}" { send-keys -M } } ; set -g @cw_dragwin "" ; set -g @cw_dragging 0 }`, bq, ws)
-	w(`bind -n MouseDragEnd1Status { set -g @cw_dragwin "" ; set -g @cw_dragging 0 }`)
-	// Right click inside a session (unless the program there uses the mouse): its own menu.
-	paneMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_alias} " -x M -y M "#{?#{e|>:#{window_panes},1},,-}⇱ Separar esta sesión" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▥ Lado a lado" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▤ Arriba y abajo" "" { %s } "#{?#{e|>:#{window_panes},1},,-}▦ Cuadrícula" "" { %s } "" "⧉ Combinar sesiones aquí…" "" { %s } "▸ Renombrar" "" { %s } "✕ Cerrar sesión" "" { %s }`,
-		splitOut, layoutCmd("lado"), layoutCmd("apilado"), layoutCmd("cuadricula"), combinePopup, renameSlot, confirmClose)
+	w(`bind -n MouseDown1Status { set -gF @cw_dragx "#{mouse_x}" ; %s }`, click)
+	// Dragging inside a session selects text, as tmux does by default (combining is done from the
+	// right-click panel, not by dragging).
+	w(`bind -n MouseDrag1Pane { if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } { copy-mode -M } }`)
+	w(`unbind -n MouseDragEnd1Pane`)
+	w(`unbind -n MouseDragEnd1Status`)
+	// Right click inside a session (unless the program there uses the mouse): its action panel.
 	w(`bind -n MouseDown3Pane { select-pane -t = ; if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } }`)
-	w(`bind -n MouseUp3Pane { if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { %s } }`, paneMenu)
+	w(`bind -n MouseUp3Pane { if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { run-shell -b -t = "%s _ctxpopup %s '#{client_name}' slot '#{pane_id}'" } }`, bq, ws)
 	return b.String()
 }

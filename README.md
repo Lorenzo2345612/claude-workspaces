@@ -29,10 +29,11 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - Every tab and session has a ✕ to close it, and ⏻ in the corner stops the whole workspace.
   Right-click any session to rename it; switch the claude alias of a whole tab or workspace at once.
 - Colour themes (blue, purple, green, orange, pink, grey) in the configuration menu.
-- **Views with several sessions**: drag a session from the bar and drop it onto the terminal
-  to see it next to the one there, or use *Combinar sesiones en esta vista* (menu) to pick
-  several and a layout (side by side, stacked, grid). Each pane has its own title bar; right-click
-  a pane to split it back out or change the layout. Views and layouts are saved and restored.
+- **Views with several sessions**: right-click a session → *Ver junto a …*, or *Combinar
+  sesiones en esta vista* (menu) to pick several and a layout (side by side, stacked, grid).
+  Each pane has its own title bar. Views and layouts are saved and restored.
+- **Right-click panels** for tabs, views and sessions stay open while you run several actions
+  (move, combine, layout, rename, change alias, split out, close).
 - **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
   `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 

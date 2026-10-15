@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -133,110 +131,4 @@ func migrateLegacyOptions(t Tmux) {
 		}
 		_, _ = t.Run(cmds[:len(cmds)-1]...)
 	}
-}
-
-// cmdSlotMenu shows the right-click menu of a session pill: _slotmenu <ws> <client> <window> <x> <y>.
-// It is built here because it lists the other sessions to show side by side with this one.
-func cmdSlotMenu(args []string) error {
-	if len(args) != 5 {
-		return fmt.Errorf("uso: _slotmenu <ws> <cliente> <vista> <x> <y>")
-	}
-	ws, client, target, x, y := args[0], args[1], args[2], args[3], args[4]
-	t := Tmux{WS: ws}
-	migrateLegacyOptions(t)
-	// A pane target (%N) is one session of a combined view: its menu covers just that session.
-	onlyPane := ""
-	if strings.HasPrefix(target, "%") {
-		onlyPane = target
-	}
-	win, err := t.Run("display", "-p", "-t", target, "#{window_id}")
-	if err != nil {
-		return err
-	}
-	bin, err := os.Executable()
-	if err != nil {
-		return err
-	}
-	session, _ := t.Run("display", "-p", "-t", win, "#{session_name}")
-	info, _ := t.Run("display", "-p", "-t", target, "#{window_panes}"+sep+"#{@cw_kind}"+sep+"#{@cw_alias}")
-	f := strings.Split(info, sep)
-	q := func(s string) string { return strings.ReplaceAll(s, `"`, `\"`) }
-	shell := func(a ...string) string {
-		return fmt.Sprintf(`run-shell "%s"`, q(joinArgs(append([]string{bin}, a...))))
-	}
-	popup := func(title string, w, h int, a ...string) string {
-		return fmt.Sprintf(`display-popup -E -w %d -h %d -T " %s " "%s"`, w, h, title, q(joinArgs(append([]string{bin}, a...))))
-	}
-	title := "sesión"
-	if len(f) == 3 && f[2] != "" {
-		title = f[2]
-	}
-	_ = client
-	menu := []string{"display-menu", "-x", x, "-y", y, "-T", "#[align=centre] " + q(title) + " ", "--"}
-	add := func(label, cmd string) { menu = append(menu, label, "", cmd) }
-	if onlyPane != "" {
-		add("◉ Ir a esta sesión", fmt.Sprintf("select-window -t %s ; select-pane -t %s", win, onlyPane))
-	} else {
-		add("← Mover a la izquierda", fmt.Sprintf("select-window -t %s ; swap-window -t -1", win))
-		add("→ Mover a la derecha", fmt.Sprintf("select-window -t %s ; swap-window -t +1", win))
-		menu = append(menu, "", "", "")
-		others := 0
-		for _, v := range listViews(t) {
-			if v.window == win || v.session != session {
-				continue
-			}
-			others++
-			add("⧉ Ver junto a "+q(shorten(strings.Join(v.names, " · "), 30)), shell("_join", ws, v.window, win))
-		}
-		if others == 0 {
-			menu = append(menu, "-⧉ No hay otras sesiones en esta pestaña", "", "")
-		}
-		add("⧉ Combinar con sesiones de otras pestañas…",
-			fmt.Sprintf("select-window -t %s ; %s", win, popup("Combinar sesiones en esta vista", 78, 24, "_ui", "combine", ws)))
-	}
-	// One group per session of the view: every action names the pane it acts on, so in a
-	// combined view each session can be renamed, edited or given another alias on its own.
-	panes, _ := t.Lines("list-panes", "-t", win, "-F", "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}")
-	for _, p := range panes {
-		if len(p) != 3 || p[2] == kindHome || (onlyPane != "" && p[0] != onlyPane) {
-			continue
-		}
-		name := p[1]
-		if name == "" {
-			name = "shell"
-		}
-		menu = append(menu, "", "", "")
-		if len(panes) > 1 && onlyPane == "" {
-			menu = append(menu, "-"+q(shorten(name, 34)), "", "")
-		}
-		if p[2] == kindClaude {
-			add("  ✦ Cambiar alias de claude", popup("Cambiar alias de claude", 72, 24, "_ui", "editpane", ws, p[0]))
-		}
-		add("  ▸ Renombrar", popup("Renombrar sesión", 70, 10, "_ui", "rename", ws, "slot", p[0]))
-		add("  ▸ Editar sesión", popup("Editar sesión", 72, 24, "_ui", "editpane", ws, p[0]))
-		if len(panes) > 1 {
-			add("  ⇱ Separar de la vista", shell("_splitout", ws, p[0]))
-		}
-		add("  ✕ Cerrar", popup("Cerrar sesión", 66, 13, "_ui", "confirm", ws, "close", p[0]))
-	}
-	if len(panes) > 1 && onlyPane == "" {
-		menu = append(menu, "", "", "")
-		add("✦ Cambiar alias de toda la vista…", fmt.Sprintf("select-window -t %s ; %s", win, popup("Alias de claude de la vista", 70, 16, "_ui", "bulkalias", ws, "view")))
-		add("✕ Cerrar la vista", popup("Cerrar vista", 66, 13, "_ui", "confirm", ws, "close", win))
-	}
-	// The menu is written as a tmux command for the click's own binding to source: a menu opened
-	// from outside the click would close as soon as the mouse button is released.
-	return writeFileAtomic(slotMenuFile(ws), []byte(tmuxQuoteCommand(menu)+"\n"))
-}
-
-func slotMenuFile(ws string) string { return filepath.Join(runDir(), ws+".slotmenu.conf") }
-
-// tmuxQuoteCommand renders arguments as one tmux configuration line, each in double quotes.
-func tmuxQuoteCommand(args []string) string {
-	r := strings.NewReplacer(`\`, `\\`, `"`, `\"`, `$`, `\$`)
-	parts := make([]string, len(args))
-	for i, a := range args {
-		parts[i] = `"` + r.Replace(a) + `"`
-	}
-	return strings.Join(parts, " ")
 }

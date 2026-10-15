@@ -23,7 +23,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.6.4-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.7.0-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -46,8 +46,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.6.4-macos.tar.gz
-   cd cw-0.6.4-macos
+   tar xzf cw-0.7.0-macos.tar.gz
+   cd cw-0.7.0-macos
    sh install.sh
    ```
 
@@ -76,8 +76,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.6.4-linux.tar.gz
-cd cw-0.6.4-linux
+tar xzf cw-0.7.0-linux.tar.gz
+cd cw-0.7.0-linux
 sh install.sh
 ```
 
@@ -129,10 +129,10 @@ En Windows se pasan igual: `install.cmd -Yes -NoClaude`.
    pestaña vacía, *Retomar una conversación por su ID…*): pega el ID completo o sus primeros
    caracteres y se abre en la carpeta donde empezó.
 
-   **Ver varias sesiones a la vez:** arrastra una sesión de la barra y suéltala sobre la
-   terminal para verla junto a la que tienes abierta, o usa *Alt+m → Combinar sesiones en esta
-   vista* para elegir varias y cómo acomodarlas (lado a lado, arriba y abajo, cuadrícula). Clic
-   derecho sobre un panel para separarlo o cambiar la distribución. En una vista combinada, cada
+   **Ver varias sesiones a la vez:** clic derecho sobre una sesión de la barra → *Ver junto a …*,
+   o *Alt+m → Combinar sesiones en esta vista* para elegir varias y cómo acomodarlas (lado a
+   lado, arriba y abajo, cuadrícula). El panel del clic derecho se queda abierto: puedes hacer
+   varias acciones seguidas y lo cierras con *Cerrar* o Esc. En una vista combinada, cada
    sesión se maneja como si estuviera sola: clic en su nombre para ir a ella, su propia ✕ para
    cerrarla, y clic derecho sobre su nombre para renombrarla, editarla, cambiar su alias de
    claude o separarla. El clic derecho sobre «⧉» ofrece «Cambiar alias de toda la vista».

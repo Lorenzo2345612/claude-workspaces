@@ -149,6 +149,11 @@ func cmdUI(args []string) error {
 		err = uiResumeByID(args[1])
 	case "combine":
 		err = uiCombine(args[1])
+	case "ctx":
+		if len(args) != 4 {
+			return errors.New("uso: _ui ctx <ws> tab|slot <destino>")
+		}
+		err = uiContext(args[1], args[2], args[3])
 	case "editpane":
 		if len(args) != 3 {
 			return errors.New("uso: _ui editpane <ws> <panel>")
@@ -446,8 +451,7 @@ func uiHelp() {
 		"  " + sgrMuted + "REORDENAR" + sgrReset + "   arrastra pestañas y sesiones en la barra",
 		"  " + sgrMuted + "CERRAR" + sgrReset + "      ✕ en cada pestaña o sesión · ⏻ arriba a la derecha apaga todo",
 		"  " + sgrMuted + "POR ID" + sgrReset + "      Alt+n → Claude por ID… trae una conversación abierta fuera de cw",
-		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  arrastra una sesión de la barra y suéltala sobre la terminal,",
-		"              o Alt+m → Combinar sesiones; clic derecho en un panel: separar",
+		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  clic derecho en una sesión → Ver junto a…, o Alt+m → Combinar",
 		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",
 		"",
 		"  " + sgrMuted + "ESTADOS" + sgrReset,

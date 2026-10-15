@@ -52,6 +52,17 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
   `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 
+## Packages
+
+Each release ships two packages with the same engine and the same saved format:
+
+| Package | Contents |
+|---|---|
+| `claude-workspaces-<v>-{windows,macos,linux}` | desktop app (`cw app`) **and** the terminal version, with shortcuts (Start menu, `~/Applications`, Linux menu) |
+| `cw-terminal-<v>-{windows,macos,linux}` | terminal version only (built with `-tags terminal`: no web UI, no server) |
+
+`cw update` keeps each install on its own package. (`cw-<v>-{linux,macos}` are kept for the updater of 0.9 and older.)
+
 ## Install
 
 Download the package for your system from the

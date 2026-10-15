@@ -50,14 +50,16 @@ async function act(action, body) {
 }
 const statusText = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida · no corre Claude' };
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
-const THEMES = { azul: ['#7c8cff', '#a78bfa'], morado: ['#a78bfa', '#c084fc'], verde: ['#4ade80', '#2dd4bf'],
-  naranja: ['#fb923c', '#fbbf24'], rosa: ['#f472b6', '#c084fc'], gris: ['#9ca3af', '#cbd5e1'] };
-function applyTheme(name) {
+const THEMES = { azul: ['#8c95cf', '#a5aee0'], morado: ['#a594d6', '#bcaee3'], verde: ['#79ad8a', '#9cc4a8'],
+  naranja: ['#d39a6a', '#e2b58c'], rosa: ['#c98bab', '#dba8c2'], gris: ['#a8a59e', '#c2bfb8'] };
+function applyTheme(name, mode) {
   const [a, b] = THEMES[name] || THEMES.azul;
-  const r = document.documentElement.style;
+  const root = document.documentElement;
+  root.dataset.theme = mode === 'light' ? 'light' : 'dark';
+  const r = root.style;
   r.setProperty('--accent', a); r.setProperty('--accent2', b);
   const rgb = [1, 3, 5].map(i => parseInt(a.slice(i, i + 2), 16)).join(',');
-  r.setProperty('--accentbg', `rgba(${rgb},.14)`); r.setProperty('--accentring', `rgba(${rgb},.25)`);
+  r.setProperty('--accentbg', `rgba(${rgb},.16)`); r.setProperty('--accentring', `rgba(${rgb},.28)`);
   for (const t of terms.values()) t.term.options.theme = termTheme();
 }
 
@@ -66,6 +68,7 @@ const S = {
   info: null, config: null, aliases: [], defaultAlias: 'claude',
   workspaces: [], ws: null, state: null, es: null,
   launchDir: new URLSearchParams(location.search).get('dir') || '',
+  expanded: new Set(), // tabs open in the sidebar tree besides the current one
 };
 const terms = new Map(); // slot id → Term
 
@@ -81,12 +84,16 @@ function viewNames(v) { return v.slots.map(id => slotOf(id)?.name || '…').join
 // ---------- terminals ----------
 function termTheme() {
   const cs = getComputedStyle(document.documentElement);
-  const accent = cs.getPropertyValue('--accent').trim() || '#7c8cff';
+  const accent = cs.getPropertyValue('--accent').trim() || '#8c95cf';
+  if (document.documentElement.dataset.theme === 'light') return {
+    background: '#f7f6f3', foreground: '#2b2a27', cursor: accent, cursorAccent: '#f7f6f3', selectionBackground: 'rgba(85,97,179,.22)',
+    black: '#2b2a27', red: '#b9473a', green: '#3f7d52', yellow: '#9a6b14', blue: '#4b57a8', magenta: '#8a4fa3', cyan: '#2f7c84', white: '#6f6c66',
+    brightBlack: '#8a877f', brightRed: '#c9584a', brightGreen: '#4d8f61', brightYellow: '#a87a20', brightBlue: '#5866b8', brightMagenta: '#9a60b3', brightCyan: '#3d8c94', brightWhite: '#23221f',
+  };
   return {
-    background: '#0b0c10', foreground: '#d4d7e0', cursor: accent, cursorAccent: '#0b0c10',
-    selectionBackground: 'rgba(124,140,255,.32)',
-    black: '#1c1f26', red: '#f87171', green: '#4ade80', yellow: '#fbbf24', blue: '#7c8cff', magenta: '#c084fc', cyan: '#67e8f9', white: '#d4d7e0',
-    brightBlack: '#5d6373', brightRed: '#fca5a5', brightGreen: '#86efac', brightYellow: '#fde68a', brightBlue: '#a5b4fc', brightMagenta: '#d8b4fe', brightCyan: '#a5f3fc', brightWhite: '#ffffff',
+    background: '#141414', foreground: '#d8d5cf', cursor: accent, cursorAccent: '#141414', selectionBackground: 'rgba(140,149,207,.30)',
+    black: '#1f1f1f', red: '#d7735f', green: '#79ad8a', yellow: '#d6a24b', blue: '#8c95cf', magenta: '#b694d6', cyan: '#7fb5b5', white: '#d8d5cf',
+    brightBlack: '#67645e', brightRed: '#e5907e', brightGreen: '#97c4a5', brightYellow: '#e3b96c', brightBlue: '#a9b0de', brightMagenta: '#cbb0e3', brightCyan: '#9cc9c9', brightWhite: '#f3f1ed',
   };
 }
 const enc = new TextEncoder();
@@ -285,88 +292,121 @@ function render() {
   let app = $('.app', root);
   if (!app) {
     root.replaceChildren();
-    app = h('div', { class: 'app' }, h('aside', { class: 'side' }), h('div', { class: 'main' }, h('div', { class: 'sessions' }), h('div', { class: 'stage' })));
+    app = h('div', { class: 'app' }, h('aside', { class: 'side' }),
+      h('div', { class: 'main' }, h('div', { class: 'bar' }), h('div', { class: 'stage' }), h('div', { class: 'status' })));
     root.append(app);
   }
   renderSide($('.side', app));
-  renderSessions($('.sessions', app));
+  renderBar($('.bar', app));
   renderStage($('.stage', app));
+  renderStatus($('.status', app));
   renderCtx();
-  document.title = S.state.title + ' — cw';
+  document.title = S.state.title + ' — Claude Workspaces';
 }
 
+// The sidebar is a tree: each tab, and under the open ones their sessions (one row per view).
 function renderSide(side) {
-  const st = S.state, nTabs = st.tabs.length, nSess = Object.keys(st.slots).length;
-  side.replaceChildren(
-    h('div', { class: 'ws', title: 'Workspace (Alt+M)', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); wsMenu(r.left + 12, r.bottom + 4); } },
-      h('div', { class: 'logo' }, '≡'),
-      h('div', { class: 'wsn' }, h('b', {}, st.title), h('span', { class: 'sub' }, plural(nTabs, 'pestaña', 'pestañas') + ' · ' + plural(nSess, 'sesión', 'sesiones'))),
-      h('span', { class: 'chev' }, '⌄')),
-    h('div', { class: 'sec' }, 'Pestañas', h('span', { class: 'add', title: 'Nueva pestaña (Alt+T)', onclick: () => dlgNewTab() }, '+')),
-    h('div', { class: 'tabs' }, st.tabs.map((t, i) => h('div', {
-      class: 'tab' + (t.id === st.active ? ' on' : ''), draggable: 'true', title: t.dir,
-      onclick: () => selectTab(t.id),
+  const st = S.state;
+  const counts = t => {
+    const c = { busy: 0, waiting: 0, idle: 0, sleeping: 0 };
+    t.views.forEach(v => v.slots.forEach(id => { const s = slotOf(id); if (s && s.kind === 'claude' && !s.dead) c[s.status === 'busy' ? 'busy' : s.status === 'waiting' ? 'waiting' : s.status === 'sleeping' ? 'sleeping' : 'idle']++; }));
+    return h('span', { class: 'cnt' }, ['busy', 'waiting', 'idle', 'sleeping'].filter(k => c[k]).map(k => h('i', { title: statusLabel[k] }, h('span', { class: 'd ' + k }), c[k])));
+  };
+  const tree = h('div', { class: 'tree' });
+  st.tabs.forEach((t, i) => {
+    const open = t.id === st.active || S.expanded.has(t.id);
+    const row = h('div', {
+      class: 'trow tab' + (t.id === st.active ? ' cur' : ''), draggable: 'true', title: t.dir,
+      onclick: ev => { if (ev.target.closest('.caret') && t.id !== st.active) { S.expanded.has(t.id) ? S.expanded.delete(t.id) : S.expanded.add(t.id); render(); return; } selectTab(t.id); },
       oncontextmenu: ev => { ev.preventDefault(); openCtx('tab', t.id, ev.clientX, ev.clientY); },
       ondragstart: ev => { ev.dataTransfer.setData('cw/tab', t.id); ev.dataTransfer.effectAllowed = 'move'; },
       ondragover: ev => { if (ev.dataTransfer.types.includes('cw/tab')) { ev.preventDefault(); ev.currentTarget.classList.add('drop'); } },
       ondragleave: ev => ev.currentTarget.classList.remove('drop'),
       ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/tab'); if (id && id !== t.id) act('tab.move', { tab: id, to: i }); },
-    },
-      h('div', { class: 'ic' }, '▤'),
-      h('div', { class: 'tx' }, h('div', { class: 'nm' }, t.title), h('div', { class: 'dir' }, t.short)),
-      h('div', { class: 'badges' }, t.busy ? h('span', { class: 'b busy', title: 'trabajando' }, '● ' + t.busy) : null,
-        t.waiting ? h('span', { class: 'b wait', title: 'piden permiso' }, '? ' + t.waiting) : null,
-        t.idle ? h('span', { class: 'b idle', title: 'listas' }, '○ ' + t.idle) : null,
-        t.asleep ? h('span', { class: 'b asleep', title: 'dormidas' }, 'z ' + t.asleep) : null)))),
-    h('div', { class: 'foot' },
-      h('button', { class: 'ghost', onclick: () => dlgSettings('general') }, '⚙ Configuración'),
-      h('button', { class: 'power', title: 'Apagar y guardar', onclick: () => confirmStop() }, '⏻')),
-    h('div', { class: 'ver' }, 'cw ' + st.version),
-  );
-}
-
-function dotFor(s) {
-  if (!s) return h('span', { class: 'dot' });
-  if (s.kind !== 'claude') return h('span', { class: 'dot shell' }, '❯');
-  if (s.dead) return h('span', { class: 'dot dead', title: 'terminó con error' });
-  return h('span', { class: 'dot ' + (s.status || 'idle'), title: statusText[s.status] || '' });
-}
-function aliasTag(s) { return s && s.kind === 'claude' && s.alias && s.alias !== 'claude' ? h('span', { class: 'tag' }, s.alias) : null; }
-
-function renderSessions(bar) {
-  const tab = curTab();
-  if (!tab) { bar.replaceChildren(); return; }
-  const view = curView(tab);
-  bar.replaceChildren(
-    ...tab.views.map((v, i) => {
-      const on = view && v.id === view.id;
+    }, h('span', { class: 'caret' }, open ? '▾' : '▸'), h('span', { class: 'n' }, t.title), open ? null : counts(t),
+      h('span', { class: 'add', title: 'Nueva sesión en esta pestaña', onclick: ev => { ev.stopPropagation(); dlgNewSession(t.id, 'claude'); } }, '+'));
+    tree.append(row);
+    if (!open) return;
+    t.views.forEach((v, vi) => {
+      const on = t.id === st.active && v.id === (curView(t)?.id);
       const multi = v.slots.length > 1;
-      const pill = h('div', {
-        class: 's' + (on ? ' on' : ''), draggable: 'true',
-        title: multi ? 'Vista combinada · clic derecho para sus acciones' : (slotOf(v.slots[0])?.short || ''),
+      const first = slotOf(v.slots[0]);
+      tree.append(h('div', {
+        class: 'trow sub' + (on ? ' on' : ''), draggable: 'true', title: multi ? viewNames(v) : (first?.short || ''),
         onclick: () => selectView(v.id),
-        oncontextmenu: ev => { ev.preventDefault(); const it = ev.target.closest('[data-slot]'); openCtx('slot', it ? it.dataset.slot : (v.focus || v.slots[0]), ev.clientX, ev.clientY); },
+        oncontextmenu: ev => { ev.preventDefault(); openCtx('slot', v.focus || v.slots[0], ev.clientX, ev.clientY); },
         ondragstart: ev => { ev.dataTransfer.setData('cw/view', v.id); ev.dataTransfer.effectAllowed = 'move'; },
         ondragover: ev => { if (ev.dataTransfer.types.includes('cw/view')) { ev.preventDefault(); ev.currentTarget.classList.add('drop'); } },
         ondragleave: ev => ev.currentTarget.classList.remove('drop'),
-        ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/view'); if (id && id !== v.id) act('view.move', { view: id, to: i }); },
-      });
-      if (multi) pill.append(h('span', { style: { color: 'var(--dim)' } }, '⧉'));
-      v.slots.forEach((id, j) => {
-        const s = slotOf(id);
-        if (j > 0) pill.append(h('span', { class: 'sepbar' }, '│'));
-        pill.append(h('span', { class: 'it' + (multi && on && v.focus === id ? ' f' : ''), 'data-slot': id,
-          onclick: multi ? ev => { ev.stopPropagation(); focusSlot(id); } : null },
-          dotFor(s), s ? s.name : '…', aliasTag(s),
-          h('span', { class: 'x', title: 'Cerrar', onclick: ev => { ev.stopPropagation(); confirmCloseSlot(id); } }, '✕')));
-      });
-      return pill;
-    }),
-    h('div', { class: 'newbtn' },
-      h('button', { class: 'pill', title: 'Nueva sesión de Claude (Alt+N)', onclick: () => dlgNewSession(tab.id, 'claude') }, '＋ Claude'),
-      h('button', { class: 'pill', title: 'Nueva terminal (Alt+Y)', onclick: () => dlgNewSession(tab.id, 'shell') }, '＋ Terminal')),
-    h('span', { class: 'right' }, tab.short),
-  );
+        ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/view'); if (id && id !== v.id) act('view.move', { view: id, to: vi }); },
+      }, multi ? h('span', { class: 'mark2' }, '⧉') : dotFor(first),
+        h('span', { class: 'n' }, multi ? v.slots.map(id => slotOf(id)?.name || '…').join(' + ') : (first ? first.name : '…')),
+        !multi && first && first.kind === 'claude' && first.alias && first.alias !== 'claude' ? h('span', { class: 'al' }, first.alias) : null,
+        multi ? h('span', { class: 'cnt' }, v.slots.map(id => dotFor(slotOf(id)))) : null));
+    });
+    if (t.id === st.active) {
+      tree.append(h('div', { class: 'trow sub newrow' },
+        h('span', { onclick: () => dlgNewSession(t.id, 'claude') }, '+ Claude'),
+        h('span', { onclick: () => dlgNewSession(t.id, 'shell') }, '+ Terminal')));
+    }
+  });
+  side.replaceChildren(
+    h('div', { class: 'wsrow', title: 'Workspace (Alt+M)', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); wsMenu(r.left + 6, r.bottom + 4); } },
+      h('div', { class: 'mark' }, '≡'), h('b', {}, st.title), h('span', { class: 'chev' }, '⌄')),
+    h('div', { class: 'grp' }, h('span', {}, 'Pestañas'), h('span', { class: 'gadd', title: 'Nueva pestaña (Alt+T)', onclick: () => dlgNewTab() }, '+')),
+    tree,
+    h('div', { class: 'foot' },
+      h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes'),
+      h('span', { class: 'ver' }, st.version),
+      h('span', { class: 'ib pw', title: 'Apagar y guardar', onclick: () => confirmStop() }, '⏻')));
+}
+
+const statusLabel = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida' };
+function dotFor(s) {
+  if (!s) return h('span', { class: 'd' });
+  if (s.kind !== 'claude') return h('span', { class: 'shellmark' }, '❯');
+  if (s.dead) return h('span', { class: 'd dead', title: 'terminó con error' });
+  return h('span', { class: 'd ' + (s.status || 'idle'), title: statusLabel[s.status] || 'lista' });
+}
+
+// The bar above the sessions: where we are (tab / session) and the actions of the view.
+function renderBar(bar) {
+  const tab = curTab(), view = curView(tab);
+  if (!tab) { bar.replaceChildren(); return; }
+  const crumb = h('span', { class: 'crumb' }, tab.title);
+  if (view) {
+    crumb.append(h('span', { class: 'sl' }, ' / '));
+    view.slots.forEach((id, j) => {
+      const s = slotOf(id);
+      if (j) crumb.append(h('span', { class: 'sl' }, ' + '));
+      crumb.append(h('b', { class: view.slots.length > 1 && view.focus === id ? 'f' : '', onclick: () => focusSlot(id) }, s ? s.name : '…'));
+      if (view.slots.length === 1 && s && s.kind === 'claude' && s.alias) crumb.append(h('span', { class: 'al' }, ' ' + s.alias));
+    });
+  }
+  const focus = view && slotOf(view.focus || view.slots[0]);
+  bar.replaceChildren(crumb,
+    h('span', { class: 'path' }, focus ? focus.short : tab.short),
+    h('span', { class: 'acts' },
+      focus && focus.kind === 'claude' && !focus.dead ? (focus.status === 'sleeping'
+        ? h('button', { title: 'Reanudar', onclick: () => act('slot.wake', { slot: focus.id }) }, '▶')
+        : h('button', { title: 'Suspender: Claude deja de correr; la conversación queda', onclick: () => act('slot.suspend', { slot: focus.id }) }, '⏾')) : null,
+      h('button', { title: 'Nueva sesión (Ctrl+T)', onclick: () => dlgNewSession(tab.id, 'claude') }, '+'),
+      focus ? h('button', { title: 'Acciones', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); openCtx('slot', focus.id, r.right - 230, r.bottom + 4); } }, '⋯') : null));
+}
+
+function renderStatus(el) {
+  const view = curView(), s = view && slotOf(view.focus || view.slots[0]);
+  const left = [];
+  if (s) {
+    left.push(dotFor(s));
+    left.push(h('span', {}, s.kind === 'claude' ? (s.dead ? 'terminó con error' : statusLabel[s.status] || 'lista') + (s.alias ? ' · ' + s.alias : '') : 'terminal'));
+    if (view.slots.length > 1) left.push(h('span', { class: 'sep' }, view.slots.length + ' sesiones · ' + { cols: 'columnas', rows: 'filas', grid: 'cuadrícula' }[view.layout || 'cols']));
+  }
+  const keys = S.config && S.config.browser_keys === false
+    ? [['Alt N', 'nueva'], ['Alt W', 'cerrar'], ['Alt ←→', 'cambiar']]
+    : [['Ctrl T', 'nueva'], ['Ctrl W', 'cerrar'], ['Ctrl Tab', 'siguiente']];
+  el.replaceChildren(h('span', { class: 'l' }, left),
+    h('span', { class: 'k' }, keys.map(([k, l]) => h('span', { class: 'kk' }, h('kbd', {}, k), ' ' + l)), h('span', { class: 'kk' }, 'clic derecho: acciones')));
 }
 
 let stageKey = '';
@@ -377,14 +417,15 @@ function renderStage(stage) {
     if (stageKey !== key) { stageKey = key; stage.className = 'stage'; stage.replaceChildren(emptyTab(tab)); }
     return;
   }
+  const multi = view.slots.length > 1;
   const key = view.id + ':' + view.layout + ':' + view.slots.join(',');
   if (stageKey !== key) {
     stageKey = key;
-    stage.className = 'stage ' + (view.slots.length > 1 ? view.layout || 'cols' : 'cols');
+    stage.className = 'stage ' + (multi ? view.layout || 'cols' : 'cols');
     stage.style.setProperty('--gc', Math.ceil(Math.sqrt(view.slots.length)));
     const hadFocus = document.activeElement && document.activeElement.closest && document.activeElement.closest('.termhost');
     stage.replaceChildren(...view.slots.map(id => {
-      const frame = h('div', { class: 'term', 'data-slot': id }, h('div', { class: 'thead' }), h('div', { class: 'tbody' }));
+      const frame = h('div', { class: 'pane', 'data-slot': id }, multi ? h('div', { class: 'ph' }) : null, h('div', { class: 'banner-slot' }), h('div', { class: 'tbody' }));
       $('.tbody', frame).append(getTerm(id).el);
       return frame;
     }));
@@ -394,48 +435,51 @@ function renderStage(stage) {
       if (f && (hadFocus || !$('.scrim'))) f.focus();
     });
   }
-  for (const frame of stage.querySelectorAll('.term')) {
-    const id = frame.dataset.slot, s = slotOf(id), multi = view.slots.length > 1;
-    frame.classList.toggle('on', multi && view.focus === id);
-    const head = $('.thead', frame);
-    const meta = [];
-    if (s && s.kind === 'claude') { if (s.alias) meta.push(s.alias); meta.push(s.dead ? 'terminó con error' : statusText[s.status] || 'lista'); }
-    else if (s && s.name !== 'terminal') meta.push('terminal');
-    if (s) meta.push(s.short);
-    head.replaceChildren(dotFor(s), h('b', {}, s ? s.name : '…'), h('span', { class: 'meta' }, '· ' + meta.join(' · ')),
-      h('span', { class: 'act' },
-        s && s.kind === 'claude' && !s.dead ? (s.status === 'sleeping'
-          ? h('button', { title: 'Reanudar: vuelve a correr Claude en su conversación', onclick: () => act('slot.wake', { slot: id }) }, '▶')
-          : h('button', { title: 'Suspender: Claude deja de correr y de consumir recursos; la conversación queda', onclick: () => act('slot.suspend', { slot: id }) }, '⏾')) : null,
-        multi ? h('button', { title: 'Separar de la vista', onclick: () => act('slot.split', { slot: id }) }, '⇱') : null,
-        h('button', { title: 'Acciones', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); openCtx('slot', id, r.right - 300, r.bottom + 4); } }, '⋯'),
-        h('button', { class: 'danger', title: 'Cerrar sesión', onclick: () => confirmCloseSlot(id) }, '✕')));
-    head.oncontextmenu = ev => { ev.preventDefault(); openCtx('slot', id, ev.clientX, ev.clientY); };
-    head.onclick = ev => { if (!ev.target.closest('button') && multi) focusSlot(id); };
-    let ov = $('.overlay', frame);
-    if (s && s.dead) {
-      if (!ov) {
-        $('.tbody', frame).append(h('div', { class: 'overlay' }, h('div', { class: 'box' },
-          h('b', {}, s.name + ' terminó con error'),
-          h('p', {}, 'El proceso salió con el código ' + (s.deadStatus || '?') + '. Puedes reabrirla: una sesión de Claude retoma su conversación.'),
-          h('div', { class: 'row' }, h('button', { class: 'btn', onclick: () => act('slot.close', { slot: id }) }, 'Cerrar'),
-            h('button', { class: 'btn primary', onclick: () => act('slot.respawn', { slot: id }) }, '↻ Reabrir')))));
-      }
-    } else if (ov) ov.remove();
+  for (const frame of stage.querySelectorAll('.pane')) {
+    const id = frame.dataset.slot, s = slotOf(id);
+    frame.classList.toggle('focus', multi && view.focus === id);
+    const head = $('.ph', frame);
+    if (head) {
+      head.replaceChildren(dotFor(s), h('b', {}, s ? s.name : '…'), s && s.kind === 'claude' && s.alias ? h('span', { class: 'al' }, s.alias) : null,
+        h('span', { class: 'acts' },
+          s && s.kind === 'claude' && !s.dead ? (s.status === 'sleeping'
+            ? h('button', { title: 'Reanudar', onclick: () => act('slot.wake', { slot: id }) }, '▶')
+            : h('button', { title: 'Suspender', onclick: () => act('slot.suspend', { slot: id }) }, '⏾')) : null,
+          h('button', { title: 'Separar de la vista', onclick: () => act('slot.split', { slot: id }) }, '⇱'),
+          h('button', { title: 'Acciones', onclick: ev => { const r = ev.currentTarget.getBoundingClientRect(); openCtx('slot', id, r.right - 230, r.bottom + 4); } }, '⋯'),
+          h('button', { class: 'danger', title: 'Cerrar sesión', onclick: () => confirmCloseSlot(id) }, '✕')));
+      head.oncontextmenu = ev => { ev.preventDefault(); openCtx('slot', id, ev.clientX, ev.clientY); };
+      head.onclick = ev => { if (!ev.target.closest('button')) focusSlot(id); };
+    }
+    // A session that is not running: a strip on top with what to do, the terminal dimmed below.
+    const slot = $('.banner-slot', frame), host = terms.get(id)?.el;
+    const state = !s ? '' : s.dead ? 'dead' : s.status === 'sleeping' ? 'sleep' : '';
+    if (slot.dataset.state !== state) {
+      slot.dataset.state = state;
+      slot.replaceChildren();
+      if (state === 'sleep') slot.append(h('div', { class: 'banner' }, h('span', { class: 'd sleeping' }),
+        h('span', {}, h('b', {}, s.name), ' está suspendida: no corre Claude.'),
+        h('button', { class: 'btn primary', onclick: () => act('slot.wake', { slot: id }) }, 'Reanudar')));
+      if (state === 'dead') slot.append(h('div', { class: 'banner err' }, h('span', { class: 'd dead' }),
+        h('span', {}, h('b', {}, s.name), ' terminó con error (código ' + (s.deadStatus || '?') + ').'),
+        h('button', { class: 'btn', onclick: () => act('slot.close', { slot: id }) }, 'Cerrar'),
+        h('button', { class: 'btn primary', onclick: () => act('slot.respawn', { slot: id }) }, 'Reabrir')));
+      if (host) host.classList.toggle('faded', state !== '');
+    }
   }
 }
 
 function emptyTab(tab) {
   if (!tab) return h('div');
-  const list = h('div', { class: 'list' }, h('div', { class: 'h' }, 'Conversaciones recientes en ' + tab.short));
-  const card = h('div', { class: 'card' },
-    h('h3', {}, tab.title),
-    h('p', {}, 'Esta pestaña todavía no tiene sesiones. Trabaja en ' + tab.short + '.'),
-    h('div', { class: 'acts' },
-      h('button', { class: 'btn primary', onclick: () => dlgNewSession(tab.id, 'claude') }, '✦ Nueva sesión de Claude'),
-      h('button', { class: 'btn', onclick: () => dlgNewSession(tab.id, 'shell') }, '❯ Terminal'),
-      h('button', { class: 'btn', onclick: () => dlgNewSession(tab.id, 'resume') }, '↻ Retomar por ID')),
-    list);
+  const list = h('div', { class: 'list' });
+  const big = (ic, label, sub, run) => h('div', { class: 'big', onclick: run }, h('b', {}, ic), h('span', {}, label), h('small', {}, sub));
+  const card = h('div', { class: 'ec' },
+    h('h3', {}, tab.title), h('p', {}, tab.short),
+    h('div', { class: 'big3' },
+      big('✦', 'Claude', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
+      big('❯', 'Terminal', 'en esta carpeta', () => dlgNewSession(tab.id, 'shell')),
+      big('↻', 'Retomar', 'por su ID', () => dlgNewSession(tab.id, 'resume'))),
+    h('div', { class: 'grp' }, h('span', {}, 'Recientes en esta carpeta')), list);
   api.get('recent', { ws: S.ws, tab: tab.id }).then(rows => {
     if (!rows.length) { list.append(h('div', { class: 'hint' }, 'No hay conversaciones anteriores en esta carpeta.')); return; }
     for (const c of rows) list.append(h('div', { class: 'row-item', onclick: () => dlgNewSession(tab.id, 'resume', c) },
@@ -444,60 +488,50 @@ function emptyTab(tab) {
   }).catch(() => {});
   return h('div', { class: 'empty' }, card);
 }
-const shorten = (s, n) => (s && s.length > n ? s.slice(0, n - 1) + '…' : s || '');
 
 function renderNotOpen(root) {
   stageKey = '';
   const st = S.state;
   const inTerm = st.mode === 'terminal';
-  root.replaceChildren(h('div', { class: 'start' }, h('div', { class: 'empty' }, h('div', { class: 'card' },
+  root.replaceChildren(h('div', { class: 'empty' }, h('div', { class: 'ec' },
     h('h3', {}, st.title),
-    h('p', {}, inTerm ? 'Este workspace está abierto en la versión de terminal. Para abrirlo aquí se guarda y se reinicia: sus sesiones retoman sus conversaciones y las que estaban trabajando reciben el mensaje de continuación.'
+    h('p', { class: 'txt' }, inTerm ? 'Este workspace está abierto en la versión de terminal. Para abrirlo aquí se guarda y se reinicia: sus sesiones retoman sus conversaciones y las que estaban trabajando reciben el mensaje de continuación.'
       : 'Este workspace está apagado.'),
-    h('div', { class: 'acts' },
+    h('div', { class: 'btnrow' },
       h('button', { class: 'btn', onclick: () => go(null) }, '← Workspaces'),
-      h('button', { class: 'btn primary', onclick: () => openWorkspace(st.ws, inTerm) }, inTerm ? 'Abrir aquí' : 'Abrir'))))));
+      h('button', { class: 'btn primary', onclick: () => openWorkspace(st.ws, inTerm) }, inTerm ? 'Abrir aquí' : 'Abrir')))));
 }
 
 // ---------- home ----------
 function renderHome(root) {
-  document.title = 'cw';
+  document.title = 'Claude Workspaces';
   stageKey = '';
   const launch = S.launchDir || S.info?.launchDir || '';
-  const shortLaunch = launch && S.info && launch.startsWith(S.info.home) ? '~' + launch.slice(S.info.home.length) : launch;
-  root.replaceChildren(h('div', { class: 'start' },
-    h('div', { class: 'top' }, h('div', { class: 'logo' }, '≡'), h('h2', {}, 'Claude Workspaces'), h('span', { class: 'sp' }),
-      h('button', { class: 'ghost', style: { flex: 'none', padding: '8px 14px' }, onclick: () => dlgSettings('general') }, '⚙ Configuración')),
+  root.replaceChildren(h('div', { class: 'home' },
+    h('div', { class: 'top' }, h('div', { class: 'mark' }, '≡'), h('span', { class: 'brand' }, 'Claude Workspaces'), h('span', { class: 'sp' }),
+      h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes')),
     h('h3', {}, 'Workspaces'),
-    h('p', { class: 'lead' }, 'Retoma uno, crea uno nuevo en una carpeta o empieza desde una conversación de Claude.'),
+    h('p', { class: 'lead' }, 'Retoma uno o crea uno nuevo.'),
     h('div', { class: 'cards' },
       S.workspaces.map(w => {
-        const state = w.state === 'app' ? h('span', { class: 'live' }, '● abierto')
-          : w.state === 'terminal' ? h('span', { class: 'chip term' }, 'en la terminal') : h('span', { class: 'chip' }, 'apagado');
+        const dot = w.state === 'app' ? 'idle' : w.state === 'terminal' ? 'waiting' : 'sleeping';
+        const stateTxt = w.state === 'app' ? 'abierto' : w.state === 'terminal' ? 'en la terminal' : 'apagado';
         const meta = [plural(w.tabs, 'pestaña', 'pestañas'), plural(w.sessions, 'sesión', 'sesiones')];
         if (w.state !== 'app' && w.when) meta.push(w.when);
-        const names = w.tabNames || [];
-        return h('div', { class: 'wcard', onclick: () => openWorkspace(w.name, false, w.state),
+        return h('div', { class: 'card', onclick: () => openWorkspace(w.name, false, w.state),
           oncontextmenu: ev => { ev.preventDefault(); cardMenu(w, ev.clientX, ev.clientY); } },
-          h('div', { class: 'row' }, h('b', {}, w.title), state),
-          h('div', { class: 'meta' }, meta.join(' · '),
-            w.working ? h('span', { style: { color: 'var(--amber)' } }, ' · ● ' + w.working + (w.state === 'stopped' ? ' trabajando al apagar' : ' trabajando')) : null),
-          h('div', { class: 'chips' }, names.slice(0, 4).map(n => h('span', { class: 'chip' }, n)), names.length > 4 ? h('span', { class: 'chip' }, '+' + (names.length - 4)) : null),
+          h('div', { class: 'ch' }, h('b', {}, w.title), h('span', { class: 'st ' + w.state }, h('span', { class: 'd ' + dot }), stateTxt)),
+          h('div', { class: 'cm' }, meta.join(' · '),
+            w.working ? h('span', { class: 'busyc' }, ' · ' + w.working + (w.state === 'stopped' ? ' trabajaban al apagar' : ' trabajando')) : null),
+          h('div', { class: 'ct' }, (w.tabNames || []).slice(0, 5).join(' · ') + ((w.tabNames || []).length > 5 ? ' · +' + (w.tabNames.length - 5) : '')),
           h('button', { class: 'more', title: 'Acciones', onclick: ev => { ev.stopPropagation(); cardMenu(w, ev.clientX, ev.clientY); } }, '⋯'));
       }),
-      h('div', { class: 'wcard new', onclick: () => dlgNewWorkspace(launch) },
-        h('div', {}, h('div', { style: { fontSize: '22px' } }, '＋'), 'Nuevo workspace aquí', h('div', { class: 'meta' }, shortLaunch || 'elige una carpeta'))),
-      h('div', { class: 'wcard new', onclick: () => dlgFromID() },
-        h('div', {}, h('div', { style: { fontSize: '22px' } }, '↻'), 'Desde una conversación', h('div', { class: 'meta' }, 'pega el ID de una sesión de Claude'))),
-    )));
+      h('div', { class: 'card new', onclick: () => dlgNewWorkspace(launch) }, h('span', {}, '+ Nuevo workspace'))),
+  ));
 }
-function cardMenu(w, x, y) {
-  const items = [{ grp: w.title }, { ic: '▸', label: w.state === 'terminal' ? 'Abrir aquí' : 'Abrir', run: () => openWorkspace(w.name, false, w.state) },
-    { ic: '✎', label: 'Renombrar', run: () => dlgPrompt('Renombrar workspace', 'Nombre', w.title, v => api.do('ws.rename', { ws: w.name, title: v }).then(refreshHome)) }];
-  if (w.state !== 'stopped') items.push({ ic: '⏻', label: 'Apagar y guardar', danger: true, run: () => dlgConfirm('¿Apagar ' + w.title + '?', 'Se guarda el estado y se cierran todas sus sesiones. Lo retomas desde aquí cuando quieras.', 'Apagar y guardar', () => api.do('ws.stop', { ws: w.name }).then(refreshHome)) });
-  else items.push({ ic: '✕', label: 'Borrar', danger: true, run: () => dlgConfirm('¿Borrar ' + w.title + '?', 'Se borra su estado guardado. Las conversaciones de Claude quedan en disco.', 'Borrar', () => api.do('ws.delete', { ws: w.name }).then(refreshHome)) });
-  popMenu(items, x, y);
-}
+
+
+
 async function refreshHome() { S.workspaces = await api.get('workspaces'); if (!S.ws) render(); }
 async function openWorkspace(name, convert, state) {
   if (state === 'terminal' && !convert) {
@@ -542,106 +576,135 @@ function listen() {
   es.addEventListener('workspaces', ev => { S.workspaces = JSON.parse(ev.data); if (!S.ws) render(); });
 }
 
-// ---------- context panel ----------
-let ctx = null; // {kind, id, x, y, el}
+// ---------- context menus ----------
+// A short menu; items with `sub` open a submenu at their side. Choosing an action closes it.
+let ctx = null; // {kind, id, x, y, el, subEl}
 function openCtx(kind, id, x, y) { closeCtx(); ctx = { kind, id, x, y }; renderCtx(); }
-function closeCtx() { if (!ctx) return false; ctx.el?.remove(); ctx = null; return true; }
-document.addEventListener('mousedown', ev => { if (ctx && ctx.el && !ctx.el.contains(ev.target) && !ev.target.closest('.scrim')) closeCtx(); }, true);
+function closeCtx() { if (!ctx) return false; ctx.el?.remove(); ctx.subEl?.remove(); ctx = null; return true; }
+document.addEventListener('mousedown', ev => { if (ctx && !ev.target.closest('.menu') && !ev.target.closest('.scrim')) closeCtx(); }, true);
+function placeMenu(el, x, y) {
+  const r = el.getBoundingClientRect();
+  el.style.left = Math.max(6, Math.min(x, innerWidth - r.width - 6)) + 'px';
+  el.style.top = Math.max(6, Math.min(y, innerHeight - r.height - 6)) + 'px';
+}
+function menuEl(items, onPick) {
+  const el = h('div', { class: 'menu' });
+  for (const it of items) {
+    if (it === '-') { el.append(h('div', { class: 'sep' })); continue; }
+    if (it.head) { el.append(h('div', { class: 'mh' }, h('span', {}, it.head))); continue; }
+    const row = h('div', { class: 'it' + (it.danger ? ' dg' : '') + (it.on ? ' on' : '') + (it.sub ? ' has' : '') },
+      h('span', { class: 'lb' }, it.label), it.k ? h('span', { class: 'k' }, it.k) : null, it.sub ? h('span', { class: 'k' }, '›') : null);
+    row.addEventListener('mouseenter', () => onPick(it, row, true));
+    row.addEventListener('click', () => onPick(it, row, false));
+    el.append(row);
+  }
+  return el;
+}
 function renderCtx() {
-  if (!ctx || !S.state) return;
+  if (!ctx || !S.state || ctx.kind === 'menu') return;
   const items = ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id);
   if (!items) { closeCtx(); return; }
-  const [title, ...rest] = items;
-  const el = h('div', { class: 'ctx' },
-    h('h4', {}, h('span', { class: 't' }, title), h('span', { class: 'cl', title: 'Cerrar (Esc)', onclick: () => closeCtx() }, '✕')),
-    rest.map(it => it.grp ? h('div', { class: 'grp' }, it.grp)
-      : h('div', { class: 'it' + (it.danger ? ' danger' : '') + (it.on ? ' on' : ''), onclick: async () => {
-        try { await it.run(); } catch (e) {}
-        if (it.close) closeCtx(); else renderCtx();
-      } }, h('span', { class: 'ic' }, it.ic || ''), h('span', { class: 'lb' }, it.label), it.k ? h('span', { class: 'k' }, it.k) : null)));
-  const old = ctx.el;
-  ctx.el = el;
-  if (old) old.replaceWith(el); else document.body.append(el);
-  const r = el.getBoundingClientRect();
-  el.style.left = Math.max(8, Math.min(ctx.x, innerWidth - r.width - 8)) + 'px';
-  el.style.top = Math.max(8, Math.min(ctx.y, innerHeight - r.height - 8)) + 'px';
+  showMenu(items, ctx.x, ctx.y);
 }
+function showMenu(items, x, y) {
+  const keep = ctx;
+  keep.el?.remove(); keep.subEl?.remove(); keep.subEl = null;
+  const pick = async (it, row, hover) => {
+    if (it.sub) {
+      if (keep.subFor === it.label && keep.subEl && hover) return;
+      keep.subEl?.remove(); keep.subFor = it.label;
+      keep.el.querySelectorAll('.it.open').forEach(r => r.classList.remove('open'));
+      row.classList.add('open');
+      const sub = menuEl(it.sub(), async (s2, _r, hov) => { if (hov || !s2.run) return; closeCtx(); try { await s2.run(); } catch (e) {} });
+      sub.classList.add('submenu');
+      document.body.append(sub);
+      keep.subEl = sub;
+      const r = row.getBoundingClientRect();
+      const left = r.right + 4 + sub.offsetWidth > innerWidth ? r.left - sub.offsetWidth - 4 : r.right + 4;
+      placeMenu(sub, left, r.top - 5);
+      return;
+    }
+    if (hover) { keep.subEl?.remove(); keep.subEl = null; keep.subFor = null; keep.el.querySelectorAll('.it.open').forEach(r => r.classList.remove('open')); return; }
+    if (!it.run) return;
+    closeCtx();
+    try { await it.run(); } catch (e) {}
+  };
+  const el = menuEl(items, pick);
+  keep.el = el;
+  document.body.append(el);
+  placeMenu(el, x, y);
+}
+function popMenu(items, x, y) { closeCtx(); ctx = { kind: 'menu' }; showMenu(items, x, y); }
+
 function tabItems(id) {
   const st = S.state, i = st.tabs.findIndex(t => t.id === id), t = st.tabs[i];
   if (!t) return null;
-  const hasClaude = t.views.some(v => v.slots.some(s => slotOf(s)?.kind === 'claude'));
-  return ['Pestaña ' + t.title, { grp: 'Pestaña' },
-    i > 0 && { ic: '↑', label: 'Mover arriba', run: () => act('tab.move', { tab: id, to: i - 1 }) },
-    i < st.tabs.length - 1 && { ic: '↓', label: 'Mover abajo', run: () => act('tab.move', { tab: id, to: i + 1 }) },
-    { ic: '▸', label: 'Renombrar pestaña', run: () => dlgPrompt('Renombrar pestaña', 'Nombre', t.title, v => act('tab.rename', { tab: id, title: v })) },
-    { ic: '▸', label: 'Cambiar la carpeta de la pestaña…', k: t.short, run: () => dlgDir('Carpeta de la pestaña ' + t.title, 'Las sesiones nuevas de la pestaña empiezan aquí.', t.short, v => act('tab.dir', { tab: id, dir: v })) },
-    ...(() => {
-      const claude = t.views.flatMap(v => v.slots).map(slotOf).filter(s => s && s.kind === 'claude' && !s.dead);
-      const running = claude.filter(s => s.status !== 'sleeping').length;
-      if (running) return [{ ic: '⏾', label: 'Suspender la pestaña', k: running + ' de Claude', run: () => act('tab.suspend', { tab: id }) }];
-      if (claude.length) return [{ ic: '▶', label: 'Reanudar la pestaña', run: () => act('tab.wake', { tab: id }) }];
-      return [];
-    })(),
-    { ic: '✦', label: 'Nueva sesión de Claude aquí', run: () => dlgNewSession(id, 'claude'), close: true },
-    hasClaude && { ic: '✦', label: 'Cambiar alias de Claude de la pestaña…', run: () => dlgBulkAlias('tab', id) },
-    { ic: '✕', label: 'Cerrar pestaña', danger: true, run: () => confirmCloseTab(id), close: true },
+  const claude = t.views.flatMap(v => v.slots).map(slotOf).filter(s => s && s.kind === 'claude' && !s.dead);
+  const running = claude.filter(s => s.status !== 'sleeping').length;
+  return [{ head: t.title },
+    { label: 'Nueva sesión aquí', k: 'Ctrl T', run: () => dlgNewSession(id, 'claude') },
+    { label: 'Renombrar', run: () => dlgPrompt('Renombrar pestaña', 'Nombre', t.title, v => act('tab.rename', { tab: id, title: v })) },
+    { label: 'Cambiar carpeta…', k: t.short, run: () => dlgDir('Carpeta de la pestaña ' + t.title, 'Las sesiones nuevas de la pestaña empiezan aquí.', t.short, v => act('tab.dir', { tab: id, dir: v })) },
+    running ? { label: 'Suspender la pestaña', k: running + ' de Claude', run: () => act('tab.suspend', { tab: id }) }
+      : claude.length ? { label: 'Reanudar la pestaña', run: () => act('tab.wake', { tab: id }) } : null,
+    claude.length ? { label: 'Alias de Claude de la pestaña…', run: () => dlgBulkAlias('tab', id) } : null,
+    { label: 'Mover', sub: () => [i > 0 && { label: 'Arriba', run: () => act('tab.move', { tab: id, to: i - 1 }) },
+      i < st.tabs.length - 1 && { label: 'Abajo', run: () => act('tab.move', { tab: id, to: i + 1 }) }].filter(Boolean) },
+    '-',
+    { label: 'Cerrar pestaña', danger: true, run: () => confirmCloseTab(id) },
   ].filter(Boolean);
 }
 function slotItems(id) {
   const s = slotOf(id), { tab, view } = findSlot(id);
   if (!s || !view) return null;
   const vi = tab.views.indexOf(view), multi = view.slots.length > 1;
-  const items = [multi ? viewNames(view) : s.name, { grp: 'Vista' }];
-  if (vi > 0) items.push({ ic: '←', label: 'Mover a la izquierda', run: () => act('view.move', { view: view.id, to: vi - 1 }) });
-  if (vi < tab.views.length - 1) items.push({ ic: '→', label: 'Mover a la derecha', run: () => act('view.move', { view: view.id, to: vi + 1 }) });
-  for (const v of tab.views) if (v.id !== view.id) items.push({ ic: '⧉', label: 'Ver junto a ' + viewNames(v), run: () => act('view.join', { view: v.id, target: view.id }) });
-  for (const t of S.state.tabs) if (t.id !== tab.id) items.push({ ic: '↦', label: 'Mover a la pestaña ' + t.title, run: () => act('view.totab', { view: view.id, tab: t.id }), close: true });
-  if (multi) {
-    for (const [l, name, ic] of [['cols', 'Distribución: columnas', '▥'], ['rows', 'Distribución: filas', '▤'], ['grid', 'Distribución: cuadrícula', '▦']])
-      items.push({ ic, label: name, on: view.layout === l, k: view.layout === l ? '✓' : '', run: () => act('view.layout', { view: view.id, layout: l }) });
-    if (view.slots.some(x => slotOf(x)?.kind === 'claude')) items.push({ ic: '✦', label: 'Cambiar alias de Claude de la vista…', run: () => dlgBulkAlias('view', view.id) });
-    items.push({ ic: '✕', label: 'Cerrar la vista', danger: true, run: () => confirmCloseView(view.id), close: true });
-  }
-  items.push({ grp: multi ? 'Sesión ' + s.name : 'Sesión' });
-  items.push({ ic: '◉', label: 'Ir a esta sesión', run: () => focusSlot(id), close: true });
-  items.push({ ic: '▸', label: 'Renombrar', run: () => dlgPrompt('Renombrar sesión', 'Nombre', s.name, v => act('slot.rename', { slot: id, name: v })) });
+  const others = tab.views.filter(v => v.id !== view.id);
+  const items = [{ head: s.name + (multi ? '  ·  vista de ' + view.slots.length : '') },
+    { label: 'Renombrar', run: () => dlgPrompt('Renombrar sesión', 'Nombre', s.name, v => act('slot.rename', { slot: id, name: v })) }];
   if (s.kind === 'claude') {
-    items.push({ ic: '✎', label: 'Editar sesión…', run: () => dlgEditSession(id) });
-    items.push({ ic: '✦', label: 'Cambiar alias de Claude', k: s.alias, run: () => dlgBulkAlias('slot', id) });
-    items.push({ ic: '↻', label: 'Reiniciar', run: () => act('slot.respawn', { slot: id }) });
-    if (s.status === 'sleeping') items.push({ ic: '▶', label: 'Reanudar', run: () => act('slot.wake', { slot: id }) });
-    else if (!s.dead) items.push({ ic: '⏾', label: 'Suspender', k: 'deja de correr', run: () => act('slot.suspend', { slot: id }) });
+    items.push({ label: 'Editar sesión…', run: () => dlgEditSession(id) });
+    items.push({ label: 'Cambiar alias', sub: () => S.aliases.map(a => ({ label: a.name, k: a.name === s.alias ? '✓' : '', run: () => a.name === s.alias ? null : act('alias.bulk', { scope: 'slot', slot: id, alias: a.name, sendContinue: true }) })) });
+    if (s.status === 'sleeping') items.push({ label: 'Reanudar', run: () => act('slot.wake', { slot: id }) });
+    else if (!s.dead) items.push({ label: 'Suspender', k: 'deja de correr', run: () => act('slot.suspend', { slot: id }) });
+    items.push({ label: 'Reiniciar', run: () => act('slot.respawn', { slot: id }) });
   }
-  if (multi) items.push({ ic: '⇱', label: 'Separar de la vista', run: () => act('slot.split', { slot: id }) });
-  items.push({ ic: '✕', label: 'Cerrar sesión', danger: true, run: () => confirmCloseSlot(id), close: true });
+  items.push('-');
+  if (others.length) items.push({ label: 'Ver junto a', sub: () => others.map(v => ({ label: viewNames(v), run: () => act('view.join', { view: v.id, target: view.id }) })) });
+  if (multi) {
+    items.push({ label: 'Distribución', sub: () => [['cols', 'Columnas'], ['rows', 'Filas'], ['grid', 'Cuadrícula']].map(([l, n]) => ({ label: n, k: view.layout === l ? '✓' : '', run: () => act('view.layout', { view: view.id, layout: l }) })) });
+    items.push({ label: 'Separar de la vista', run: () => act('slot.split', { slot: id }) });
+    if (view.slots.some(x => slotOf(x)?.kind === 'claude')) items.push({ label: 'Alias de Claude de la vista…', run: () => dlgBulkAlias('view', view.id) });
+  }
+  items.push({ label: 'Mover', sub: () => [
+    vi > 0 && { label: 'Arriba en la pestaña', run: () => act('view.move', { view: view.id, to: vi - 1 }) },
+    vi < tab.views.length - 1 && { label: 'Abajo en la pestaña', run: () => act('view.move', { view: view.id, to: vi + 1 }) },
+    ...S.state.tabs.filter(t => t.id !== tab.id).map(t => ({ label: 'A la pestaña ' + t.title, run: () => act('view.totab', { view: view.id, tab: t.id }) })),
+  ].filter(Boolean) });
+  items.push('-');
+  if (multi) items.push({ label: 'Cerrar la vista', danger: true, run: () => confirmCloseView(view.id) });
+  items.push({ label: 'Cerrar sesión', danger: true, k: S.config?.browser_keys === false ? 'Alt W' : 'Ctrl W', run: () => confirmCloseSlot(id) });
   return items;
 }
-// popMenu is a one-shot menu (closes after a choice), drawn like the context panel.
-function popMenu(items, x, y) {
-  closeCtx();
-  const el = h('div', { class: 'ctx', style: { width: '300px' } }, items.map(it => it.grp ? h('div', { class: 'grp' }, it.grp)
-    : h('div', { class: 'it' + (it.danger ? ' danger' : ''), onclick: () => { closeCtx(); it.run(); } },
-      h('span', { class: 'ic' }, it.ic || ''), h('span', { class: 'lb' }, it.label), it.k ? h('span', { class: 'k' }, it.k) : null)));
-  ctx = { kind: 'menu', el };
-  document.body.append(el);
-  const r = el.getBoundingClientRect();
-  el.style.left = Math.max(8, Math.min(x, innerWidth - r.width - 8)) + 'px';
-  el.style.top = Math.max(8, Math.min(y, innerHeight - r.height - 8)) + 'px';
+function cardMenu(w, x, y) {
+  const items = [{ head: w.title }, { label: w.state === 'terminal' ? 'Abrir aquí' : 'Abrir', run: () => openWorkspace(w.name, false, w.state) },
+    { label: 'Renombrar', run: () => dlgPrompt('Renombrar workspace', 'Nombre', w.title, v => api.do('ws.rename', { ws: w.name, title: v }).then(refreshHome)) }, '-'];
+  if (w.state !== 'stopped') items.push({ label: 'Apagar y guardar', danger: true, run: () => dlgConfirm('¿Apagar ' + w.title + '?', 'Se guarda el estado y se cierran todas sus sesiones. Lo retomas desde aquí cuando quieras.', 'Apagar y guardar', () => api.do('ws.stop', { ws: w.name }).then(refreshHome)) });
+  else items.push({ label: 'Borrar', danger: true, run: () => dlgConfirm('¿Borrar ' + w.title + '?', 'Se borra su estado guardado. Las conversaciones de Claude quedan en disco.', 'Borrar', () => api.do('ws.delete', { ws: w.name }).then(refreshHome)) });
+  popMenu(items, x, y);
 }
 function wsMenu(x, y) {
   const others = S.workspaces.filter(w => w.name !== S.ws && w.state === 'app');
-  popMenu([{ grp: 'Workspace' },
-    { ic: '←', label: 'Todos los workspaces', run: () => go(null) },
-    { ic: '▸', label: 'Renombrar workspace', run: () => dlgPrompt('Renombrar workspace', 'Nombre', S.state.title, v => act('ws.rename', { title: v })) },
-    { ic: '↓', label: 'Guardar ahora', run: () => act('ws.save').then(() => toast('Estado guardado')) },
-    { ic: '▸', label: 'Carpeta por defecto…', k: S.state.dirShort, run: () => dlgDir('Carpeta por defecto del workspace', 'Las pestañas nuevas empiezan aquí.', S.state.dirShort, v => act('ws.dir', { dir: v })) },
-    { ic: '↺', label: 'Reabrir sesión cerrada', k: 'Ctrl+⇧T', run: () => act('slot.reopen', { tab: curTab()?.id, ...stageSize() }) },
-    { ic: '✦', label: 'Cambiar alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
-    { ic: '⚙', label: 'Configuración', k: 'Alt+,', run: () => dlgSettings('general') },
-    { ic: '?', label: 'Atajos de teclado', k: 'Alt+H', run: () => dlgSettings('keys') },
-    ...(others.length ? [{ grp: 'Otros abiertos' }, ...others.map(w => ({ ic: '◆', label: w.title, run: () => go(w.name) }))] : []),
-    { grp: '' },
-    { ic: '⏻', label: 'Apagar y guardar', danger: true, run: () => confirmStop() },
+  popMenu([
+    { label: 'Todos los workspaces', run: () => go(null) },
+    { label: 'Renombrar…', run: () => dlgPrompt('Renombrar workspace', 'Nombre', S.state.title, v => act('ws.rename', { title: v })) },
+    { label: 'Carpeta por defecto…', k: S.state.dirShort, run: () => dlgDir('Carpeta por defecto del workspace', 'Las pestañas nuevas empiezan aquí.', S.state.dirShort, v => act('ws.dir', { dir: v })) },
+    { label: 'Guardar ahora', run: () => act('ws.save').then(() => toast('Estado guardado')) },
+    { label: 'Reabrir sesión cerrada', k: 'Ctrl ⇧ T', run: () => act('slot.reopen', { tab: curTab()?.id, ...stageSize() }) },
+    { label: 'Alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
+    ...(others.length ? ['-', ...others.map(w => ({ label: w.title, k: 'abierto', run: () => go(w.name) }))] : []),
+    '-',
+    { label: 'Ajustes', k: 'Alt ,', run: () => dlgSettings('general') },
+    { label: 'Apagar y guardar', danger: true, run: () => confirmStop() },
   ], x, y);
 }
 
@@ -718,7 +781,7 @@ function confirmStop() {
 async function loadConfig() {
   const c = await api.get('config');
   S.config = c.config; S.aliases = c.aliases; S.defaultAlias = c.default; S.shellAliases = c.shellAliases || []; S.configFile = c.configFile;
-  applyTheme(S.config.theme);
+  applyTheme(S.config.theme, S.config.app_mode);
   return c;
 }
 function aliasSeg(value, onchange) {
@@ -887,36 +950,39 @@ function dlgBulkAlias(scope, id) {
   draw();
 }
 
-function dlgNewWorkspace(dirValue) {
+// A new workspace, in a folder or around an existing conversation (pasting its ID).
+function dlgNewWorkspace(dirValue, startMode) {
+  let mode = startMode || 'dir', found = null;
   const dir = dirInput(dirValue ? (S.info && dirValue.startsWith(S.info.home) ? '~' + dirValue.slice(S.info.home.length) : dirValue) : '~');
   const name = h('input', { class: 'input', placeholder: 'como la carpeta' });
-  modal({ title: 'Nuevo workspace', sub: 'Empieza con una pestaña en la carpeta.', body: [field('Carpeta', dir), field('Nombre', name)],
-    buttons: [{ label: 'Cancelar' }, { label: 'Crear workspace', primary: true, run: async () => {
-      const r = await api.do('ws.new', { dir: dir.input.value.trim(), title: name.value.trim() });
-      go(r.ws);
-    } }] });
-}
-
-function dlgFromID() {
-  const inp = h('input', { class: 'input', placeholder: 'ID de la conversación (completo o sus primeros caracteres)' });
-  const list = h('div', { class: 'list' }, h('div', { class: 'hint' }, 'Se crea un workspace en la carpeta donde empezó la conversación, con ella retomada.'));
-  let found = null;
-  inp.addEventListener('input', () => { clearTimeout(inp._t); inp._t = setTimeout(async () => {
-    const q = inp.value.trim(); found = null;
+  const idIn = h('input', { class: 'input', placeholder: 'ID de la conversación (completo o sus primeros caracteres)' });
+  const list = h('div', { class: 'list' });
+  idIn.addEventListener('input', () => { clearTimeout(idIn._t); idIn._t = setTimeout(async () => {
+    const q = idIn.value.trim(); found = null;
     if (q.length < 6) { list.replaceChildren(h('div', { class: 'hint' }, 'Escribe al menos 6 caracteres.')); return; }
     const rows = await api.get('conversations', { q }).catch(() => []);
-    if (!rows.length) { list.replaceChildren(h('div', { class: 'hint', style: { color: 'var(--red)' } }, 'No encontré ninguna conversación con ese ID.')); return; }
+    if (!rows.length) { list.replaceChildren(h('div', { class: 'hint err' }, 'No encontré ninguna conversación con ese ID.')); return; }
     found = rows[0];
     list.replaceChildren(...rows.map((c, i) => h('div', { class: 'row-item' + (i === 0 ? ' sel' : ''), onclick: ev => {
       found = c; [...list.children].forEach(el => el.classList.remove('sel')); ev.currentTarget.classList.add('sel'); } },
       h('b', {}, c.title || shorten(c.first, 50)), h('span', { class: 'w' }, c.when + ' · ' + c.short), h('span', { class: 'q' }, '«' + c.first + '»'))));
   }, 180); });
-  modal({ title: 'Workspace desde una conversación', body: [field('Conversación', inp), list], buttons: [{ label: 'Cancelar' }, { label: 'Crear workspace', primary: true, run: async () => {
+  const body = h('div', { class: 'stack' });
+  const draw = () => {
+    body.replaceChildren(seg([{ value: 'dir', label: 'En una carpeta' }, { value: 'id', label: 'Desde una conversación' }], mode, v => { mode = v; draw(); }));
+    if (mode === 'dir') body.append(field('Carpeta', dir), field('Nombre', name));
+    else body.append(field('Conversación', idIn), list, h('div', { class: 'hint' }, 'Se crea en la carpeta donde empezó la conversación, con ella retomada.'));
+    setTimeout(() => (mode === 'dir' ? dir.input : idIn).focus(), 10);
+  };
+  draw();
+  modal({ title: 'Nuevo workspace', body, buttons: [{ label: 'Cancelar' }, { label: 'Crear workspace', primary: true, run: async () => {
+    if (mode === 'dir') { const r = await api.do('ws.new', { dir: dir.input.value.trim(), title: name.value.trim() }); go(r.ws); return; }
     if (!found) throw new Error('Primero escribe un ID que exista.');
     const r = await api.do('ws.fromid', { resume: found.id, alias: found.alias });
     go(r.ws);
   } }] });
 }
+function dlgFromID() { dlgNewWorkspace('', 'id'); }
 
 // ---------- settings ----------
 async function dlgSettings(section) {
@@ -962,7 +1028,9 @@ async function dlgSettings(section) {
     } else if (section === 'look') {
       const fs = c.app_font_size || 13.5;
       sec.replaceChildren(h('h3', {}, 'Apariencia'),
-        h('div', { class: 'setrow' }, h('div', {}, 'Color'), h('div', { class: 'swatches' }, Object.entries(THEMES).map(([n, [col]]) =>
+        h('div', { class: 'setrow' }, h('div', {}, 'Modo', h('small', {}, 'Oscuro o claro; las terminales cambian con él.')),
+          seg([{ value: 'dark', label: 'Oscuro' }, { value: 'light', label: 'Claro' }], c.app_mode === 'light' ? 'light' : 'dark', v => set({ app_mode: v }).then(draw))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Color de acento'), h('div', { class: 'swatches' }, Object.entries(THEMES).map(([n, [col]]) =>
           h('i', { class: (c.theme || 'azul') === n ? 'on' : '', title: n, style: { background: col }, onclick: () => set({ theme: n }).then(draw) })))),
         h('div', { class: 'setrow' }, h('div', {}, 'Tamaño de letra de las terminales'),
           seg([12, 13, 14, 15, 16].map(v => ({ value: v, label: String(v) })), Math.round(fs), v => set({ app_font_size: v }).then(() => {

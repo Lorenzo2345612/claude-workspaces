@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"path/filepath"
 
 	"strings"
 )
@@ -15,6 +16,13 @@ const (
 	optClosed = "@cw_closed" // the sessions closed through cw, newest first (Ctrl+Shift+T)
 	maxClosed = 20
 )
+
+func baseName(dir string) string {
+	if dir == "" {
+		return "inicio"
+	}
+	return filepath.Base(dir)
+}
 
 func boolOpt(b bool) string {
 	if b {

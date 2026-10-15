@@ -67,12 +67,23 @@ func cmdUpdate(args []string) error {
 	if pkgOS == "" {
 		return fmt.Errorf("sistema no soportado: %s", runtime.GOOS)
 	}
-	pkgName := fmt.Sprintf("cw-%s-%s.tar.gz", latest, pkgOS)
-	pkgURL, sumsURL := "", ""
+	// Each install updates from its own package: the desktop one (with the app) or the
+	// terminal-only one. Releases before the split only had cw-<v>-<os> (with the app).
+	names := []string{fmt.Sprintf("cw-terminal-%s-%s.tar.gz", latest, pkgOS)}
+	if appBuild {
+		names = []string{fmt.Sprintf("claude-workspaces-%s-%s.tar.gz", latest, pkgOS), fmt.Sprintf("cw-%s-%s.tar.gz", latest, pkgOS)}
+	}
+	pkgName, pkgURL, sumsURL := names[0], "", ""
+	for _, n := range names {
+		for _, a := range rel.Assets {
+			if a.Name == n && pkgURL == "" {
+				pkgName, pkgURL = n, a.URL
+			}
+		}
+	}
 	for _, a := range rel.Assets {
 		switch {
-		case a.Name == pkgName:
-			pkgURL = a.URL
+		case pkgURL != "" && a.Name == pkgName:
 		case strings.HasSuffix(a.Name, "SHA256SUMS.txt"):
 			sumsURL = a.URL
 		}

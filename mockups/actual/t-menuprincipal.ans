@@ -1,0 +1,50 @@
+[1m[38;5;75m ≡ backend-kyc    bug-185 [38;5;214m●2 [38;5;240m✕[0m[38;5;252m  [38;5;245m  front [38;5;203m?1 [38;5;240m✕[38;5;252m  [38;5;245m  infra z1 [38;5;240m✕[38;5;252m  [1m[38;5;114m[48;5;237m + [0m[38;5;252m                                 [38;5;245m[48;5;237m ? Ayuda [38;5;252m[49m [1m[38;5;217m[48;5;52m ⏻ [0m[38;5;252m
+                  [38;5;75m━━━━━━━━━━━━  [38;5;252m  [38;5;240m──────────  [38;5;252m  [38;5;240m──────────  [38;5;252m
+   [1m[38;5;255m[48;5;31m fix-matriz [38;5;214m●[38;5;255m [38;5;245myolo [38;5;255m✕ [0m[38;5;252m [48;5;238m review-291 [38;5;214m●[38;5;252m [38;5;245myolo [38;5;252m✕ [49m [48;5;238m terminal ✕ [49m   [1m[38;5;114m[48;5;237m + Claude [0m[38;5;252m  [1m[38;5;114m[48;5;237m + Terminal [0m[38;5;252m            [38;5;245m/tmp/zz/dir
+[38;5;252m
+[1m[39m❯ arregla el filtro de acentos de la matriz de riesgo[0m
+
+[38;5;141m●[39m Revisé [38;5;114mrisk_matrix/services/[38;5;75m╭─────────── cw 0.9.0 · backend-kyc ───────────╮[39m
+[38;5;242m  ⎿ Read webapp/risk_matrix/se[38;5;75m│[39m [2mCREAR[0m                                        [38;5;75m│[39m
+                              [38;5;75m│[30m[43m   ✦ Sesión de Claude                     (c) [38;5;75m[49m│[39m
+[38;5;141m●[39m Corrí los tests de [38;5;114mrisk_matr[38;5;75m│[39m   ↻ Retomar sesión por ID…               (i) [38;5;75m│[39m
+                              [38;5;75m│[39m   ❯ Terminal                             (s) [38;5;75m│[39m
+[38;5;242m✻ Pensando… (esc para interrum[38;5;75m│[39m   ▤ Pestaña                              (t) [38;5;75m│[39m
+^[                            [38;5;75m│[39m   ↺ Reabrir sesión cerrada               (z) [38;5;75m│[39m
+                              [38;5;75m│[39m [2mESTA PESTAÑA[0m                                 [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Renombrar pestaña                    (r) [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Renombrar sesión                     (n) [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Editar sesión actual                 (a) [38;5;75m│[39m
+                              [38;5;75m│[39m   ✦ Cambiar alias de claude              (p) [38;5;75m│[39m
+                              [38;5;75m│[39m   ✦ Alias de claude de la pestaña        (k) [38;5;75m│[39m
+                              [38;5;75m│[39m   ≡ Todas las sesiones                   (e) [38;5;75m│[39m
+                              [38;5;75m│[39m   ⏾ Suspender sesión actual              (S) [38;5;75m│[39m
+                              [38;5;75m│[39m   ⏾ Suspender o reanudar la pestaña      (Z) [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Carpeta de la pestaña…               (f) [38;5;75m│[39m
+                              [38;5;75m│[39m [2mVISTA[0m                                        [38;5;75m│[39m
+                              [38;5;75m│[39m   ⧉ Combinar sesiones en esta vista…     (v) [38;5;75m│[39m
+                              [38;5;75m│[39m [2m  ⇱ Separar esta sesión de la vista[0m          [38;5;75m│[39m
+                              [38;5;75m│[39m [2m  ▥ Lado a lado[0m                              [38;5;75m│[39m
+                              [38;5;75m│[39m [2m  ▤ Arriba y abajo[0m                           [38;5;75m│[39m
+                              [38;5;75m│[39m [2m  ▦ Cuadrícula[0m                               [38;5;75m│[39m
+                              [38;5;75m│[39m   ✕ Cerrar sesión actual                 (x) [38;5;75m│[39m
+                              [38;5;75m│[39m   ✕ Cerrar pestaña                       (w) [38;5;75m│[39m
+                              [38;5;75m│[39m [2mWORKSPACE[0m                                    [38;5;75m│[39m
+                              [38;5;75m│[39m   ↓ Guardar ahora                        (g) [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Renombrar workspace…                 (W) [38;5;75m│[39m
+                              [38;5;75m│[39m   ✦ Alias de claude de todo el workspace (K) [38;5;75m│[39m
+                              [38;5;75m│[39m   ▸ Carpeta por defecto…                 (F) [38;5;75m│[39m
+                              [38;5;75m│[39m   ◆ Configuración                        (o) [38;5;75m│[39m
+                              [38;5;75m│[39m   ? Ayuda                                (h) [38;5;75m│[39m
+                              [38;5;75m│[39m   ⇥ Desconectar                          (d) [38;5;75m│[39m
+                              [38;5;75m│[39m   ⏻ Apagar y guardar                     (q) [38;5;75m│[39m
+                              [38;5;75m╰──────────────────────────────────────────────╯[39m
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,34 @@
+[1m[38;5;75m ≡ backend-kyc    bug-185 [38;5;214m●2 [38;5;240m✕[0m[38;5;252m  [38;5;245m  front [38;5;203m?1 [38;5;240m✕[38;5;252m  [38;5;245m  infra z1 [38;5;240m✕[38;5;252m  [1m[38;5;114m[48;5;237m + [0m[38;5;252m                                 [38;5;245m[48;5;237m ? Ayuda [38;5;252m[49m [1m[38;5;217m[48;5;52m ⏻ [0m[38;5;252m
+                  [38;5;75m━━━━━━━━━━━━  [38;5;252m  [38;5;240m──────────  [38;5;252m  [38;5;240m──────────  [38;5;252m
+   [1m[38;5;255m[48;5;31m fix-matriz [38;5;214m●[38;5;255m [38;5;245myolo [38;5;255m✕ [0m[38;5;252m [48;5;238m review-291 [38;5;214m●[38;5;252m [38;5;245myolo [38;5;252m✕ [49m [48;5;238m terminal ✕ [49m   [1m[38;5;114m[48;5;237m + Claude [0m[38;5;252m  [1m[38;5;114m[48;5;237m + Terminal [0m[38;5;252m            [38;5;245m/tmp/zz/dir
+[38;5;252m
+[1m[39m❯ arregla el filtro de acentos de la matriz de riesgo[0m
+
+[38;5;141m●[39m Revisé [38;5;114mrisk_matrix/services/catalog.py[39m: la búsqueda compara sin normalizar.
+[38;5;242m  ⎿ Read webapp/ris[38;5;75m╭───────────────────── Configuración · cw 0.9.0 ─────────────────────╮[39m
+                   [38;5;75m│[39m [2mSESIONES[0m                                                           [38;5;75m│[39m
+[38;5;141m●[39m Corrí los tests d[38;5;75m│[30m[43m   Mensaje de continuación       [38;5;245m«continue»[30m                     (m) [38;5;75m[49m│[39m
+                   [38;5;75m│[39m   Arranque diferido             [38;5;245mno[39m                             (l) [38;5;75m│[39m
+[38;5;242m✻ Pensando… (esc pa[38;5;75m│[39m   Argumentos para todo claude   [38;5;245mninguno[39m                        (g) [38;5;75m│[39m
+^[                 [38;5;75m│[39m   Alias de claude               [38;5;245m3 · por defecto yolo[39m           (a) [38;5;75m│[39m
+                   [38;5;75m│[39m [2mAPARIENCIA[0m                                                         [38;5;75m│[39m
+                   [38;5;75m│[39m   Tema de color                 [38;5;245mAzul[39m                           (t) [38;5;75m│[39m
+                   [38;5;75m│[39m   Barra de pestañas             [38;5;245marriba[39m                         (b) [38;5;75m│[39m
+                   [38;5;75m│[39m   Al iniciar, abrir en          [38;5;245mterminal actual[39m                (v) [38;5;75m│[39m
+                   [38;5;75m│[39m [2mTECLADO[0m                                                            [38;5;75m│[39m
+                   [38;5;75m│[39m   Atajos de navegador           [38;5;245msí · Ctrl+T, Ctrl+W, Ctrl+Tab…[39m (n) [38;5;75m│[39m
+                   [38;5;75m│[39m [2mGUARDADO[0m                                                           [38;5;75m│[39m
+                   [38;5;75m│[39m   Autoguardado cada             [38;5;245m120 s[39m                          (s) [38;5;75m│[39m
+                   [38;5;75m├────────────────────────────────────────────────────────────────────┤[39m
+                   [38;5;75m│[39m   Archivo: /tmp/zz/config/config.json                              [38;5;75m│[39m
+                   [38;5;75m╰────────────────────────────────────────────────────────────────────╯[39m
+
+
+
+
+
+
+
+
+
+

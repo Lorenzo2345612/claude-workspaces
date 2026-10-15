@@ -57,25 +57,33 @@ $json = $wtProfile | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Join-Path $fragmentDir 'cw.json'), $json, (New-Object System.Text.UTF8Encoding $false))
 Say 'Perfil «cw» agregado a Windows Terminal (menú ˅ de pestañas nuevas).'
 
-# Accesos directos de la app: un .vbs abre wsl.exe sin ventana de consola, y cw app --mantener
-# deja corriendo el lado Linux (servidor y sesiones) mientras la app está abierta.
-$appDir = Join-Path $env:LOCALAPPDATA 'cw'
-New-Item -ItemType Directory -Force -Path $appDir | Out-Null
-Copy-Item -Force (Join-Path $PSScriptRoot 'cw.ico') (Join-Path $appDir 'cw.ico')
-$vbs = Join-Path $appDir 'cw-app.vbs'
-$vbsText = "Set sh = CreateObject(""WScript.Shell"")`r`n" +
-    "sh.Run ""wsl.exe -d $distro --cd ~ -- bash -lc """"exec `$HOME/.local/bin/cw app --mantener"""""", 0, False`r`n"
-[System.IO.File]::WriteAllText($vbs, $vbsText, (New-Object System.Text.UTF8Encoding $false))
-$shell = New-Object -ComObject WScript.Shell
-foreach ($dir in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) {
-    $lnk = $shell.CreateShortcut((Join-Path $dir 'Claude Workspaces.lnk'))
-    $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
-    $lnk.Arguments = '"' + $vbs + '"'
-    $lnk.IconLocation = (Join-Path $appDir 'cw.ico')
-    $lnk.Description = 'Sesiones de Claude Code en pestañas'
-    $lnk.Save()
+# Solo el paquete de escritorio («Claude Workspaces») trae cw.ico: el de terminal no crea accesos.
+$desktop = Test-Path (Join-Path $PSScriptRoot 'cw.ico')
+if ($desktop) {
+    # Accesos directos de la app: un .vbs abre wsl.exe sin ventana de consola, y cw app --mantener
+    # deja corriendo el lado Linux (servidor y sesiones) mientras la app está abierta.
+    $appDir = Join-Path $env:LOCALAPPDATA 'cw'
+    New-Item -ItemType Directory -Force -Path $appDir | Out-Null
+    Copy-Item -Force (Join-Path $PSScriptRoot 'cw.ico') (Join-Path $appDir 'cw.ico')
+    $vbs = Join-Path $appDir 'cw-app.vbs'
+    $vbsText = "Set sh = CreateObject(""WScript.Shell"")`r`n" +
+        "sh.Run ""wsl.exe -d $distro --cd ~ -- bash -lc """"exec `$HOME/.local/bin/cw app --mantener"""""", 0, False`r`n"
+    [System.IO.File]::WriteAllText($vbs, $vbsText, (New-Object System.Text.UTF8Encoding $false))
+    $shell = New-Object -ComObject WScript.Shell
+    foreach ($dir in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) {
+        $lnk = $shell.CreateShortcut((Join-Path $dir 'Claude Workspaces.lnk'))
+        $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
+        $lnk.Arguments = '"' + $vbs + '"'
+        $lnk.IconLocation = (Join-Path $appDir 'cw.ico')
+        $lnk.Description = 'Sesiones de Claude Code en pestañas'
+        $lnk.Save()
+    }
+    Say 'Accesos directos «Claude Workspaces» creados en el menú Inicio y el escritorio.'
 }
-Say 'Accesos directos «Claude Workspaces» creados en el menú Inicio y el escritorio.'
 
-Say 'Listo. Abre «Claude Workspaces» desde el menú Inicio, o el perfil «cw» de Windows Terminal para la versión de terminal.'
+if ($desktop) {
+    Say 'Listo. Abre «Claude Workspaces» desde el menú Inicio, o el perfil «cw» de Windows Terminal para la versión de terminal.'
+} else {
+    Say 'Listo. Abre Windows Terminal y elige el perfil «cw», o escribe cw en tu terminal de Ubuntu.'
+}
 Read-Host 'Enter para cerrar' | Out-Null

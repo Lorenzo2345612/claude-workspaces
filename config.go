@@ -35,6 +35,8 @@ type Config struct {
 	AppPort int `json:"app_port,omitempty"`
 	// AppFontSize is the font size of the app's terminals; 0 means the default.
 	AppFontSize int `json:"app_font_size,omitempty"`
+	// AppMode is the app's light or dark mode ("light" or "dark"); "" means dark.
+	AppMode string `json:"app_mode,omitempty"`
 	// BrowserKeys turns on the browser shortcuts for the sessions of a tab (Ctrl+T, Ctrl+W,
 	// Ctrl+Tab…); nil means on.
 	BrowserKeys *bool `json:"browser_keys,omitempty"`

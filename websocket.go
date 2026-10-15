@@ -1,3 +1,5 @@
+//go:build !terminal
+
 package main
 
 import (
@@ -25,9 +27,10 @@ const (
 )
 
 type wsConn struct {
-	conn net.Conn
-	r    *bufio.Reader
-	wmu  sync.Mutex
+	conn   net.Conn
+	r      *bufio.Reader
+	wmu    sync.Mutex
+	closed bool // a close frame went out: nothing may follow it
 }
 
 func headerHas(h http.Header, name, token string) bool {
@@ -133,6 +136,12 @@ func (c *wsConn) ReadMessage() (int, []byte, error) {
 func (c *wsConn) write(op int, data []byte) error {
 	c.wmu.Lock()
 	defer c.wmu.Unlock()
+	if c.closed {
+		return io.ErrClosedPipe
+	}
+	if op == wsClose {
+		c.closed = true
+	}
 	h := []byte{0x80 | byte(op)}
 	switch n := len(data); {
 	case n < 126:

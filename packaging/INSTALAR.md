@@ -1,5 +1,10 @@
 # Cómo instalar cw
 
+> **Dos paquetes.** «Claude Workspaces» (`claude-workspaces-<versión>-…`) trae la app de escritorio
+> y también la versión de terminal. «cw» solo terminal (`cw-terminal-<versión>-…`) es más chico y no
+> trae la app ni crea accesos directos. Los dos se instalan igual y guardan los workspaces en el
+> mismo formato.
+>
 > **La app de escritorio:** después de instalar, `cw app` abre una ventana propia con tus
 > workspaces (pestañas a la izquierda, sesiones arriba, terminales reales). Usa Edge o Chrome en
 > modo aplicación, así que no instala ningún navegador extra. Si cierras la ventana, las sesiones
@@ -28,7 +33,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.9.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `claude-workspaces-0.10.0-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -53,8 +58,8 @@ terminal de Ubuntu.
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.9.0-macos.tar.gz
-   cd cw-0.9.0-macos
+   tar xzf claude-workspaces-0.10.0-macos.tar.gz
+   cd claude-workspaces-0.10.0-macos
    sh install.sh
    ```
 
@@ -83,8 +88,8 @@ terminal de Ubuntu.
 ## Linux
 
 ```sh
-tar xzf cw-0.9.0-linux.tar.gz
-cd cw-0.9.0-linux
+tar xzf claude-workspaces-0.10.0-linux.tar.gz
+cd claude-workspaces-0.10.0-linux
 sh install.sh
 ```
 

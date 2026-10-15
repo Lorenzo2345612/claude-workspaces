@@ -1,0 +1,34 @@
+[38;5;238m ≡ backend-kyc    bug-185 ●2 ✕    front ?1 ✕    infra z1 ✕   +                                   ? Ayuda   ⏻
+                  ━━━━━━━━━━━━    ──────────    ──────────
+    fix-matriz ● yolo ✕   review-291 ● yolo ✕   terminal ✕     + Claude    + Terminal             /tmp/zz/dir
+
+❯ arregla el filtro de acentos de la matriz de riesgo
+
+● Revisé risk_matrix/services/catalog.py: la búsqueda compara sin normalizar.
+  ⎿ Read webapp/ri[38;5;75m╭─ Acciones ────────────────────────────────────────────────────────╴[1m[39m ✕ [0m[38;5;75m╶╮[38;5;238m
+                  [38;5;75m│[39m  [1m[38;5;75mfix-matriz                                                        [0m    [38;5;75m│[38;5;238m
+● Corrí los tests [38;5;75m│[39m                                                                        [38;5;75m│[38;5;238m
+                  [38;5;75m│[39m  [38;5;245mVISTA                                                             [39m    [38;5;75m│[38;5;238m
+✻ Pensando… (esc p[38;5;75m│[39m [1m[38;5;255m[48;5;31m ← Mover a la izquierda                                           [0m     [38;5;75m│[38;5;238m
+^[                [38;5;75m│[39m  → Mover a la derecha                                                  [38;5;75m│[38;5;238m
+[39m                  [38;5;75m│[39m  ⧉ Ver junto a review-291                                              [38;5;75m│[39m
+                  [38;5;75m│[39m  ⧉ Ver junto a terminal                                                [38;5;75m│[39m
+                  [38;5;75m│[39m  ⧉ Combinar con sesiones de otras pestañas…                            [38;5;75m│[39m
+                  [38;5;75m│[39m                                                                        [38;5;75m│[39m
+                  [38;5;75m│[39m  [38;5;245mSESIÓN                                                            [39m    [38;5;75m│[39m
+                  [38;5;75m│[39m  ◉ Ir a esta sesión                                                    [38;5;75m│[39m
+                  [38;5;75m│[39m  ▸ Renombrar                                                           [38;5;75m│[39m
+                  [38;5;75m│[39m  ▸ Editar sesión                                                       [38;5;75m│[39m
+                  [38;5;75m│[39m  ✦ Cambiar alias de claude                                             [38;5;75m│[39m
+                  [38;5;75m│[39m  ⏾ Suspender (Claude deja de correr; la conversación queda)            [38;5;75m│[39m
+                  [38;5;75m│[39m  ✕ Cerrar                                                              [38;5;75m│[39m
+                  [38;5;75m│[39m                                                                        [38;5;75m│[39m
+                  [38;5;75m╰────────────────────────────────────────────────────────────────────────╯[39m
+
+
+
+
+
+
+
+

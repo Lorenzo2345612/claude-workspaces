@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>cw · rediseño sobrio (app + terminal)</title>
+<style>
+  /* ---------- page ---------- */
+  body { margin: 0; background: #0b0b0c; color: #e7e5e1; font: 14px/1.5 "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  .page { max-width: 1340px; margin: 0 auto; padding: 40px 32px 80px; }
+  h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -.02em; font-weight: 600; }
+  h2 { font-size: 17px; margin: 56px 0 4px; font-weight: 600; letter-spacing: -.01em; }
+  h2 small { color: #8f8c86; font-weight: 400; font-size: 13.5px; margin-left: 8px; }
+  .lead, .note { color: #9a978f; max-width: 980px; }
+  .note { font-size: 13.5px; margin: 0 0 16px; }
+  .principles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 22px; }
+  .principles div { background: #151515; border: 1px solid #222; border-radius: 10px; padding: 14px 16px; font-size: 13px; color: #a8a59e; }
+  .principles b { display: block; color: #e7e5e1; font-weight: 600; margin-bottom: 4px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .label { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #6f6c66; margin: 0 0 8px; }
+
+  /* ---------- app tokens: warm neutral gray, one muted accent ---------- */
+  .A { --bg: #141414; --side: #111111; --raise: #1b1b1b; --hover: rgba(255,255,255,.04); --sel: rgba(255,255,255,.07);
+       --line: rgba(255,255,255,.065); --text: #e9e7e3; --muted: #9b988f; --dim: #67645e;
+       --accent: #8c95cf; --busy: #d6a24b; --wait: #d7735f; --ok: #79ad8a; --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+       background: var(--bg); color: var(--text); border-radius: 12px; overflow: hidden; border: 1px solid #262626;
+       box-shadow: 0 30px 70px rgba(0,0,0,.55); font-size: 13px; position: relative; }
+  .A.light { --bg: #f7f6f3; --side: #f0efeb; --raise: #ffffff; --hover: rgba(0,0,0,.035); --sel: rgba(0,0,0,.06);
+       --line: rgba(0,0,0,.08); --text: #23221f; --muted: #6f6c66; --dim: #a19e97; --accent: #5561b3; border-color: #ddd; }
+  .A .win { display: grid; grid-template-columns: 220px 1fr; height: 600px; }
+  .A .side { background: var(--side); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 10px 8px; }
+  .A .wsrow { display: flex; align-items: center; gap: 9px; padding: 6px 8px 12px; }
+  .A .mark { width: 20px; height: 20px; border-radius: 6px; background: var(--raise); border: 1px solid var(--line); display: grid; place-items: center; font-size: 11px; color: var(--muted); }
+  .A .wsrow b { font-weight: 600; font-size: 13px; }
+  .A .wsrow span { margin-left: auto; color: var(--dim); font-size: 12px; }
+  .A .grp { font-size: 11px; color: var(--dim); padding: 12px 8px 4px; display: flex; justify-content: space-between; }
+  .A .t { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; color: var(--muted); }
+  .A .t:hover { background: var(--hover); }
+  .A .t.on { background: var(--sel); color: var(--text); }
+  .A .t .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .A .cnt { display: flex; gap: 7px; font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--dim); }
+  .A .cnt i { font-style: normal; display: inline-flex; align-items: center; gap: 3px; }
+  .A .d { width: 6px; height: 6px; border-radius: 50%; display: inline-block; flex: none; }
+  .A .d.b { background: var(--busy); } .A .d.w { background: var(--wait); } .A .d.i { background: var(--ok); } .A .d.z { background: transparent; border: 1px solid var(--dim); width: 5px; height: 5px; }
+  .A .side .foot { margin-top: auto; display: flex; gap: 2px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .A .ib { color: var(--dim); padding: 5px 8px; border-radius: 6px; font-size: 12.5px; }
+  .A .ib:hover { background: var(--hover); color: var(--text); }
+  .A .main { display: flex; flex-direction: column; min-width: 0; }
+  .A .bar { height: 42px; display: flex; align-items: center; gap: 2px; padding: 0 10px; border-bottom: 1px solid var(--line); }
+  .A .p { display: flex; align-items: center; gap: 7px; padding: 5px 10px; border-radius: 6px; color: var(--muted); font-size: 12.5px; white-space: nowrap; }
+  .A .p.on { background: var(--sel); color: var(--text); }
+  .A .p .al { color: var(--dim); font-size: 11.5px; }
+  .A .p .x { color: var(--dim); font-size: 10px; opacity: 0; } .A .p.on .x { opacity: 1; }
+  .A .bar .plus { color: var(--dim); padding: 4px 9px; border-radius: 6px; font-size: 14px; }
+  .A .bar .path { margin-left: auto; color: var(--dim); font: 11.5px var(--mono); }
+  .A .stage { flex: 1; display: grid; min-height: 0; }
+  .A .stage.two { grid-template-columns: 1fr 1fr; }
+  .A .pane { display: flex; flex-direction: column; min-width: 0; }
+  .A .stage.two .pane + .pane { border-left: 1px solid var(--line); }
+  .A .ph { height: 30px; display: flex; align-items: center; gap: 8px; padding: 0 14px; font-size: 12px; color: var(--dim); }
+  .A .ph b { color: var(--muted); font-weight: 500; }
+  .A .pane.focus .ph b { color: var(--text); }
+  .A .pane.focus .ph { box-shadow: inset 0 -1px 0 var(--accent); }
+  .A .ph .acts { margin-left: auto; letter-spacing: 6px; }
+  .A .term { flex: 1; padding: 10px 16px; font: 12.5px/1.6 var(--mono); color: #cfccc6; overflow: hidden; }
+  .A.light .term { color: #3b3a36; }
+  .A .term .u { color: var(--text); } .A .term .m { color: var(--dim); } .A .term .a { color: var(--accent); } .A .term .g { color: var(--ok); }
+  .A .prompt { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; color: var(--dim); }
+  .A .status { height: 26px; display: flex; align-items: center; gap: 16px; padding: 0 14px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--dim); }
+  .A .status .k { margin-left: auto; }
+  kbd { font: 10.5px var(--mono, monospace); border: 1px solid var(--line, #333); border-radius: 4px; padding: 0 4px; color: var(--muted, #999); }
+  /* floating menu */
+  .A .menu { position: absolute; width: 270px; background: var(--raise); border: 1px solid var(--line); border-radius: 10px; padding: 5px; box-shadow: 0 16px 40px rgba(0,0,0,.45); font-size: 12.5px; }
+  .A .menu .h { display: flex; justify-content: space-between; padding: 6px 8px 6px; color: var(--muted); font-size: 12px; }
+  .A .menu .it { display: flex; gap: 10px; padding: 6px 8px; border-radius: 6px; color: var(--text); }
+  .A .menu .it.hl { background: var(--sel); }
+  .A .menu .it .k { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .A .menu .it.dg { color: var(--wait); }
+  .A .menu .sep { height: 1px; background: var(--line); margin: 4px 6px; }
+  /* home */
+  .A .home { padding: 56px 72px; height: 600px; box-sizing: border-box; }
+  .A .home h3 { margin: 0 0 4px; font-size: 20px; font-weight: 600; letter-spacing: -.01em; }
+  .A .home p { margin: 0 0 26px; color: var(--muted); }
+  .A .list { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; max-width: 760px; }
+  .A .row { display: grid; grid-template-columns: 1fr 160px 120px 90px; align-items: center; padding: 11px 16px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12.5px; }
+  .A .row:first-child { border-top: 0; }
+  .A .row b { color: var(--text); font-weight: 500; font-size: 13px; }
+  .A .row .st { display: flex; align-items: center; gap: 6px; }
+  .A .row.hl { background: var(--hover); }
+  .A .acts2 { display: flex; gap: 8px; margin-top: 18px; }
+  .A .btn { border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; color: var(--text); font-size: 12.5px; background: var(--raise); }
+  .A .btn.pr { background: var(--text); color: var(--bg); border-color: var(--text); }
+  /* dialog */
+  .A .scrim { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: grid; place-items: center; }
+  .A .dlg { width: 440px; background: var(--raise); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+  .A .dlg .hd { display: flex; justify-content: space-between; padding: 16px 18px 4px; font-weight: 600; }
+  .A .dlg .hd span { color: var(--dim); font-weight: 400; }
+  .A .dlg .bd { padding: 10px 18px 16px; display: grid; gap: 12px; }
+  .A .dlg label { font-size: 11.5px; color: var(--muted); display: block; margin-bottom: 5px; }
+  .A .in { border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; background: var(--bg); }
+  .A .in.f { border-color: var(--accent); }
+  .A .seg { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; width: fit-content; }
+  .A .seg span { padding: 5px 11px; color: var(--muted); font-size: 12px; border-left: 1px solid var(--line); }
+  .A .seg span:first-child { border-left: 0; } .A .seg span.on { background: var(--sel); color: var(--text); }
+  .A .cmd { font: 11.5px var(--mono); color: var(--dim); }
+  .A .dlg .ft { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 18px; border-top: 1px solid var(--line); }
+
+  /* ---------- terminal mockups ---------- */
+  .T { background: #121212; border: 1px solid #262626; border-radius: 10px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,.5); }
+  .T .tt { height: 26px; background: #1a1a1a; border-bottom: 1px solid #262626; display: flex; align-items: center; padding: 0 10px; gap: 6px; font-size: 11.5px; color: #77746e; }
+  .T .tt i { width: 9px; height: 9px; border-radius: 50%; background: #333; }
+  .T pre { margin: 0; padding: 6px 8px; font: 12.5px/1.42 "JetBrains Mono", "Cascadia Mono", Consolas, monospace; color: #c9c6bf; white-space: pre; overflow: hidden; }
+  /* palette (ANSI 256 approximations) */
+  .fg { color: #e7e5e1; } .mu { color: #8a877f; } .dm { color: #5a5751; } .ac { color: #8c95cf; } .bu { color: #d6a24b; } .wa { color: #d7735f; } .ok { color: #79ad8a; }
+  .sel { background: #2a2a2a; color: #e7e5e1; } .acb { background: #2b2e45; color: #e7e5e1; } .b { font-weight: 700; }
+  .old .t1 { color: #5fafff; font-weight: 700; } .old .pill { background: #444; color: #ddd; } .old .pillon { background: #0087af; color: #fff; font-weight: 700; } .old .btn { background: #3a3a3a; color: #87d787; font-weight: 700; } .old .red { background: #5f0000; color: #ffafaf; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>cw · rediseño sobrio</h1>
+  <p class="lead">Dos interfaces con un mismo lenguaje: la <b>app de escritorio</b> y la <b>versión de terminal</b>. La idea es que se note
+  el trabajo de Claude y no la herramienta: menos color, menos bordes, menos cajas, y el color reservado para lo que pide atención.</p>
+
+  <div class="principles">
+    <div><b>Un solo acento, apagado</b>Un azul grisáceo marca solo el foco y la selección. Lo demás son grises cálidos, sin saturar.</div>
+    <div><b>El color es para el estado</b>Ámbar = trabajando, rojo = pide permiso, verde = lista, hueco = suspendida. Nada más usa color.</div>
+    <div><b>La navegación se retira</b>La barra lateral va un tono más oscura y en gris; el área de trabajo manda.</div>
+    <div><b>Estructura que se siente</b>Separadores de 1 px casi invisibles en lugar de tarjetas y bordes gruesos; las terminales van de borde a borde.</div>
+    <div><b>Densidad sin ruido</b>Texto de 12–13 px, números tabulares, rutas en monoespaciada, iconos pequeños y pocos.</div>
+    <div><b>Lo mismo en la terminal</b>Barra de 2 líneas en vez de 4, sin «píldoras» de color, ✕ en las esquinas y una línea de atajos según el contexto.</div>
+  </div>
+
+  <!-- ===================== APP ===================== -->
+  <h2>App · 1. Una sesión <small>— el caso de todos los días</small></h2>
+  <p class="note">Barra lateral oscura con las pestañas y sus contadores en gris. Arriba, las sesiones como pestañas compactas (la activa en un gris un poco más claro; su ✕ aparece solo en la activa o al pasar el ratón).
+  Abajo, una línea de estado discreta con la carpeta y los atajos. La terminal ocupa todo, sin tarjeta.</p>
+  <div class="A">
+    <div class="win">
+      <aside class="side">
+        <div class="wsrow"><div class="mark">≡</div><b>Backend KYC</b><span>⌄</span></div>
+        <div class="grp"><span>Pestañas</span><span>+</span></div>
+        <div class="t on"><span class="n">bug-185</span><span class="cnt"><i><span class="d b"></span>2</i><i><span class="d i"></span>1</i></span></div>
+        <div class="t"><span class="n">front</span><span class="cnt"><i><span class="d w"></span>1</i></span></div>
+        <div class="t"><span class="n">infra</span><span class="cnt"><i><span class="d z"></span>3</i></span></div>
+        <div class="t"><span class="n">revisiones-291</span><span class="cnt"><i><span class="d i"></span>2</i></span></div>
+        <div class="foot"><span class="ib">⚙ Ajustes</span><span class="ib" style="margin-left:auto">⏻</span></div>
+      </aside>
+      <div class="main">
+        <div class="bar">
+          <span class="p on"><span class="d b"></span>fix-matriz <span class="al">yolo</span><span class="x">✕</span></span>
+          <span class="p"><span class="d b"></span>review-291</span>
+          <span class="p"><span class="d i"></span>tests</span>
+          <span class="p"><span style="color:var(--dim)">❯</span> terminal</span>
+          <span class="plus">+</span>
+          <span class="path">~/work/backend</span>
+        </div>
+        <div class="stage">
+          <div class="pane">
+            <div class="term">
+              <div><span class="u">❯ arregla el filtro de acentos de la matriz de riesgo</span></div>
+              <div style="margin-top:10px"><span class="a">●</span> Revisé <span class="g">risk_matrix/services/catalog.py</span>: la búsqueda compara sin normalizar.</div>
+              <div class="m">  ⎿ Read webapp/risk_matrix/services/catalog.py (212 lines)</div>
+              <div class="m">  ⎿ Edit catalog.py · +6 −2</div>
+              <div style="margin-top:10px"><span class="a">●</span> Corrí los tests de <span class="g">risk_matrix</span>: 42 passed in 3.1s.</div>
+              <div class="m" style="margin-top:10px">✻ Pensando… (esc para interrumpir)</div>
+              <div class="prompt">Escribe un mensaje para Claude…</div>
+            </div>
+          </div>
+        </div>
+        <div class="status"><span>● trabajando · yolo</span><span>~/work/backend</span><span class="k"><kbd>Ctrl</kbd> <kbd>T</kbd> nueva · <kbd>Ctrl</kbd> <kbd>W</kbd> cerrar · clic derecho: acciones</span></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>App · 2. Vista combinada y menú contextual <small>— dos columnas</small></h2>
+  <p class="note">Las dos sesiones comparten la pestaña de arriba («fix-matriz + review-291»). Cada columna tiene un encabezado de una línea; la que tiene el foco se marca con un subrayado fino del acento.
+  El menú contextual es una lista compacta con atajos a la derecha, separadores finos y lo destructivo en rojo, al final.</p>
+  <div class="A">
+    <div class="win">
+      <aside class="side">
+        <div class="wsrow"><div class="mark">≡</div><b>Backend KYC</b><span>⌄</span></div>
+        <div class="grp"><span>Pestañas</span><span>+</span></div>
+        <div class="t on"><span class="n">bug-185</span><span class="cnt"><i><span class="d b"></span>2</i></span></div>
+        <div class="t"><span class="n">front</span><span class="cnt"><i><span class="d w"></span>1</i></span></div>
+        <div class="t"><span class="n">infra</span><span class="cnt"><i><span class="d z"></span>3</i></span></div>
+        <div class="foot"><span class="ib">⚙ Ajustes</span><span class="ib" style="margin-left:auto">⏻</span></div>
+      </aside>
+      <div class="main">
+        <div class="bar">
+          <span class="p on"><span class="d b"></span>fix-matriz <span class="al">+</span> <span class="d b"></span>review-291<span class="x">✕</span></span>
+          <span class="p"><span class="d i"></span>tests</span>
+          <span class="plus">+</span>
+          <span class="path">~/work/backend</span>
+        </div>
+        <div class="stage two">
+          <div class="pane focus">
+            <div class="ph"><span class="d b"></span><b>fix-matriz</b> yolo<span class="acts">⏾ ⋯</span></div>
+            <div class="term"><div class="u">❯ arregla el filtro de acentos</div><div style="margin-top:10px"><span class="a">●</span> Corrí los tests: 42 passed.</div><div class="m" style="margin-top:10px">✻ Pensando…</div><div class="prompt">Escribe un mensaje…</div></div>
+          </div>
+          <div class="pane">
+            <div class="ph"><span class="d b"></span><b>review-291</b> claude-2<span class="acts">⏾ ⋯</span></div>
+            <div class="term"><div class="u">❯ revisa el plan de la 291</div><div style="margin-top:10px"><span class="a">●</span> Encontré 3 riesgos en el plan…</div><div class="m" style="margin-top:10px">◯ 2 agentes en segundo plano</div><div class="prompt">Escribe un mensaje…</div></div>
+          </div>
+        </div>
+        <div class="status"><span>2 sesiones · columnas</span><span class="k"><kbd>Ctrl</kbd> <kbd>Tab</kbd> siguiente</span></div>
+      </div>
+    </div>
+    <div class="menu" style="left: 650px; top: 120px;">
+      <div class="h"><span>review-291</span><span>✕</span></div>
+      <div class="it">Renombrar</div>
+      <div class="it">Cambiar alias de Claude <span class="k">claude-2</span></div>
+      <div class="it">Suspender <span class="k">deja de correr</span></div>
+      <div class="sep"></div>
+      <div class="it hl">Ver junto a tests</div>
+      <div class="it">Distribución <span class="k">Columnas ›</span></div>
+      <div class="it">Separar de la vista</div>
+      <div class="it">Mover a la pestaña <span class="k">›</span></div>
+      <div class="sep"></div>
+      <div class="it dg">Cerrar sesión <span class="k">Ctrl W</span></div>
+    </div>
+  </div>
+
+  <h2>App · 3. Inicio y diálogo <small>— lista en lugar de tarjetas</small></h2>
+  <p class="note">El inicio es una lista: más fácil de leer cuando hay muchos workspaces, y sin bloques de color. El diálogo tiene un solo botón principal (claro sobre oscuro), controles segmentados y la vista previa del comando en gris.</p>
+  <div class="pair">
+    <div class="A"><div class="home">
+      <h3>Workspaces</h3>
+      <p>Retoma uno o crea uno nuevo.</p>
+      <div class="list">
+        <div class="row hl"><b>Backend KYC</b><span class="st"><span class="d i"></span>abierto</span><span>4 pestañas</span><span>ahora</span></div>
+        <div class="row"><b>Revisión 291</b><span class="st"><span class="d b"></span>2 trabajaban</span><span>2 pestañas</span><span>ayer</span></div>
+        <div class="row"><b>Manual KYC</b><span class="st"><span class="d z"></span>apagado</span><span>1 pestaña</span><span>12 oct</span></div>
+        <div class="row"><b>frontend-301</b><span class="st" style="color:var(--busy)">en la terminal</span><span>3 pestañas</span><span>ahora</span></div>
+      </div>
+      <div class="acts2"><span class="btn pr">Nuevo workspace</span><span class="btn">Desde una conversación…</span></div>
+    </div></div>
+    <div class="A" style="height:600px">
+      <div class="scrim"><div class="dlg">
+        <div class="hd">Nueva sesión <span>✕</span></div>
+        <div class="bd">
+          <div class="seg"><span class="on">Claude</span><span>Terminal</span><span>Retomar por ID</span></div>
+          <div><label>Nombre</label><div class="in f">fix-matriz</div></div>
+          <div><label>Alias de Claude</label><div class="seg"><span>claude</span><span class="on">yolo</span><span>claude-2</span><span>claude-2-yolo</span></div></div>
+          <div><label>Argumentos</label><div class="in" style="color:var(--dim)">--model opus</div></div>
+          <div class="cmd">yolo --session-id 7c5d… --name fix-matriz</div>
+        </div>
+        <div class="ft"><span class="btn">Cancelar</span><span class="btn pr">Crear</span></div>
+      </div></div>
+    </div>
+  </div>
+
+  <h2>App · 4. Tema claro <small>— mismo sistema, para quien lo prefiera</small></h2>
+  <p class="note">Al definir el tema con un fondo, un acento y un contraste (como hace Linear), el modo claro sale del mismo sistema sin rediseñar nada.</p>
+  <div class="A light">
+    <div class="win" style="height:320px">
+      <aside class="side">
+        <div class="wsrow"><div class="mark">≡</div><b>Backend KYC</b><span>⌄</span></div>
+        <div class="grp"><span>Pestañas</span><span>+</span></div>
+        <div class="t on"><span class="n">bug-185</span><span class="cnt"><i><span class="d b"></span>2</i></span></div>
+        <div class="t"><span class="n">front</span><span class="cnt"><i><span class="d w"></span>1</i></span></div>
+      </aside>
+      <div class="main">
+        <div class="bar"><span class="p on"><span class="d b"></span>fix-matriz <span class="al">yolo</span><span class="x">✕</span></span><span class="p"><span class="d i"></span>tests</span><span class="plus">+</span><span class="path">~/work/backend</span></div>
+        <div class="stage"><div class="pane"><div class="term"><div class="u">❯ arregla el filtro de acentos</div><div style="margin-top:10px"><span class="a">●</span> Corrí los tests: <span class="g">42 passed</span>.</div></div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== TERMINAL ===================== -->
+  <h2>Terminal · 1. Barra principal <small>— hoy contra propuesta</small></h2>
+  <p class="note">Hoy: 4 líneas de barra, subrayados, píldoras de color en cada sesión y botones verdes. Propuesta: <b>2 líneas</b> arriba (pestañas · sesiones de la pestaña) y <b>1 línea de atajos</b> abajo que cambia según el contexto, como lazygit.
+  La pestaña activa va en blanco sobre un gris apenas más claro; las demás en gris. Los contadores y los puntos de estado son el único color. Se ganan 2 líneas para Claude.</p>
+  <div class="label">Hoy (0.9)</div>
+  <div class="T old"><div class="tt"><i></i><i></i><i></i>Windows Terminal</div><pre>
+<span class="t1"> ≡ backend-3</span>    <span class="t1">bug-173</span> <span class="bu">●1</span> <span class="dm">✕</span>    <span class="mu">backend ✕</span>    <span class="mu">bug-226</span> <span class="bu">●1</span> <span class="dm">✕</span>    <span class="mu">bug-224 ✕</span>  <span class="btn"> + </span>                                    <span class="pill"> ? Ayuda </span> <span class="red"> ⏻ </span>
+                <span class="t1">━━━━━━━━━━━━</span>    <span class="dm">─────────    ────────────    ─────────</span>
+   <span class="pillon"> ⧉ tenemos-que-resolver-lo… ○ claude-2-yolo ✕ │ necesitamos-actualizar-… ○ claude-2-yolo ✕ </span>   <span class="btn"> + Claude </span>  <span class="btn"> + Terminal </span>    <span class="mu">~/work/backend</span>
+
+<span class="ac b">━ tenemos-que-resolver-lo… ○ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span><span class="dm">┳━ necesitamos-actualizar-… ○ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</span>
+❯ continue                                                     <span class="dm">┃</span>❯ continue
+                                                               <span class="dm">┃</span>
+● Listo: los dos commits están en origin/dev.                  <span class="dm">┃</span>● No queda nada pendiente de esta tarea.</pre></div>
+
+  <div class="label" style="margin-top:18px">Propuesta</div>
+  <div class="T"><div class="tt"><i></i><i></i><i></i>Windows Terminal</div><pre>
+ <span class="mu">≡ Backend KYC</span>  <span class="sel b"> bug-173 </span><span class="bu">●1</span>   <span class="mu">backend</span>   <span class="mu">bug-226</span> <span class="bu">●1</span>   <span class="mu">bug-224</span> <span class="dm">z2</span>   <span class="dm">+</span>                                                  <span class="dm">? ⏻</span>
+   <span class="fg b">tenemos-que-resolver-lo…</span> <span class="ok">○</span> <span class="dm">+</span> <span class="fg">necesitamos-actualizar…</span> <span class="ok">○</span>   <span class="mu">tests</span> <span class="bu">●</span>   <span class="mu">❯ terminal</span>   <span class="dm">+</span>                              <span class="dm">~/work/backend</span>
+<span class="dm">─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+<span class="fg">tenemos-que-resolver-lo…</span> <span class="dm">claude-2-yolo</span>                         <span class="dm">│</span> <span class="mu">necesitamos-actualizar-…</span> <span class="dm">claude-2-yolo</span>
+❯ continue                                                     <span class="dm">│</span> ❯ continue
+                                                               <span class="dm">│</span>
+● Listo: los dos commits están en origin/dev.                  <span class="dm">│</span> ● No queda nada pendiente de esta tarea.
+                                                               <span class="dm">│</span>
+<span class="dm"> Ctrl+T nueva · Ctrl+W cerrar · Ctrl+PgUp/PgDn cambiar · clic derecho: acciones · Alt+m menú · Alt+h ayuda</span></pre></div>
+
+  <h2>Terminal · 2. Menú contextual y diálogo <small>— mismos principios</small></h2>
+  <p class="note">Bordes redondeados en gris (no en el color del tema), título en gris, ✕ en la esquina, selección con un fondo gris en lugar de un bloque azul, y lo destructivo en rojo al final. Los diálogos siguen el mismo patrón: un solo botón principal y «Cancelar» discreto.</p>
+  <div class="pair">
+    <div class="T"><pre>
+<span class="dm">  ─────────────────────────────────────────────────────────────</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░╭──────────────────────────────────── ✕ ╮░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="mu">review-291</span>                             <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span>                                        <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="fg">Renombrar</span>                              <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="fg">Cambiar alias de Claude</span>       <span class="dm">claude-2</span> <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="fg">Suspender</span>                              <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span><span class="dm"> ────────────────────────────────────── </span><span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span><span class="sel"> Ver junto a tests                      </span><span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="fg">Distribución</span>                <span class="dm">columnas ›</span> <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="fg">Separar de la vista</span>                    <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span><span class="dm"> ────────────────────────────────────── </span><span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░│</span> <span class="wa">Cerrar sesión</span>                   <span class="dm">Ctrl W</span> <span class="dm">│░░░</span>
+<span class="dm">  ░░░░░░░░░░░░░░░░░╰────────────────────────────────────────╯░░░</span>
+<span class="dm">  ░░ (fondo atenuado: un clic afuera cierra) ░░░░░░░░░░░░░░░░░░░</span></pre></div>
+    <div class="T"><pre>
+<span class="dm">  ╭─ Nueva sesión ─────────────────────────────────────── ✕ ╮</span>
+<span class="dm">  │</span>                                                         <span class="dm">│</span>
+<span class="dm">  │</span>  <span class="sel"> Claude </span> <span class="mu"> Terminal </span> <span class="mu"> Por ID </span>                           <span class="dm">│</span>
+<span class="dm">  │</span>                                                         <span class="dm">│</span>
+<span class="dm">  │</span>  <span class="mu">Nombre</span>      <span class="acb"> fix-matriz▏                        </span>       <span class="dm">│</span>
+<span class="dm">  │</span>  <span class="mu">Alias</span>       <span class="dm">‹</span> <span class="fg">yolo</span> <span class="dm">›</span>  <span class="dm">claude · claude-2 · c2-yolo</span>      <span class="dm">│</span>
+<span class="dm">  │</span>  <span class="mu">Argumentos</span>  <span class="sel">                                    </span>       <span class="dm">│</span>
+<span class="dm">  │</span>                                                         <span class="dm">│</span>
+<span class="dm">  │</span>  <span class="dm">yolo --session-id 7c5d… --name fix-matriz</span>              <span class="dm">│</span>
+<span class="dm">  │</span>                                                         <span class="dm">│</span>
+<span class="dm">  │</span>                                  <span class="mu">Cancelar</span>   <span class="sel b"> Crear </span>     <span class="dm">│</span>
+<span class="dm">  ╰─────────────────────────────────────────────────────────╯</span></pre></div>
+  </div>
+
+  <h2>Terminal · 3. Pestaña vacía e inicio <small>— lista sobria</small></h2>
+  <div class="T"><pre>
+ <span class="mu">≡ Backend KYC</span>  <span class="mu">bug-173</span> <span class="bu">●1</span>   <span class="sel b"> nueva </span>   <span class="dm">+</span>                                                                                    <span class="dm">? ⏻</span>
+<span class="dm">─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────</span>
+
+     <span class="fg b">nueva</span>  <span class="dm">~/work/backend</span>
+
+     <span class="sel"> Nueva sesión de Claude </span>   <span class="mu">Terminal</span>   <span class="mu">Retomar por ID</span>
+
+     <span class="dm">CONVERSACIONES RECIENTES EN ESTA CARPETA</span>
+     <span class="fg">fix-matriz</span>                 <span class="dm">hace 5 min · yolo</span>      <span class="mu">«arregla el filtro de acentos de la matriz…»</span>
+     <span class="fg">review-291</span>                 <span class="dm">ayer · claude-2</span>        <span class="mu">«revisa el plan de la 291»</span>
+     <span class="fg">sin nombre</span>                 <span class="dm">12 oct</span>                 <span class="mu">«por qué falla el deploy de dev»</span>
+
+<span class="dm"> ↑↓ elegir · Enter abrir · c Claude · t terminal · i por ID</span></pre></div>
+</div>
+</body>
+</html>

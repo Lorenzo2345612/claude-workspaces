@@ -9,7 +9,7 @@
 #   1. installs tmux >= 3.3 if missing or too old (Homebrew on macOS; apt/dnf/pacman/zypper/apk
 #      on Linux; builds tmux from source when the distro's package is too old, e.g. Ubuntu 22.04);
 #   2. copies the cw binary for this OS/CPU into ~/.local/bin and makes sure it is on the PATH;
-#   3. adds a «Claude Workspaces» menu entry for the desktop app on Linux desktops;
+#   3. desktop package only: adds «Claude Workspaces» to the Linux menu or ~/Applications on macOS;
 #   4. offers to install Claude Code with its official installer when `claude` is missing.
 set -eu
 
@@ -187,6 +187,31 @@ DESKTOP
   say "Agregada «Claude Workspaces» al menú de aplicaciones."
 fi
 
+# macOS: «Claude Workspaces.app» in ~/Applications, for the desktop package (it brings cw.icns).
+if [ "$OS" = darwin ] && [ -f "$HERE/cw.icns" ]; then
+  app="$HOME/Applications/Claude Workspaces.app"
+  mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+  cp "$HERE/cw.icns" "$app/Contents/Resources/cw.icns"
+  cat > "$app/Contents/MacOS/claude-workspaces" <<APP
+#!/bin/sh
+exec "$BIN_DIR/cw" app --mantener
+APP
+  chmod 755 "$app/Contents/MacOS/claude-workspaces"
+  cat > "$app/Contents/Info.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>CFBundleName</key><string>Claude Workspaces</string>
+  <key>CFBundleIdentifier</key><string>com.github.lorenzo2345612.claude-workspaces</string>
+  <key>CFBundleExecutable</key><string>claude-workspaces</string>
+  <key>CFBundleIconFile</key><string>cw.icns</string>
+  <key>CFBundlePackageType</key><string>APPL</string>
+  <key>LSUIElement</key><true/>
+</dict></plist>
+PLIST
+  say "Agregada «Claude Workspaces» a ~/Applications."
+fi
+
 # ---------------------------------------------------------------- Claude Code
 if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
   say "Claude Code ya está instalado."
@@ -199,4 +224,8 @@ elif [ "$CLAUDE" = 1 ]; then
   fi
 fi
 
-say "Listo. Escribe cw app para abrir la app, o cw para la versión de terminal."
+if [ -f "$HERE/cw.png" ]; then
+  say "Listo. Abre «Claude Workspaces» (o escribe cw app); cw abre la versión de terminal."
+else
+  say "Listo. Escribe cw para empezar."
+fi

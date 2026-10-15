@@ -1,3 +1,5 @@
+//go:build !terminal
+
 package main
 
 import (
@@ -8,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -377,6 +378,7 @@ type doReq struct {
 		Theme              *string   `json:"theme"`
 		DefaultClaudeAlias *string   `json:"default_claude_alias"`
 		BrowserKeys        *bool     `json:"browser_keys"`
+		AppMode            *string   `json:"app_mode"`
 		AppFontSize        *int      `json:"app_font_size"`
 	} `json:"config"`
 }
@@ -568,13 +570,6 @@ func conversationName(c recentConv) string {
 	return name
 }
 
-func baseName(dir string) string {
-	if dir == "" {
-		return "inicio"
-	}
-	return filepath.Base(dir)
-}
-
 func applyConfigPatch(q *doReq) error {
 	cfg, err := loadConfig()
 	if err != nil {
@@ -603,6 +598,9 @@ func applyConfigPatch(q *doReq) error {
 		}
 		if c.BrowserKeys != nil {
 			cfg.BrowserKeys = c.BrowserKeys
+		}
+		if c.AppMode != nil && (*c.AppMode == "light" || *c.AppMode == "dark") {
+			cfg.AppMode = *c.AppMode
 		}
 		if c.AppFontSize != nil && *c.AppFontSize >= 9 && *c.AppFontSize <= 24 {
 			cfg.AppFontSize = *c.AppFontSize

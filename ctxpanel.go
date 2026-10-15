@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -20,6 +22,12 @@ type ctxItem struct {
 
 // cmdCtxPopup opens the panel for the client that clicked: _ctxpopup <ws> <client> tab|slot <target>.
 // The bar's bindings call it through run-shell because display-popup does not expand formats.
+//
+// tmux ignores clicks outside a popup, so the panel takes the whole client — no border — and
+// draws a dimmed copy of the screen behind its box: a click anywhere outside the box closes it.
+// Dialogs (rename, alias, confirmations) need the screen to themselves, so the panel leaves
+// their request in a file and closes; they open here in a popup of their own, and the panel
+// comes back when they close.
 func cmdCtxPopup(args []string) error {
 	if len(args) != 4 {
 		return fmt.Errorf("uso: _ctxpopup <ws> <cliente> tab|slot <destino>")
@@ -30,27 +38,75 @@ func cmdCtxPopup(args []string) error {
 		return err
 	}
 	t := Tmux{WS: ws}
-	title := "Acciones"
-	if kind == "tab" {
-		if v, _ := t.Run("display", "-p", "-t", target, "#{@cw_title}"); v != "" {
-			title = v
+	if err := os.MkdirAll(runDir(), 0o755); err != nil {
+		return err
+	}
+	res := filepath.Join(runDir(), "ctx-"+newUUID()[:8]+".req")
+	defer os.Remove(res)
+	for i := 0; i < 100; i++ {
+		_ = os.Remove(res)
+		if _, err := t.Run("display-popup", "-c", client, "-B", "-E", "-x", "0", "-y", "0", "-w", "100%", "-h", "100%",
+			joinArgs([]string{bin, "_ui", "ctx", ws, kind, target, res})); err != nil {
+			return err
+		}
+		data, _ := os.ReadFile(res)
+		req := strings.TrimSpace(string(data))
+		if req == "" {
+			return nil // closed: Esc, ✕, Cerrar or a click outside
+		}
+		title, w, h := ctxDialogPopup(req)
+		if _, err := t.Run(popupCmd(client, title, w, h, bin, "_ui", "ctxdialog", ws, kind, target, req)...); err != nil {
+			return err
 		}
 	}
-	_, err = t.Run(popupCmd(client, title, 78, 26, bin, "_ui", "ctx", ws, kind, target)...)
+	return nil
+}
+
+// ctxDialogs are the panel's actions that open a dialog, with the popup each one needs.
+var ctxDialogs = map[string]struct {
+	title string
+	w, h  int
+}{
+	"tab-rename": {"Renombrar pestaña", 70, 10},
+	"tab-alias":  {"Alias de claude de la pestaña", 70, 16},
+	"tab-close":  {"Cerrar pestaña", 66, 13},
+	"combine":    {"Combinar sesiones en esta vista", 78, 24},
+	"view-alias": {"Alias de claude de la vista", 70, 16},
+	"view-close": {"Cerrar vista", 66, 13},
+	"rename":     {"Renombrar sesión", 70, 10},
+	"edit":       {"Editar sesión", 72, 24},
+	"close":      {"Cerrar sesión", 66, 13},
+}
+
+func ctxDialogPopup(req string) (string, int, int) {
+	id, _, _ := strings.Cut(req, ":")
+	if d, ok := ctxDialogs[id]; ok {
+		return d.title, d.w, d.h
+	}
+	return "Acciones", 72, 20
+}
+
+// uiCtxDialog runs one dialog asked for by the panel: _ui ctxdialog <ws> <kind> <target> <request>.
+func uiCtxDialog(ws, kind, target, req string) error {
+	err := ctxRun(Tmux{WS: ws}, ws, kind, target, req)
+	if err == errCancelled {
+		return nil
+	}
 	return err
 }
 
 // uiContext runs the panel: kind "tab" targets a tmux session id ($N), "slot" a window (@N, a
-// view) or a pane (%N, one session of a view).
-func uiContext(ws, kind, target string) error {
+// view) or a pane (%N, one session of a view). A chosen dialog is written to resFile.
+func uiContext(ws, kind, target, resFile string) error {
 	t := Tmux{WS: ws}
 	migrateLegacyOptions(t)
-	sel := 0
+	client, _, _ := currentClient(t)
+	sel, top := 0, 0
 	msg := ""
 	for {
 		title, items, ok := ctxItems(t, kind, target)
 		if !ok {
-			return nil // the tab or session no longer exists (closed from this panel)
+			return nil // the tab or session no longer exists
 		}
 		var choices []int
 		for i, it := range items {
@@ -58,28 +114,62 @@ func uiContext(ws, kind, target string) error {
 				choices = append(choices, i)
 			}
 		}
-		sel = min(sel, len(choices)-1)
+		sel = max(0, min(sel, len(choices)-1))
+		cols, rows := termSize()
 		var s screen
-		s.at(2, 4, sgrAccent+sgrBold+fit(title, 66)+sgrReset)
-		row := 4
-		for i, it := range items {
+		drawBackdrop(&s, t, client, cols, rows)
+
+		// The box: title, a blank line, the items and a line for messages, inside a border whose
+		// top-right corner holds the ✕.
+		const inner = 70
+		boxW := min(inner+4, cols-2)
+		visible := max(1, min(len(items), rows-7))
+		boxH := visible + 5
+		left := max(1, (cols-boxW)/2+1)
+		topRow := max(1, (rows-boxH)/2+1)
+		if len(choices) > 0 { // keep the selection in view
+			cur := choices[sel]
+			if cur < top {
+				top = cur
+			}
+			if cur >= top+visible {
+				top = cur - visible + 1
+			}
+		}
+		top = max(0, min(top, len(items)-visible))
+		drawBox(&s, topRow, left, boxW, boxH, " Acciones ")
+		s.zone(topRow, left, boxW, "box") // clicks on the box itself never close it
+		for r := 1; r < boxH; r++ {
+			s.zone(topRow+r, left, boxW, "box")
+		}
+		s.btn(topRow, left+boxW-6, sgrAccent+"╴"+sgrReset+sgrBold+" ✕ "+sgrReset+sgrAccent+"╶"+sgrReset, "close")
+		x := left + 3
+		s.at(topRow+1, x, sgrAccent+sgrBold+fit(title, boxW-8)+sgrReset)
+		row := topRow + 3
+		for i := top; i < top+visible && i < len(items); i++ {
+			it := items[i]
 			switch {
 			case it.header:
-				s.at(row, 4, sgrMuted+it.label+sgrReset)
+				s.at(row, x, sgrMuted+fit(it.label, boxW-8)+sgrReset)
 			case it.id == "":
 			default:
-				line := "  " + fit(it.label, 62) + " "
+				line := " " + fit(it.label, boxW-10) + " "
 				if len(choices) > 0 && choices[sel] == i {
 					line = sgrSel + line + sgrReset
 				}
-				s.btn(row, 3, line, "item:"+strconv.Itoa(i))
+				s.btn(row, x-1, line, "item:"+strconv.Itoa(i))
 			}
 			row++
 		}
-		if msg != "" {
-			s.at(row, 4, sgrRed+msg+sgrReset)
+		if top > 0 {
+			s.at(topRow+2, left+boxW-6, sgrDim+"▲"+sgrReset)
 		}
-		s.place(row+1, 4, []lineItem{buttonLine(0, btnDef{label: "Cerrar", id: "close", primary: true})})
+		if top+visible < len(items) {
+			s.at(topRow+boxH-1, left+boxW-10, sgrDim+"▼"+sgrReset)
+		}
+		if msg != "" {
+			s.at(topRow+boxH-2, x, sgrRed+fit(msg, boxW-8)+sgrReset)
+		}
 		s.b.WriteString("\033[?25l")
 		hits := s.hits
 		s.flush(true)
@@ -95,12 +185,12 @@ func uiContext(ws, kind, target string) error {
 			switch {
 			case k.kind == keyEsc || (k.kind == keyRune && k.r == 'q'):
 				return nil
-			case k.kind == keyClick:
+			case k.kind == keyClick || k.kind == keyRightClick:
 				id := hitAt(hits, k.x, k.y)
-				if id == "close" {
-					return nil
-				}
-				if strings.HasPrefix(id, "item:") {
+				switch {
+				case id == "" || id == "close":
+					return nil // a click outside the box closes the panel
+				case strings.HasPrefix(id, "item:") && k.kind == keyClick:
 					i, _ := strconv.Atoi(id[5:])
 					chosen = items[i].id
 					for j, c := range choices {
@@ -109,18 +199,107 @@ func uiContext(ws, kind, target string) error {
 						}
 					}
 				}
-			case (k.kind == keyUp || k.kind == keyWheelUp) && len(choices) > 0:
+			case k.kind == keyWheelUp && len(choices) > 0:
+				top = max(0, top-1)
+			case k.kind == keyWheelDown && len(choices) > 0:
+				top = min(max(0, len(items)-visible), top+1)
+			case k.kind == keyUp && len(choices) > 0:
 				sel = (sel - 1 + len(choices)) % len(choices)
-			case (k.kind == keyDown || k.kind == keyWheelDown || k.kind == keyTab) && len(choices) > 0:
+			case (k.kind == keyDown || k.kind == keyTab) && len(choices) > 0:
 				sel = (sel + 1) % len(choices)
 			case k.kind == keyEnter && len(choices) > 0:
 				chosen = items[choices[sel]].id
 			}
 		}
 		msg = ""
-		if chosen != "" {
-			if err := ctxRun(t, ws, kind, target, chosen); err != nil && err != errCancelled {
-				msg = err.Error()
+		if chosen == "" {
+			continue
+		}
+		if id, _, _ := strings.Cut(chosen, ":"); ctxDialogs[id].w > 0 {
+			return os.WriteFile(resFile, []byte(chosen), 0o600)
+		}
+		if err := ctxRun(t, ws, kind, target, chosen); err != nil && err != errCancelled {
+			msg = err.Error()
+		}
+	}
+}
+
+// drawBox draws a rounded border in the accent colour and blanks its inside.
+func drawBox(s *screen, top, left, w, h int, title string) {
+	s.at(top, left, sgrAccent+"╭─"+title+strings.Repeat("─", max(0, w-3-visibleLen(title)))+"╮"+sgrReset)
+	for r := 1; r < h-1; r++ {
+		s.at(top+r, left, sgrAccent+"│"+sgrReset+strings.Repeat(" ", w-2)+sgrAccent+"│"+sgrReset)
+	}
+	s.at(top+h-1, left, sgrAccent+"╰"+strings.Repeat("─", w-2)+"╯"+sgrReset)
+}
+
+var tmuxStyleRe = regexp.MustCompile(`#\[[^\]]*\]`)
+
+// drawBackdrop paints a dimmed copy of what the client shows — its status lines and the
+// sessions of the current view — behind the panel.
+func drawBackdrop(s *screen, t Tmux, client string, cols, rows int) {
+	info, err := t.Run("display", "-p", "-c", client, "#{status}"+sep+"#{status-position}"+sep+"#{window_id}")
+	if err != nil {
+		return
+	}
+	f := strings.Split(info, sep)
+	if len(f) != 3 {
+		return
+	}
+	lines := 0
+	switch f[0] {
+	case "off", "0", "":
+	case "on":
+		lines = 1
+	default:
+		lines, _ = strconv.Atoi(f[0])
+	}
+	statusTop := 1
+	paneTop := 1
+	if f[1] == "top" {
+		paneTop = 1 + lines
+	} else {
+		statusTop = rows - lines + 1
+	}
+	dim := "\033[38;5;238m"
+	for i := 0; i < lines; i++ {
+		out, err := t.Run("display", "-p", "-c", client, "#{E:status-format["+itoa(i)+"]}")
+		if err != nil {
+			continue
+		}
+		leftPart, rightPart, _ := strings.Cut(out, "#[align=right]")
+		leftPart = tmuxStyleRe.ReplaceAllString(leftPart, "")
+		rightPart = tmuxStyleRe.ReplaceAllString(rightPart, "")
+		s.at(statusTop+i, 1, dim+fit(leftPart, cols)+sgrReset)
+		if rightPart != "" {
+			s.at(statusTop+i, max(1, cols-visibleLen(rightPart)+1), dim+rightPart+sgrReset)
+		}
+	}
+	panes, err := t.Lines("list-panes", "-t", f[2], "-F", strings.Join([]string{"#{pane_id}", "#{pane_left}", "#{pane_top}", "#{pane_width}", "#{pane_height}"}, sep))
+	if err != nil {
+		return
+	}
+	for _, p := range panes {
+		if len(p) != 5 {
+			continue
+		}
+		x, _ := strconv.Atoi(p[1])
+		y, _ := strconv.Atoi(p[2])
+		w, _ := strconv.Atoi(p[3])
+		h, _ := strconv.Atoi(p[4])
+		content, err := t.Run("capture-pane", "-p", "-t", p[0])
+		if err != nil {
+			continue
+		}
+		for i, line := range strings.Split(content, "\n") {
+			if i >= h || paneTop+y+i > rows {
+				break
+			}
+			s.at(paneTop+y+i, x+1, dim+fit(line, w)+sgrReset)
+		}
+		if x > 0 {
+			for i := -1; i < h && paneTop+y+i <= rows; i++ {
+				s.at(paneTop+y+i, x, dim+"│"+sgrReset)
 			}
 		}
 	}

@@ -168,6 +168,7 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 		s.place(foot, 4, []lineItem{buttonLine(0, btnDef{label: "Cancelar", id: "cancel"},
 			btnDef{label: "Siguiente", id: "next", primary: true})})
 		s.at(4, 18+min(len(input), fieldWidth-2), "\033[?25h")
+		s.closeX("cancel")
 		hits = s.hits
 		s.flush(true)
 	}

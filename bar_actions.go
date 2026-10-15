@@ -243,6 +243,7 @@ func uiBulkAlias(ws, scope string) error {
 		s.at(10, 4, sgrDim+fit("Se reinician: "+strings.Join(names, ", "), 60)+sgrReset)
 		s.place(12, 4, []lineItem{buttonLine(0, btnDef{label: "Cancelar", id: "cancel"},
 			btnDef{label: "Cambiar " + itoa(len(targets)) + " sesiones", id: "ok", primary: true})})
+		s.closeX("cancel")
 		s.b.WriteString("\033[?25l")
 		hits = s.hits
 		s.flush(true)

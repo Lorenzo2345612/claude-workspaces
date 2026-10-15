@@ -44,6 +44,7 @@ func (f *textForm) draw() {
 		s.zone(3+i*3, 4, fieldWidth+13, "f:"+itoa(i))
 	}
 	s.place(bottom+1, 4, []lineItem{buttonLine(0, btnDef{label: "Cancelar", id: "cancel"}, btnDef{label: "Guardar", id: "save", primary: true})})
+	s.closeX("cancel")
 	f.hits = s.hits
 	s.at(3+f.focus*3, 18+min(len(f.values[f.focus]), fieldWidth-2), "\033[?25h")
 	s.flush(true)
@@ -153,9 +154,9 @@ func uiClaudeAliases() error {
 				btnDef{label: "Editar", id: "edit"},
 				btnDef{label: "Borrar", id: "del"},
 				btnDef{label: "★ Por defecto", id: "default"},
-				btnDef{label: "Importar del shell", id: "import"},
-				btnDef{label: "Volver", id: "back"})})
+				btnDef{label: "Importar del shell", id: "import"})})
 		}
+		s.closeX("back")
 		s.b.WriteString("\033[?25l")
 		hits := s.hits
 		s.flush(true)

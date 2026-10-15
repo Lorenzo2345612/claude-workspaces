@@ -75,7 +75,17 @@ func uiCombine(ws string) error {
 		var s screen
 		s.at(2, 4, sgrMuted+"ESTA VISTA"+sgrReset+"   "+sgrBold+strings.Join(here.names, " · ")+sgrReset)
 		s.at(4, 4, sgrMuted+"AGREGAR A ESTA VISTA"+sgrReset+sgrDim+"   marca las sesiones que quieres ver aquí"+sgrReset)
+		// The list scrolls so the layout and the buttons under it always fit in the popup.
+		_, h := termSize()
+		visible := max(2, h-11)
+		offset := 0
+		if sel >= visible {
+			offset = sel - visible + 1
+		}
 		for i, v := range others {
+			if i < offset || i >= offset+visible {
+				continue
+			}
 			box := "[ ]"
 			if checked[i] {
 				box = "[x]"
@@ -84,9 +94,12 @@ func uiCombine(ws string) error {
 			if i == sel {
 				line = sgrSel + line + sgrReset
 			}
-			s.btn(5+i, 3, line, "view:"+itoa(i))
+			s.btn(5+i-offset, 3, line, "view:"+itoa(i))
 		}
-		row := 6 + len(others)
+		if offset+visible < len(others) {
+			s.at(5+visible, 70, sgrDim+"▼ más"+sgrReset)
+		}
+		row := 6 + min(len(others), visible)
 		s.at(row, 4, sgrMuted+"DISTRIBUCIÓN"+sgrReset)
 		var btns []btnDef
 		for i, l := range layouts {
@@ -104,6 +117,7 @@ func uiCombine(ws string) error {
 			label = "Combinar " + itoa(n)
 		}
 		s.place(row+3, 4, []lineItem{buttonLine(0, btnDef{label: "Cancelar", id: "cancel"}, btnDef{label: label, id: "ok", primary: true})})
+		s.closeX("cancel")
 		s.b.WriteString("\033[?25l")
 		hits = s.hits
 		s.flush(true)

@@ -150,6 +150,13 @@ func (s *screen) btn(row, col int, text, id string) {
 	s.hits = append(s.hits, hit{row, col, visibleLen(text), id})
 }
 
+// closeX draws the ✕ that closes a popup in its top-right corner, clickable as id. Popups
+// close with it instead of a button at the bottom, which long content could cover.
+func (s *screen) closeX(id string) {
+	cols, _ := termSize()
+	s.btn(1, max(1, cols-3), sgrMuted+" ✕ "+sgrReset, id)
+}
+
 // zone makes a region clickable without drawing anything.
 func (s *screen) zone(row, col, width int, id string) {
 	s.hits = append(s.hits, hit{row, col, width, id})

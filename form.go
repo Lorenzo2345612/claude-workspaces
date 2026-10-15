@@ -150,6 +150,7 @@ func (f *newTabForm) draw() {
 	}
 	s.btn(row, 17+fieldWidth-19, button("Cancelar", false, false), "cancel")
 	s.btn(row, 17+fieldWidth-7, button("Crear", true, f.focus == 4), "create")
+	s.closeX("cancel")
 	f.hits = s.hits
 
 	// put the cursor at the end of the focused text field

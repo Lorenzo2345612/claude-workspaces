@@ -174,6 +174,7 @@ func (f *sessionForm) draw() {
 		btns = append(btns, btnDef{label: "Guardar y reiniciar", id: "restart", focused: f.focus == 3})
 	}
 	s.place(row, 4, []lineItem{buttonLine(0, btns...)})
+	s.closeX("cancel")
 	f.hits = s.hits
 	switch f.focus {
 	case 0:

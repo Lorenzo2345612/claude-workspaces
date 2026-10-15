@@ -150,10 +150,15 @@ func cmdUI(args []string) error {
 	case "combine":
 		err = uiCombine(args[1])
 	case "ctx":
-		if len(args) != 4 {
-			return errors.New("uso: _ui ctx <ws> tab|slot <destino>")
+		if len(args) != 5 {
+			return errors.New("uso: _ui ctx <ws> tab|slot <destino> <archivo>")
 		}
-		err = uiContext(args[1], args[2], args[3])
+		err = uiContext(args[1], args[2], args[3], args[4])
+	case "ctxdialog":
+		if len(args) != 5 {
+			return errors.New("uso: _ui ctxdialog <ws> tab|slot <destino> <acción>")
+		}
+		err = uiCtxDialog(args[1], args[2], args[3], args[4])
 	case "editpane":
 		if len(args) != 3 {
 			return errors.New("uso: _ui editpane <ws> <panel>")
@@ -466,7 +471,7 @@ func uiHelp() {
 	}
 	stdoutWrite("\033[?25l" + strings.Join(lines, "\r\n"))
 	var sc screen
-	sc.place(len(lines)+1, 3, []lineItem{buttonLine(0, btnDef{label: "Cerrar", id: "close", primary: true})})
+	sc.closeX("close")
 	sc.flush(false)
 	setRaw(true)
 	_, _ = readKeys() // any key or click closes it
@@ -554,6 +559,7 @@ func uiConfirm(ws, what, explicit string) error {
 		}
 		s.btn(8, 4, button("Cancelar", false, !focusYes), "no")
 		s.btn(8, 18, danger, "yes")
+		s.closeX("no")
 		s.b.WriteString("\033[?25l")
 		hits = s.hits
 		s.flush(true)

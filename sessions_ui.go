@@ -113,7 +113,17 @@ func uiSessions(ws string) error {
 func drawSessionList(rows []sessionRow, sel int, confirm string) []hit {
 	var s screen
 	s.at(2, 4, sgrMuted+fit("PESTAÑA", 16)+fit("NOMBRE", 24)+fit("CLAUDE", 17)+"ESTADO"+sgrReset)
+	// The list scrolls so the buttons under it always fit in the popup.
+	_, h := termSize()
+	visible := max(3, h-7)
+	offset := 0
+	if sel >= visible {
+		offset = sel - visible + 1
+	}
 	for i, r := range rows {
+		if i < offset || i >= offset+visible {
+			continue
+		}
 		kind, state := "❯ terminal", ""
 		if r.slot.Kind == kindClaude {
 			kind = "✦ " + r.slot.ClaudeAlias
@@ -128,12 +138,18 @@ func drawSessionList(rows []sessionRow, sel int, confirm string) []hit {
 		}
 		line := " " + fit(r.tab, 15) + " " + fit(r.slot.Alias, 23) + " " + fit(kind, 16) + " " + fit(state, 15) + " "
 		if i == sel {
-			s.btn(3+i, 3, sgrSel+line+sgrReset, "row:"+strconv.Itoa(i))
+			s.btn(3+i-offset, 3, sgrSel+line+sgrReset, "row:"+strconv.Itoa(i))
 		} else {
-			s.btn(3+i, 3, line, "row:"+strconv.Itoa(i))
+			s.btn(3+i-offset, 3, line, "row:"+strconv.Itoa(i))
 		}
 	}
-	foot := 4 + len(rows)
+	if offset > 0 {
+		s.at(2, 76, sgrDim+"▲"+sgrReset)
+	}
+	if offset+visible < len(rows) {
+		s.at(3+visible, 76, sgrDim+"▼"+sgrReset)
+	}
+	foot := 4 + min(len(rows), visible)
 	switch confirm {
 	case "x":
 		s.at(foot, 4, sgrRed+"¿Cerrar la sesión "+rows[sel].slot.Alias+"?"+sgrReset)
@@ -147,9 +163,9 @@ func drawSessionList(rows []sessionRow, sel int, confirm string) []hit {
 			btnDef{label: "Editar", id: "edit", primary: true},
 			btnDef{label: "Ir a la sesión", id: "go"},
 			btnDef{label: "Cerrar sesión", id: "closes"},
-			btnDef{label: "Cerrar pestaña", id: "closet"},
-			btnDef{label: "Salir", id: "quit"})})
+			btnDef{label: "Cerrar pestaña", id: "closet"})})
 	}
+	s.closeX("quit")
 	s.b.WriteString("\033[?25l")
 	hits := s.hits
 	s.flush(true)

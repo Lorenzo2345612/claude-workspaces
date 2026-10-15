@@ -372,7 +372,11 @@ func cmdWait(args []string) error {
 	fmt.Printf("\n  z  %s está dormida para ahorrar recursos.\n\n  Pulsa Enter para retomarla.\n", alias)
 	_, _ = stdin.ReadString('\n')
 	if pane := os.Getenv("TMUX_PANE"); pane != "" {
-		_, _ = Tmux{WS: ws}.Run("set", "-p", "-t", pane, "@cw_status", statusIdle)
+		t := Tmux{WS: ws}
+		_, _ = t.Run("set", "-p", "-t", pane, "@cw_status", statusIdle)
+		if session, err := t.Run("display", "-p", "-t", pane, "#{session_name}"); err == nil {
+			refreshTabLabel(t, session)
+		}
 	}
 	return syscall.Exec(argv[0], argv, os.Environ())
 }

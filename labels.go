@@ -15,29 +15,35 @@ func refreshTabLabel(t Tmux, session string) {
 	if title == "" {
 		title = session
 	}
-	busy, waiting := 0, 0
-	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"); err == nil {
+	busy, waiting, idle, asleep := 0, 0, 0, 0
+	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"+sep+"#{pane_dead}"); err == nil {
 		for _, r := range rows {
-			if len(r) == 2 && r[0] == kindClaude {
+			if len(r) == 3 && r[0] == kindClaude && r[2] != "1" {
 				switch r[1] {
 				case statusBusy:
 					busy++
 				case statusWaiting:
 					waiting++
+				case statusSleeping:
+					asleep++
+				default:
+					idle++
 				}
 			}
 		}
 	}
+	// One counter per state with sessions in it: ●N working, ?N asking for a permission,
+	// ○N ready, zN asleep.
 	label, width := title, len([]rune(title))
-	if busy > 0 {
-		n := strconv.Itoa(busy)
-		label += " #[fg=" + colBusy + "]●" + n
-		width += 2 + len(n)
-	}
-	if waiting > 0 {
-		n := strconv.Itoa(waiting)
-		label += " #[fg=" + colWait + "]?" + n
-		width += 2 + len(n)
+	for _, c := range []struct {
+		n           int
+		colour, sym string
+	}{{busy, colBusy, "●"}, {waiting, colWait, "?"}, {idle, colButton, "○"}, {asleep, colMuted, "z"}} {
+		if c.n > 0 {
+			n := strconv.Itoa(c.n)
+			label += " #[fg=" + c.colour + "]" + c.sym + n
+			width += 2 + len(n)
+		}
 	}
 	width += 2 // the underline also spans the tab's " ✕"
 	_, _ = t.Run(

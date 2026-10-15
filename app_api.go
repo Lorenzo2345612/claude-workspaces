@@ -36,6 +36,8 @@ type uiTab struct {
 	Short   string     `json:"short"`
 	Busy    int        `json:"busy"`
 	Waiting int        `json:"waiting"`
+	Idle    int        `json:"idle"`
+	Asleep  int        `json:"asleep"`
 	Views   []*appView `json:"views"`
 	Active  string     `json:"active"`
 }
@@ -104,6 +106,11 @@ func appSnapshot(ws string) uiState {
 					u.Busy++
 				case p.slot.Status == statusWaiting:
 					u.Waiting++
+				case p.dead:
+				case p.slot.Status == statusSleeping:
+					u.Asleep++
+				default:
+					u.Idle++
 				}
 			}
 		}

@@ -6,20 +6,15 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
-func ioctl(fd, req, arg uintptr) error {
-	if _, _, e := syscall.Syscall(syscall.SYS_IOCTL, fd, req, arg); e != 0 {
-		return e
-	}
-	return nil
-}
-
-// setPTYSize tells the terminal (and so the program in it) its new size.
+// setPTYSize tells the terminal (and so the program in it) its new size. x/sys calls the libc
+// ioctl: a raw syscall.Syscall(SYS_IOCTL) goes through the variadic syscall() on macOS, whose
+// arguments arrive scrambled on Apple Silicon ("inappropriate ioctl for device").
 func setPTYSize(m *os.File, cols, rows int) error {
-	ws := struct{ rows, cols, x, y uint16 }{uint16(rows), uint16(cols), 0, 0}
-	return ioctl(m.Fd(), syscall.TIOCSWINSZ, uintptr(unsafe.Pointer(&ws)))
+	return unix.IoctlSetWinsize(int(m.Fd()), unix.TIOCSWINSZ, &unix.Winsize{Row: uint16(rows), Col: uint16(cols)})
 }
 
 // startInPTY runs cmd as the session leader of a new pseudo-terminal of the given size and

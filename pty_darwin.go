@@ -4,15 +4,12 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"syscall"
 	"unsafe"
-)
 
-const (
-	ioctlTIOCPTYGRANT = 0x20007454
-	ioctlTIOCPTYUNLK  = 0x20007452
-	ioctlTIOCPTYGNAME = 0x40807453
+	"golang.org/x/sys/unix"
 )
 
 // openPTY returns the master side of a new pseudo-terminal and the path of its slave.
@@ -21,18 +18,22 @@ func openPTY() (*os.File, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	if err := ioctl(m.Fd(), ioctlTIOCPTYGRANT, 0); err != nil {
+	fd := int(m.Fd())
+	if err := unix.IoctlSetInt(fd, unix.TIOCPTYGRANT, 0); err != nil { // grantpt
 		m.Close()
-		return nil, "", err
+		return nil, "", fmt.Errorf("grantpt: %w", err)
 	}
-	if err := ioctl(m.Fd(), ioctlTIOCPTYUNLK, 0); err != nil {
+	if err := unix.IoctlSetInt(fd, unix.TIOCPTYUNLK, 0); err != nil { // unlockpt
 		m.Close()
-		return nil, "", err
+		return nil, "", fmt.Errorf("unlockpt: %w", err)
 	}
+	// ptsname: TIOCPTYGNAME writes the slave's path into a 128-byte buffer. x/sys exports no
+	// generic pointer ioctl, so its winsize setter (an ioctl with a pointer argument and any
+	// request) carries the buffer's address; the kernel writes the full 128 bytes into it.
 	name := make([]byte, 128)
-	if err := ioctl(m.Fd(), ioctlTIOCPTYGNAME, uintptr(unsafe.Pointer(&name[0]))); err != nil {
+	if err := unix.IoctlSetWinsize(fd, unix.TIOCPTYGNAME, (*unix.Winsize)(unsafe.Pointer(&name[0]))); err != nil {
 		m.Close()
-		return nil, "", err
+		return nil, "", fmt.Errorf("ptsname: %w", err)
 	}
 	if i := bytes.IndexByte(name, 0); i >= 0 {
 		name = name[:i]

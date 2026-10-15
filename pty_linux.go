@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"os"
 	"syscall"
-	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // openPTY returns the master side of a new pseudo-terminal and the path of its slave.
@@ -15,13 +16,12 @@ func openPTY() (*os.File, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	var unlock int32
-	if err := ioctl(m.Fd(), syscall.TIOCSPTLCK, uintptr(unsafe.Pointer(&unlock))); err != nil {
+	if err := unix.IoctlSetPointerInt(int(m.Fd()), unix.TIOCSPTLCK, 0); err != nil { // unlockpt
 		m.Close()
 		return nil, "", err
 	}
-	var n uint32
-	if err := ioctl(m.Fd(), syscall.TIOCGPTN, uintptr(unsafe.Pointer(&n))); err != nil {
+	n, err := unix.IoctlGetUint32(int(m.Fd()), unix.TIOCGPTN) // ptsname
+	if err != nil {
 		m.Close()
 		return nil, "", err
 	}

@@ -38,6 +38,8 @@ type Config struct {
 	// AutoSwitchAlias moves a session whose Claude account ran out of quota to an alias of an
 	// account that still has it; nil means on.
 	AutoSwitchAlias *bool `json:"auto_switch_alias,omitempty"`
+	// SkynetAutoApprove lets the orchestrator answer permission dialogs without asking the user.
+	SkynetAutoApprove bool `json:"skynet_auto_approve,omitempty"`
 	// HideClaudeAlias drops the plain "claude" alias from the list (when there are others).
 	HideClaudeAlias bool `json:"hide_claude_alias,omitempty"`
 	// AppMode is the app's light or dark mode ("light" or "dark"); "" means dark.

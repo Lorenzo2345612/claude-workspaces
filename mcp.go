@@ -169,5 +169,5 @@ func argInt(a map[string]any, k string, def int) int {
 
 // mcpTools is every tool cw mcp offers.
 func mcpTools() []mcpTool {
-	return mcpReadTools()
+	return append(mcpReadTools(), mcpSessionTools()...)
 }

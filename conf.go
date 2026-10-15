@@ -57,6 +57,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	tabDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta de la pestaña " "%s _ui tabdir %s"`, bq, ws)
 	wsDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta del workspace " "%s _ui wsdir %s"`, bq, ws)
 	usagePopup := fmt.Sprintf(`display-popup -E -w 110 -h 30 -T " Uso de Claude " "%s _ui uso %s"`, bq, ws)
+	skynetPopup := fmt.Sprintf(`display-popup -E -w 90%% -h 80%% -T " Skynet " "%s skynet"`, bq)
 	resourcesPopup := fmt.Sprintf(`display-popup -E -w 84 -h 26 -T " Recursos " "%s _ui recursos %s"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
@@ -208,6 +209,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`bind -n M-e { %s }`, sessionsPopup)
 	w(`bind -n M-p { %s }`, switchAliasPopup)
 	w(`bind -n M-u { %s }`, usagePopup)
+	w(`bind -n M-k { %s }`, skynetPopup)
 	// Closing a session changes its tab's counters.
 	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s || true" }`, bq, ws)
 	// Enter on a session that exited with an error reopens it; anywhere else it is a plain Enter.

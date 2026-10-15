@@ -197,7 +197,12 @@ func cmdSkynet(args []string) error {
 		return err
 	}
 	if !cfg.SkynetEnabled {
-		return errors.New("Skynet está apagado: actívalo en la configuración (cw config, o Ajustes → Skynet en la app)")
+		msg := "Skynet está apagado: actívalo en Alt+m → Configuración (o Ajustes → Skynet en la app)."
+		if os.Getenv("TMUX") != "" { // a popup closes at once: leave the message readable
+			pause(msg)
+			return nil
+		}
+		return errors.New(msg)
 	}
 	if err := ensureSkynet(); err != nil {
 		return err
@@ -265,7 +270,11 @@ func printSkyEntry(name string, e skyEntry) {
 	case "tool":
 		fmt.Printf("%s  ⚙ %s %s%s\n", sgrDim, e.Tool, e.Text, sgrReset)
 	case "notice":
-		fmt.Printf("%s? %s › %s › %s pregunta:%s %s\n", sgrRed, e.WS, e.Tab, e.Name, sgrReset, e.Text)
+		ws := e.WSTitle
+		if ws == "" {
+			ws = e.WS
+		}
+		fmt.Printf("%s? %s › %s › %s pregunta:%s %s\n", sgrRed, ws, e.Tab, e.Name, sgrReset, e.Text)
 		for _, o := range e.Options {
 			fmt.Printf("    %v. %v\n", o["n"], o["texto"])
 		}

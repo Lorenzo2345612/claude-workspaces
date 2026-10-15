@@ -216,6 +216,8 @@ function shortcut(ev) {
     case 'r': if (view?.focus) dlgEditSession(view.focus); return true;
     case 'p': if (view?.focus && slotOf(view.focus)?.kind === 'claude') dlgBulkAlias('slot', view.focus); return true;
     case 'w': if (view?.focus) confirmCloseSlot(view.focus); return true;
+    case 'k': skyToggle(); return true;
+    case 'j': if (skyOn()) { window.skyVoice?.push(); return true; } return false;
     case 'm': { const r = $('.ws').getBoundingClientRect(); wsMenu(r.left + 12, r.bottom + 4); return true; }
     case 'h': dlgSettings('keys'); return true;
     case ',': dlgSettings('general'); return true;
@@ -306,6 +308,7 @@ function render() {
   renderBar($('.bar', app));
   renderStage($('.stage', app));
   renderStatus($('.status', app));
+  renderSky(app);
   // An open menu is left alone (rebuilding it on every status change made it flicker and closed
   // its submenus); it only closes when what it acts on is gone.
   if (ctx && ctx.kind !== 'menu' && !(ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id))) closeCtx();
@@ -367,6 +370,7 @@ function renderSide(side) {
       h('span', { class: 'ib', title: 'Ajustes', onclick: () => dlgSettings('general') }, '⚙'),
       h('span', { class: 'ib', title: 'Uso de Claude por cuenta', onclick: () => dlgUsage() }, '◔ Uso'),
       h('span', { class: 'ib', title: 'Memoria y CPU de cada sesión', onclick: () => dlgResources() }, '▤ Recursos'),
+      skyOn() ? h('span', { class: 'ib skyb' + (SKY.unread ? ' unread' : '') + (SKY.open ? ' on' : ''), 'data-n': SKY.unread || '', title: skyName() + ' (Alt+K)', onclick: () => skyToggle() }, '✦') : null,
       h('span', { class: 'ib pw', title: 'Apagar y guardar', onclick: () => confirmStop() }, '⏻')));
 }
 
@@ -714,6 +718,7 @@ function wsMenu(x, y) {
     { label: 'Alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
     { label: 'Uso de Claude…', run: () => dlgUsage() },
     { label: 'Recursos…', run: () => dlgResources() },
+    { label: '✦ ' + skyName(), k: skyOn() ? 'Alt K' : 'apagado', run: () => skyToggle() },
     ...(others.length ? ['-', ...others.map(w => ({ label: w.title, k: 'abierto', run: () => go(w.name) }))] : []),
     '-',
     { label: 'Ajustes', k: 'Alt ,', run: () => dlgSettings('general') },
@@ -1005,8 +1010,11 @@ async function dlgSettings(section) {
   scrim._close = close;
   scrim.addEventListener('mousedown', ev => { if (ev.target === scrim) close(); });
   const nav = h('nav'), sec = h('section');
-  const sections = [['general', 'General'], ['aliases', 'Alias de Claude'], ['look', 'Apariencia'], ['keys', 'Atajos']];
-  const set = async patch => { try { await api.do('config.set', { config: patch }); await loadConfig(); } catch (e) { toast(e.message, true); } };
+  const sections = [['general', 'General'], ['aliases', 'Alias de Claude'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
+  const set = async patch => {
+    try { await api.do('config.set', { config: patch }); await loadConfig(); } catch (e) { toast(e.message, true); }
+    if ('skynet_enabled' in patch || 'skynet_voice' in patch) { skyConnect(); window.skyVoice?.sync(); render(); }
+  };
   const draw = () => {
     nav.replaceChildren(h('div', { class: 'h' }, 'Configuración'), ...sections.map(([id, l]) => h('div', { class: 'i' + (id === section ? ' on' : ''), onclick: () => { section = id; draw(); } }, l)),
       h('div', { class: 'sp' }), h('div', { class: 'i', onclick: close }, '✕ Cerrar'));
@@ -1040,6 +1048,20 @@ async function dlgSettings(section) {
           h('div', { class: 'hint', style: { marginBottom: '8px' } }, 'Detectados en tu shell — clic para agregarlos:'),
           h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } }, S.shellAliases.map(a => h('button', { class: 'chip', style: { cursor: 'pointer' }, title: a.summary,
             onclick: async () => { await api.do('alias.import', { name: a.name }).catch(e => toast(e.message, true)); await loadConfig(); draw(); } }, '＋ ' + a.name)))) : null);
+    } else if (section === 'skynet') {
+      const toggle = (key, on, invert) => h('button', { class: 'toggle' + (on ? ' on' : ''), onclick: () => set({ [key]: invert ? on === false : !on }).then(draw) }, h('i'));
+      const name = h('input', { class: 'input', style: { width: '180px' }, value: c.skynet_name || '', placeholder: 'Skynet', onchange: ev => set({ skynet_name: ev.target.value }) });
+      const alias = h('select', { class: 'input', style: { width: '200px' }, onchange: ev => set({ skynet_alias: ev.target.value }) },
+        h('option', { value: '' }, 'Automático'), ...S.aliases.map(a => h('option', { value: a.name, selected: c.skynet_alias === a.name }, a.name)));
+      sec.replaceChildren(h('h3', {}, 'Skynet'),
+        h('p', { class: 'hint', style: { marginTop: 0, marginBottom: '6px' } }, 'Un orquestador: una sesión de Claude que ve todas tus sesiones y actúa en ellas cuando se lo pides, por texto o por voz. No conoce el código de tus proyectos.'),
+        h('div', { class: 'setrow' }, h('div', {}, 'Encendido', h('small', {}, 'Ábrelo con Alt+K o con ✦ en la barra lateral.')), toggle('skynet_enabled', !!c.skynet_enabled)),
+        h('div', { class: 'setrow' }, h('div', {}, 'Nombre', h('small', {}, 'Con él lo llamas por voz: «' + (c.skynet_name || 'Skynet') + ', ¿cómo van las sesiones?»')), name),
+        h('div', { class: 'setrow' }, h('div', {}, 'Modelo'), seg([{ value: 'sonnet', label: 'Sonnet' }, { value: 'haiku', label: 'Haiku' }, { value: 'opus', label: 'Opus' }], c.skynet_model || 'sonnet', v => set({ skynet_model: v }).then(draw))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Alias', h('small', {}, 'Su consumo sale de esa cuenta. En automático usa una con cuota y cambia a otra cuando se acaba.')), alias),
+        h('div', { class: 'setrow' }, h('div', {}, 'Avisar cuando una sesión pregunta', h('small', {}, 'Te muestra la pregunta con sus opciones y la respondes desde aquí.')), toggle('skynet_notify', c.skynet_notify !== false, true)),
+        h('div', { class: 'setrow' }, h('div', {}, 'Escuchar el micrófono', h('small', {}, 'Di su nombre y luego la instrucción. La voz se transcribe en este equipo (Whisper); la primera vez descarga el modelo.')), toggle('skynet_voice', !!c.skynet_voice)),
+        h('div', { class: 'setrow' }, h('div', {}, 'Aprobar permisos sin preguntarme', h('small', {}, 'Apagado, te pregunta antes de autorizar cualquier permiso de una sesión.')), toggle('skynet_auto_approve', !!c.skynet_auto_approve)));
     } else if (section === 'look') {
       const fs = c.app_font_size || 13.5;
       sec.replaceChildren(h('h3', {}, 'Apariencia'),
@@ -1185,4 +1207,6 @@ window.addEventListener('resize', () => { for (const t of terms.values()) t.refi
   if (S.launchDir) history.replaceState(null, '', location.pathname + location.hash);
   go(routeWS());
   checkUpdate();
+  skyConnect();
+  window.skyVoice?.sync();
 })();

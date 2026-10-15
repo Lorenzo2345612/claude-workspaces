@@ -70,7 +70,7 @@ kbd { font: 10.5px var(--mono); border: 1px solid var(--line2); border-radius: 4
 .cnt i { font-style: normal; display: inline-flex; align-items: center; gap: 4px; }
 .cnt .d { width: 6px; height: 6px; } .cnt .d.sleeping { width: 6px; height: 6px; }
 .side .foot { display: flex; align-items: center; gap: 4px; padding: 8px 4px 2px; border-top: 1px solid var(--line); }
-.ib { color: var(--muted); padding: 5px 8px; border-radius: 6px; cursor: pointer; user-select: none; }
+.ib { white-space: nowrap; color: var(--muted); padding: 5px 8px; border-radius: 6px; cursor: pointer; user-select: none; }
 .ib:hover { background: var(--hover); color: var(--text); }
 .ib.pw { margin-left: auto; } .ib.pw:hover { color: var(--danger); }
 .foot .ver { color: var(--dim); font-size: 11px; }
@@ -263,3 +263,54 @@ textarea.input { font-family: var(--mono); font-size: 12px; resize: vertical; mi
 .rbar { height: 5px; background: var(--sel); border-radius: 99px; overflow: hidden; } .rbar i { display: block; height: 100%; background: var(--accent); }
 .rv { text-align: right; font-variant-numeric: tabular-nums; font-size: 12px; } .rv.hot { color: var(--busy); } .rv.dim { color: var(--dim); }
 .logo { width: 22px; height: 22px; border-radius: 6px; flex: none; display: block; } .home .top .logo { width: 30px; height: 30px; border-radius: 8px; }
+
+/* Skynet: the orchestrator's panel at the right */
+.app.with-sky { grid-template-columns: 240px 1fr 360px; }
+.sky { background: var(--side); border-left: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+.sky header { display: flex; align-items: center; gap: 8px; padding: 9px 8px 9px 12px; border-bottom: 1px solid var(--line); }
+.sky header .logo { width: 18px; height: 18px; }
+.sky header b { font-weight: 600; }
+.skystate { flex: 1; display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); min-width: 0; white-space: nowrap; overflow: hidden; }
+.skystate .al { color: var(--dim); }
+.skylist { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 9px; min-height: 0; }
+.skylist .skyempty { color: var(--muted); line-height: 1.5; margin: auto 6px; text-align: center; }
+.skylist .skyempty b { display: block; color: var(--text); margin-bottom: 6px; }
+.skylist .m { max-width: 92%; padding: 8px 11px; border-radius: 11px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
+.skylist .m.u { align-self: flex-end; background: var(--accentbg); }
+.skylist .m.u small { display: block; color: var(--accent2); font-size: 10.5px; margin-bottom: 2px; }
+.skylist .m.s { align-self: flex-start; background: var(--raise2); white-space: normal; }
+.skylist .m.s p { margin: 0 0 6px; } .skylist .m.s p:last-child { margin-bottom: 0; }
+.skylist .m.s ul { margin: 2px 0 6px; padding-left: 18px; } .skylist .m.s li { margin: 1px 0; }
+.skylist .m.s code { font: 11.5px var(--mono); background: var(--sel); padding: 0 4px; border-radius: 4px; }
+.skylist .tool { font: 11px var(--mono); color: var(--dim); padding: 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.skylist .tool b { color: var(--muted); font-weight: normal; }
+.skylist .info { font-size: 11.5px; color: var(--muted); text-align: center; padding: 2px 8px; }
+.skylist .info.err { color: var(--danger); }
+.skylist .ask { border: 1px solid color-mix(in srgb, var(--wait) 45%, transparent); background: color-mix(in srgb, var(--wait) 8%, transparent); border-radius: 11px; padding: 10px 11px; }
+.skylist .ask.done { border-color: var(--line); background: transparent; opacity: .7; }
+.skylist .ask .t { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--wait); margin-bottom: 5px; }
+.skylist .ask.done .t { color: var(--muted); }
+.skylist .ask .t .ok { color: var(--ok); }
+.skylist .ask .q { white-space: pre-wrap; line-height: 1.45; user-select: text; }
+.skylist .ask .opts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 9px; }
+.skylist .ask .opts .btn { padding: 4px 10px; font-size: 12px; white-space: normal; text-align: left; }
+.btn.ghost { background: transparent; color: var(--muted); }
+.skyvoice:empty { display: none; }
+.skyvoice { margin: 0 10px 8px; padding: 7px 10px; border-radius: 9px; font-size: 12px; display: flex; align-items: center; gap: 9px;
+  background: color-mix(in srgb, var(--ok) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
+.skyvoice.idle { background: transparent; border-color: var(--line); color: var(--muted); }
+.skyvoice.err { background: transparent; border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); }
+.skyvoice .wave { display: flex; gap: 2px; align-items: center; height: 14px; }
+.skyvoice .wave i { width: 3px; height: 4px; background: var(--ok); border-radius: 2px; animation: skywave 1s infinite ease-in-out; }
+.skyvoice .wave i:nth-child(2) { animation-delay: .15s; } .skyvoice .wave i:nth-child(3) { animation-delay: .3s; } .skyvoice .wave i:nth-child(4) { animation-delay: .45s; }
+@keyframes skywave { 0%, 100% { height: 4px; } 50% { height: 13px; } }
+.skyinput { display: flex; gap: 7px; align-items: flex-end; padding: 10px; border-top: 1px solid var(--line); }
+.skyin { flex: 1; resize: none; background: var(--bg); border: 1px solid var(--line2); border-radius: 9px; padding: 8px 10px; color: var(--text); font: inherit; outline: none; max-height: 140px; }
+.skyin:focus { border-color: var(--accentring); }
+.skyinput .mic { width: 34px; height: 34px; border-radius: 9px; border: 1px solid var(--line2); background: var(--raise); flex: none; }
+.skyinput .mic.rec { background: color-mix(in srgb, var(--wait) 20%, transparent); border-color: var(--wait); }
+.side .foot .ib { padding: 5px 6px; }
+.side .skyb { position: relative; color: var(--accent2); }
+.side .skyb.on { background: var(--accentbg); }
+.side .skyb.unread::after { content: attr(data-n); position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 99px;
+  background: var(--wait); color: #fff; font-size: 10px; line-height: 15px; text-align: center; }

@@ -411,6 +411,13 @@ type doReq struct {
 		AppMode            *string   `json:"app_mode"`
 		AutoSwitchAlias    *bool     `json:"auto_switch_alias"`
 		AppFontSize        *int      `json:"app_font_size"`
+		SkynetEnabled      *bool     `json:"skynet_enabled"`
+		SkynetName         *string   `json:"skynet_name"`
+		SkynetModel        *string   `json:"skynet_model"`
+		SkynetAlias        *string   `json:"skynet_alias"`
+		SkynetNotify       *bool     `json:"skynet_notify"`
+		SkynetVoice        *bool     `json:"skynet_voice"`
+		SkynetAutoApprove  *bool     `json:"skynet_auto_approve"`
 	} `json:"config"`
 }
 
@@ -646,8 +653,42 @@ func applyConfigPatch(q *doReq) error {
 		if c.AppFontSize != nil && *c.AppFontSize >= 9 && *c.AppFontSize <= 24 {
 			cfg.AppFontSize = *c.AppFontSize
 		}
+		if c.SkynetEnabled != nil {
+			cfg.SkynetEnabled = *c.SkynetEnabled
+		}
+		if c.SkynetName != nil {
+			cfg.SkynetName = strings.TrimSpace(*c.SkynetName)
+		}
+		if c.SkynetModel != nil && (*c.SkynetModel == "sonnet" || *c.SkynetModel == "haiku" || *c.SkynetModel == "opus") {
+			cfg.SkynetModel = *c.SkynetModel
+		}
+		if c.SkynetAlias != nil {
+			cfg.SkynetAlias = *c.SkynetAlias
+		}
+		if c.SkynetNotify != nil {
+			cfg.SkynetNotify = c.SkynetNotify
+		}
+		if c.SkynetVoice != nil {
+			cfg.SkynetVoice = *c.SkynetVoice
+		}
+		if c.SkynetAutoApprove != nil {
+			cfg.SkynetAutoApprove = *c.SkynetAutoApprove
+		}
 	}
-	return saveConfig(cfg)
+	if err := saveConfig(cfg); err != nil {
+		return err
+	}
+	if c := q.Config; c != nil && (c.SkynetModel != nil || c.SkynetName != nil || c.SkynetAutoApprove != nil || c.SkynetAlias != nil) && skynetRunning() {
+		// The prompt, the model or the alias changed: the next message starts Claude with them.
+		_, _ = skynetCall("POST", "/restart", map[string]any{})
+	}
+	if cfg.SkynetEnabled {
+		return ensureSkynet()
+	}
+	if skynetRunning() {
+		_, _ = skynetCall("POST", "/stop", map[string]any{})
+	}
+	return nil
 }
 
 func saveAliasFromUI(old, name string, env, args []string) error {

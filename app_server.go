@@ -454,6 +454,7 @@ func (s *appServer) routes() http.Handler {
 	mux.HandleFunc("/api/pty", s.handlePTY)
 	mux.HandleFunc("/api/get/", s.handleGet)
 	mux.HandleFunc("/api/do", s.handleDo)
+	mux.HandleFunc("/api/skynet/", s.handleSkynet)
 	mux.Handle("/", files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.hostOK(r) {

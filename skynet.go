@@ -40,6 +40,7 @@ type skyEntry struct {
 	Session  string           `json:"session,omitempty"` // its id
 	Name     string           `json:"name,omitempty"`
 	WS       string           `json:"ws,omitempty"`
+	WSTitle  string           `json:"wsTitle,omitempty"`
 	Tab      string           `json:"tab,omitempty"`
 	Options  []map[string]any `json:"options,omitempty"`
 	Perm     bool             `json:"perm,omitempty"` // a permission dialog
@@ -563,7 +564,11 @@ func (s *skynet) announce() {
 				}
 				opts, _ := q["opciones"].([]map[string]any)
 				perm := permissionRe.MatchString(screen)
-				s.add(skyEntry{Kind: "notice", Session: ses.ID, Name: ses.Name, WS: w.Name, Tab: t.Title, Text: question, Options: opts, Perm: perm})
+				title := w.Title
+				if title == "" {
+					title = w.Name
+				}
+				s.add(skyEntry{Kind: "notice", Session: ses.ID, Name: ses.Name, WS: w.Name, WSTitle: title, Tab: t.Title, Text: question, Options: opts, Perm: perm})
 				var lines []string
 				for _, o := range opts {
 					lines = append(lines, fmt.Sprintf("%v. %v", o["n"], o["texto"]))
@@ -650,6 +655,11 @@ func (s *skynet) routes() http.Handler {
 		s.mu.Unlock()
 		_ = os.Remove(skyStateFile())
 		s.add(skyEntry{Kind: "info", Text: "Conversación nueva."})
+		s.setState("detenido", "")
+		writeJSONResp(w, map[string]bool{"ok": true})
+	})
+	mux.HandleFunc("/restart", func(w http.ResponseWriter, r *http.Request) {
+		s.stopBrain()
 		s.setState("detenido", "")
 		writeJSONResp(w, map[string]bool{"ok": true})
 	})

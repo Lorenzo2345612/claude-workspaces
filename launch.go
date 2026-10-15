@@ -44,11 +44,17 @@ func (l *Launcher) hookSettings() string {
 		return []map[string]any{e}
 	}
 	data, _ := json.Marshal(map[string]any{"hooks": map[string]any{
-		"SessionStart":     entry(""),
-		"UserPromptSubmit": entry(""),
-		"PostToolUse":      entry("*"),
-		"Notification":     entry("permission_prompt"),
-		"Stop":             entry(""),
+		"SessionStart":       entry(""),
+		"UserPromptSubmit":   entry(""),
+		"PreToolUse":         entry("AskUserQuestion"),
+		"PostToolUse":        entry("*"),
+		"PostToolUseFailure": entry("*"),
+		"PermissionRequest":  entry("*"),
+		"Elicitation":        entry(""),
+		"ElicitationResult":  entry(""),
+		"Notification":       entry("permission_prompt|elicitation_dialog|elicitation_url_dialog|agent_needs_input|worker_permission_prompt"),
+		"Stop":               entry(""),
+		"StopFailure":        entry(""),
 	}})
 	return string(data)
 }

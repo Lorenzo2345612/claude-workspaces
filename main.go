@@ -403,6 +403,7 @@ func cmdStop(ws string) error {
 
 func cmdAutosave(ws string) error {
 	quotaTick()
+	settleWaiting(ws)
 	cfg, _ := loadConfig()
 	if st, err := os.Stat(workspaceFile(ws)); err == nil &&
 		time.Since(st.ModTime()) < time.Duration(cfg.AutosaveSeconds)*time.Second {

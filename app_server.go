@@ -565,6 +565,7 @@ func (s *appServer) autosaveLoop() {
 			if !appMode(t) {
 				continue
 			}
+			settleWaiting(ws)
 			if st, err := os.Stat(workspaceFile(ws)); err == nil && time.Since(st.ModTime()) < time.Duration(cfg.AutosaveSeconds)*time.Second {
 				continue
 			}

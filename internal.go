@@ -352,8 +352,17 @@ func cmdHook() error {
 		"SessionStart":     statusIdle,
 		"UserPromptSubmit": statusBusy,
 		"PostToolUse":      statusBusy,
-		"Notification":     statusWaiting,
-		"Stop":             statusIdle,
+		// Claude waits for the user: a permission dialog, a question (AskUserQuestion), an MCP
+		// server's form. PermissionRequest and PreToolUse fire when the dialog opens; the
+		// Notification only after it has been open a few seconds, so it is just a backstop.
+		"PermissionRequest":  statusWaiting,
+		"PreToolUse":         statusWaiting,
+		"Elicitation":        statusWaiting,
+		"Notification":       statusWaiting,
+		"ElicitationResult":  statusBusy,
+		"PostToolUseFailure": statusBusy,
+		"Stop":               statusIdle,
+		"StopFailure":        statusIdle,
 	}[in.HookEventName]
 	if status == "" {
 		return nil

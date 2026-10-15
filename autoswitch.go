@@ -162,3 +162,31 @@ func bestAliasWithQuota(cfg Config, from string, accounts []accountUsage, out ma
 	})
 	return cands[0].name
 }
+
+// dialogOpenRe recognises the footer of the dialogs Claude Code waits on (a permission, a
+// question, an MCP form).
+var dialogOpenRe = regexp.MustCompile(`(?i)(esc to cancel|enter to select|enter to confirm|do you want to)`)
+
+// settleWaiting clears the "asking" state of sessions whose dialog is gone. Cancelling a dialog
+// with Esc fires no hook, so without this the session would keep asking forever.
+func settleWaiting(ws string) {
+	t := Tmux{WS: ws}
+	rows, err := t.Lines("list-panes", "-a", "-F", "#{pane_id}"+sep+"#{@cw_status}"+sep+"#{session_name}")
+	if err != nil {
+		return
+	}
+	for _, r := range rows {
+		if len(r) != 3 || r[1] != statusWaiting {
+			continue
+		}
+		text, err := t.Run("capture-pane", "-p", "-t", r[0])
+		if err != nil || dialogOpenRe.MatchString(text) {
+			continue
+		}
+		// Read the state again: a hook may have changed it while the screen was captured.
+		if cur, _ := t.Run("display", "-p", "-t", r[0], "#{@cw_status}"); cur == statusWaiting {
+			_, _ = t.Run("set", "-p", "-t", r[0], "@cw_status", statusIdle)
+			refreshTabLabel(t, r[2])
+		}
+	}
+}

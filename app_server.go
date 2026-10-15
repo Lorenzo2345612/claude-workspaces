@@ -214,7 +214,41 @@ func urlQueryEscape(s string) string {
 	return b.String()
 }
 
+// adoptShellPath gives the server the PATH of the user's interactive shell. Started from a
+// shortcut or a menu entry, it gets a bare PATH without what ~/.bashrc or ~/.zshrc add (often
+// ~/.local/bin, where claude lives), and every session it opens would inherit that.
+func adoptShellPath() {
+	sh := os.Getenv("SHELL")
+	if sh == "" {
+		sh = "/bin/bash"
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, sh, "-ic", `printf '\n@@CWPATH@@%s@@\n' "$PATH"`)
+	cmd.Env = append(os.Environ(), "TERM=dumb")
+	cmd.Stdin = nil
+	out, _ := cmd.Output()
+	var parts []string
+	if _, rest, ok := strings.Cut(string(out), "@@CWPATH@@"); ok {
+		if p, _, ok := strings.Cut(rest, "@@"); ok {
+			parts = filepath.SplitList(p)
+		}
+	}
+	parts = append(parts, filepath.SplitList(os.Getenv("PATH"))...)
+	parts = append(parts, filepath.Join(homeDir(), ".local", "bin"), filepath.Join(homeDir(), ".claude", "local"))
+	seen := map[string]bool{}
+	var merged []string
+	for _, d := range parts {
+		if d != "" && !seen[d] {
+			seen[d] = true
+			merged = append(merged, d)
+		}
+	}
+	os.Setenv("PATH", strings.Join(merged, string(filepath.ListSeparator)))
+}
+
 func serveApp(launchDir string) error {
+	adoptShellPath()
 	if err := checkTmux(); err != nil {
 		return err
 	}

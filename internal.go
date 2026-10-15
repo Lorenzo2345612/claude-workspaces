@@ -167,6 +167,8 @@ func cmdUI(args []string) error {
 		err = uiEditPane(args[1], args[2])
 	case "renamews":
 		err = uiRenameWorkspace(args[1])
+	case "update":
+		err = uiUpdate(args[1])
 	case "wsdir":
 		err = uiWorkspaceDir(args[1])
 	case "tabdir":

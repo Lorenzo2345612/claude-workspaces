@@ -143,8 +143,14 @@ func cmdApp(args []string) error {
 	}
 	// Under WSL, a Windows shortcut runs cw through wsl.exe; waiting here keeps that wsl.exe —
 	// and with it the Linux side, the server and the sessions — alive while the server runs.
-	for hold && runningApp() != nil {
-		time.Sleep(20 * time.Second)
+	// (A restart after an update leaves the port free for a moment: only give up after a minute.)
+	for misses := 0; hold && misses < 4; {
+		time.Sleep(15 * time.Second)
+		if runningApp() == nil {
+			misses++
+		} else {
+			misses = 0
+		}
 	}
 	return nil
 }
@@ -521,6 +527,20 @@ func (s *appServer) autosaveLoop() {
 			a.mu.Unlock()
 		}
 	}
+}
+
+// restart replaces this server with the binary now on disk (after an update), on the same port
+// and token; windows reconnect by themselves.
+func (s *appServer) restart() {
+	s.saveAll()
+	bin, err := os.Executable()
+	if err != nil {
+		return
+	}
+	if resolved, err := filepath.EvalSymlinks(bin); err == nil {
+		bin = resolved
+	}
+	_ = syscall.Exec(bin, []string{bin, "app", "--servidor"}, os.Environ())
 }
 
 func (s *appServer) saveAll() {

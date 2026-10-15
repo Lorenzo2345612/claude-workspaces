@@ -1069,6 +1069,31 @@ function dlgAlias(a, after) {
     } }] });
 }
 
+// ---------- new version ----------
+// When a newer version is published, a small card offers to install it. Installing restarts
+// the local server on the new binary; the sessions keep running and the window reloads.
+async function checkUpdate() {
+  const u = await api.get('update').catch(() => null);
+  if (!u || !u.latest || document.querySelector('.updcard')) return;
+  const card = h('div', { class: 'updcard' },
+    h('div', {}, h('b', {}, 'Hay una versión nueva: ' + u.latest), h('small', {}, 'Tienes la ' + u.current + '. Tus sesiones siguen corriendo al actualizar.')),
+    h('div', { class: 'btnrow' },
+      h('button', { class: 'btn', onclick: () => { api.do('update.dismiss', { name: u.latest }).catch(() => {}); card.remove(); } }, 'Ahora no'),
+      h('button', { class: 'btn primary', onclick: async ev => {
+        const b = ev.currentTarget; b.disabled = true; b.textContent = 'Instalando…';
+        try { await api.do('update.install'); }
+        catch (e) { toast(e.message, true); b.disabled = false; b.textContent = 'Instalar'; return; }
+        b.textContent = 'Reiniciando…';
+        for (let i = 0; i < 60; i++) {
+          await new Promise(r => setTimeout(r, 500));
+          const v = await fetch('/api/ping', { credentials: 'same-origin' }).then(r => r.ok ? r.text() : '').catch(() => '');
+          if (v.trim() === u.latest) { location.reload(); return; }
+        }
+        toast('El servidor no volvió a responder; vuelve a abrir la app.', true);
+      } }, 'Instalar')));
+  document.body.append(card);
+}
+
 // ---------- start ----------
 window.addEventListener('resize', () => { for (const t of terms.values()) t.refit(); if (ctx && ctx.kind !== 'menu') renderCtx(); });
 (async function init() {
@@ -1078,4 +1103,5 @@ window.addEventListener('resize', () => { for (const t of terms.values()) t.refi
   } catch (e) { $('#root').textContent = 'No pude conectar con cw: ' + e.message; return; }
   if (S.launchDir) history.replaceState(null, '', location.pathname + location.hash);
   go(routeWS());
+  checkUpdate();
 })();

@@ -63,9 +63,26 @@ func cmdUpdate(args []string) error {
 		return nil
 	}
 
+	self, err := installRelease(rel, func(msg string) { fmt.Println(msg) })
+	if err != nil {
+		return err
+	}
+	rememberInstalled(latest)
+	fmt.Printf("cw actualizado a %s en %s\n", latest, self)
+	if names := runningWorkspaces(); len(names) > 0 {
+		fmt.Printf("workspaces abiertos (%s): desconéctate y vuelve a entrar para usar la versión nueva\n",
+			strings.Join(names, ", "))
+	}
+	return nil
+}
+
+// installRelease downloads this install's package of a release (the desktop or the terminal-only
+// one), checks its SHA-256 and replaces the running binary. It returns the binary's path.
+func installRelease(rel *githubRelease, progress func(string)) (string, error) {
+	latest := strings.TrimPrefix(rel.TagName, "v")
 	pkgOS := map[string]string{"linux": "linux", "darwin": "macos"}[runtime.GOOS]
 	if pkgOS == "" {
-		return fmt.Errorf("sistema no soportado: %s", runtime.GOOS)
+		return "", fmt.Errorf("sistema no soportado: %s", runtime.GOOS)
 	}
 	// Each install updates from its own package: the desktop one (with the app) or the
 	// terminal-only one. Releases before the split only had cw-<v>-<os> (with the app).
@@ -89,45 +106,40 @@ func cmdUpdate(args []string) error {
 		}
 	}
 	if pkgURL == "" {
-		return fmt.Errorf("el release %s no trae %s", rel.TagName, pkgName)
+		return "", fmt.Errorf("el release %s no trae %s", rel.TagName, pkgName)
 	}
 
-	fmt.Printf("descargando %s…\n", pkgName)
+	progress("descargando " + pkgName + "…")
 	pkg, err := download(pkgURL)
 	if err != nil {
-		return err
+		return "", err
 	}
 	if sumsURL != "" {
 		sums, err := download(sumsURL)
 		if err != nil {
-			return err
+			return "", err
 		}
 		if err := verifySHA256(pkg, pkgName, sums); err != nil {
-			return err
+			return "", err
 		}
 	}
 	binName := fmt.Sprintf("cw-%s-%s", runtime.GOOS, runtime.GOARCH)
 	bin, err := extractFromTarGz(pkg, binName)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	self, err := os.Executable()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if resolved, err := filepath.EvalSymlinks(self); err == nil {
 		self = resolved
 	}
 	if err := replaceFile(self, bin); err != nil {
-		return fmt.Errorf("no pude reemplazar %s: %w", self, err)
+		return "", fmt.Errorf("no pude reemplazar %s: %w", self, err)
 	}
-	fmt.Printf("cw actualizado a %s en %s\n", latest, self)
-	if names := runningWorkspaces(); len(names) > 0 {
-		fmt.Printf("workspaces abiertos (%s): desconéctate y vuelve a entrar para usar la versión nueva\n",
-			strings.Join(names, ", "))
-	}
-	return nil
+	return self, nil
 }
 
 func latestRelease() (*githubRelease, error) {

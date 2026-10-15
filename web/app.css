@@ -233,3 +233,8 @@ textarea.input { font-family: var(--mono); font-size: 12px; resize: vertical; mi
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--raise); border: 1px solid var(--line2); padding: 8px 14px; border-radius: 9px; z-index: 100; box-shadow: var(--shadow); }
 .toast.err { border-color: color-mix(in srgb, var(--danger) 50%, transparent); color: var(--danger); }
 .btnrow { display: flex; gap: 8px; margin-top: 14px; } .ec p.txt { font: inherit; color: var(--muted); line-height: 1.55; }
+
+.updcard { position: fixed; right: 16px; bottom: 36px; z-index: 90; width: 320px; background: var(--raise); border: 1px solid var(--line2); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); display: grid; gap: 4px; animation: pop .14s ease-out; }
+.updcard b { font-weight: 600; display: block; }
+.updcard small { color: var(--muted); font-size: 12px; }
+.updcard .btnrow { margin-top: 8px; justify-content: flex-end; }

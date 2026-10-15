@@ -170,6 +170,8 @@ func run(args []string) error {
 		return cmdRespawn(rest)
 	case "_ctxpopup":
 		return cmdCtxPopup(rest)
+	case "_updnotice":
+		return cmdUpdNotice(rest)
 	case "_life":
 		return cmdLife(rest)
 	case "_reopen":
@@ -340,6 +342,9 @@ func attach(t Tmux, launchDir string) error {
 	tmuxBin, err := exec.LookPath("tmux")
 	if err != nil {
 		return err
+	}
+	if !launcherOfferedUpdate {
+		noticeAfterAttach(t.WS)
 	}
 	argv := append([]string{"tmux"}, t.baseArgs()...)
 	argv = append(argv, "attach")

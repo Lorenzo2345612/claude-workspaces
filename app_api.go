@@ -252,6 +252,8 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 	switch strings.TrimPrefix(r.URL.Path, "/api/get/") {
 	case "workspaces":
 		writeJSON(w, listUIWorkspaces())
+	case "update":
+		writeJSON(w, map[string]string{"current": version, "latest": availableUpdate()})
 	case "state":
 		writeJSON(w, appSnapshot(q.Get("ws")))
 	case "info":
@@ -498,6 +500,20 @@ func (s *appServer) do(q *doReq) (map[string]any, error) {
 		return nil, appSave(q.WS)
 	case "config.set":
 		return nil, applyConfigPatch(q)
+	case "update.dismiss":
+		dismissUpdate(q.Name)
+		return nil, nil
+	case "update.install":
+		got, err := updateNow()
+		if err != nil {
+			return nil, err
+		}
+		// Restart on the new binary once this answer is out; the sessions live in tmux and stay.
+		go func() {
+			time.Sleep(400 * time.Millisecond)
+			s.restart()
+		}()
+		return map[string]any{"version": got}, nil
 	case "alias.save":
 		return nil, saveAliasFromUI(q.Old, q.Name, q.Env, q.ArgList)
 	case "alias.delete":

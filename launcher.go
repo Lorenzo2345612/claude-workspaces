@@ -5,8 +5,14 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 )
+
+// launcherOfferedUpdate is set once the start screen showed the new version, so attaching from
+// it does not offer it a second time.
+var launcherOfferedUpdate bool
 
 // cmdLauncher is what a bare `cw` shows: create a workspace in this directory, or resume one
 // of the saved / running workspaces.
@@ -19,11 +25,35 @@ func cmdLauncher() error {
 		return err
 	}
 	l := &launcher{cwd: cwd}
+	// The check for a new version runs while the screen is up; the notice appears when it answers.
+	go func() {
+		if v := availableUpdate(); v != "" {
+			l.mu.Lock()
+			l.update = v
+			running := l.running
+			l.mu.Unlock()
+			if running {
+				l.draw()
+			}
+		}
+	}()
 	choice, err := l.run()
 	if err != nil || choice == "" {
 		return err
 	}
 	switch {
+	case choice == "\x00update":
+		fmt.Println()
+		if _, err := updateNow(); err != nil {
+			return err
+		}
+		// Start over with the new binary: the start screen reopens on the new version.
+		self, err := os.Executable()
+		if err != nil {
+			return err
+		}
+		fmt.Println("abriendo cw con la versión nueva…")
+		return syscall.Exec(self, os.Args, os.Environ())
 	case choice == "\x00new":
 		return cmdNewHere()
 	case choice == "\x00byid":
@@ -43,6 +73,9 @@ func cmdLauncher() error {
 }
 
 type launcher struct {
+	mu       sync.Mutex // draw runs from the update check too
+	running  bool
+	update   string // a newer version to offer, once known
 	cwd      string
 	entries  []entry
 	sel      int // 0 = new workspace, 1.. = entries
@@ -77,6 +110,10 @@ func sortEntries(es []entry) {
 
 func (l *launcher) run() (string, error) {
 	l.load()
+	l.mu.Lock()
+	l.running = true
+	l.mu.Unlock()
+	defer func() { l.mu.Lock(); l.running = false; l.mu.Unlock() }()
 	os.Stdout.WriteString("\033[?1049h")
 	setRaw(true)
 	defer func() {
@@ -111,7 +148,17 @@ func (l *launcher) run() (string, error) {
 			}
 			l.msg = ""
 			n := len(l.entries) + 1
+			l.mu.Lock()
+			upd := l.update
+			l.mu.Unlock()
 			switch {
+			case upd != "" && (action == "update" || (k.kind == keyRune && k.r == 'u')):
+				return "\x00update", nil
+			case upd != "" && action == "noupdate":
+				dismissUpdate(upd)
+				l.mu.Lock()
+				l.update = ""
+				l.mu.Unlock()
 			case action == "quit" || k.kind == keyEsc || (k.kind == keyRune && k.r == 'q'):
 				return "", nil
 			case action == "new" || (k.kind == keyRune && k.r == 'n'):
@@ -166,6 +213,8 @@ func (l *launcher) run() (string, error) {
 }
 
 func (l *launcher) draw() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	w, h := termSize()
 	const blockW = 86
 	left := max((w-blockW)/2, 0) + 1
@@ -174,6 +223,12 @@ func (l *launcher) draw() {
 
 	add(plainLine(sgrAccent + sgrBold + "≡ cw" + sgrReset + " " + sgrDim + version + sgrReset + "   " + sgrMuted + "workspaces de Claude Code" + sgrReset))
 	add(plainLine(""))
+	if l.update != "" {
+		launcherOfferedUpdate = true
+		add(plainLine(sgrBusy + "↑ Hay una versión nueva: " + l.update + sgrReset + sgrDim + "  (tienes " + version + ")" + sgrReset))
+		add(buttonLine(0, btnDef{label: "Actualizar ahora (u)", id: "update", primary: true}, btnDef{label: "Ahora no", id: "noupdate"}))
+		add(plainLine(""))
+	}
 	card := sgrDim
 	if l.sel == 0 {
 		card = sgrAccent

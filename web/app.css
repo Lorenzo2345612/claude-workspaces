@@ -4,7 +4,7 @@
   --line: rgba(255,255,255,.075); --line2: rgba(255,255,255,.12);
   --text: #e9e7e3; --muted: #9b988f; --dim: #67645e;
   --accent: #8c95cf; --accent2: #a5aee0; --accentbg: rgba(140,149,207,.16); --accentring: rgba(140,149,207,.28);
-  --busy: #d6a24b; --wait: #d7735f; --ok: #79ad8a; --danger: #d7735f;
+  --busy: #ffaf00; --wait: #ff5f5f; --ok: #87d787; --danger: #ff5f5f; /* the terminal's colour214, 203, 114 */
   --shadow: 0 16px 44px rgba(0,0,0,.5);
   --mono: "Cascadia Mono", "Cascadia Code", "JetBrains Mono", Consolas, "SF Mono", Menlo, monospace;
   font-family: "Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -14,7 +14,7 @@
   --bg: #f7f6f3; --side: #efeeea; --raise: #ffffff; --raise2: #f3f2ee; --hover: rgba(0,0,0,.035); --sel: rgba(0,0,0,.065);
   --line: rgba(0,0,0,.08); --line2: rgba(0,0,0,.14);
   --text: #23221f; --muted: #6f6c66; --dim: #a19e97;
-  --busy: #b07a1c; --wait: #c0543f; --ok: #3f8a57; --danger: #c0543f;
+  --busy: #d98a00; --wait: #e5372a; --ok: #229a4a; --danger: #e5372a;
   --shadow: 0 16px 40px rgba(0,0,0,.14);
   color-scheme: light;
 }

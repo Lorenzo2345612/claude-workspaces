@@ -33,7 +33,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `claude-workspaces-0.12.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `claude-workspaces-0.12.1-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -58,8 +58,8 @@ terminal de Ubuntu.
 
    ```sh
    cd ~/Downloads
-   tar xzf claude-workspaces-0.12.0-macos.tar.gz
-   cd claude-workspaces-0.12.0-macos
+   tar xzf claude-workspaces-0.12.1-macos.tar.gz
+   cd claude-workspaces-0.12.1-macos
    sh install.sh
    ```
 
@@ -88,8 +88,8 @@ terminal de Ubuntu.
 ## Linux
 
 ```sh
-tar xzf claude-workspaces-0.12.0-linux.tar.gz
-cd claude-workspaces-0.12.0-linux
+tar xzf claude-workspaces-0.12.1-linux.tar.gz
+cd claude-workspaces-0.12.1-linux
 sh install.sh
 ```
 

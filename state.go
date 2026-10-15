@@ -22,7 +22,10 @@ const (
 
 // Workspace is the saved state of one tmux server: its tabs and every session inside them.
 type Workspace struct {
-	Name      string    `json:"name"`
+	Name string `json:"name"`
+	// Title is the name the user sees; Name stays the workspace's id (tmux socket, file name),
+	// because a running tmux server cannot be renamed.
+	Title     string    `json:"title,omitempty"`
 	SavedAt   time.Time `json:"saved_at"`
 	ActiveTab int       `json:"active_tab"`
 	Tabs      []Tab     `json:"tabs"`
@@ -126,4 +129,29 @@ func findTranscript(sessionID, preferDir string, otherDirs []string) (path strin
 		}
 	}
 	return "", false
+}
+
+// displayTitle is the name shown for a workspace: its title, or its id when it has none.
+func (w *Workspace) displayTitle() string {
+	if w != nil && w.Title != "" {
+		return w.Title
+	}
+	if w != nil {
+		return w.Name
+	}
+	return ""
+}
+
+// resolveWorkspace turns what the user typed — a workspace id or the title it was renamed to —
+// into the workspace id.
+func resolveWorkspace(nameOrTitle string) string {
+	if _, err := os.Stat(workspaceFile(nameOrTitle)); err == nil || (Tmux{WS: nameOrTitle}).Running() {
+		return nameOrTitle
+	}
+	for _, n := range savedWorkspaces() {
+		if w, err := loadWorkspace(n); err == nil && strings.EqualFold(w.Title, nameOrTitle) {
+			return n
+		}
+	}
+	return nameOrTitle
 }

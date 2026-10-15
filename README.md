@@ -19,6 +19,9 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - **Claude aliases** — named ways of launching claude (env vars + arguments, or your own shell
   alias such as `yolo`, run through your shell). Pick one per session; switching it restarts the
   session in the same conversation, optionally sending the continue message.
+- Workspaces can be **renamed** (even while open); commands accept the new name or the original id.
+- A workspace can also **start from a conversation**: give its ID and it opens in that
+  conversation's directory with the conversation resumed.
 - An empty tab offers to **resume recent conversations** of its directory, and any conversation
   can be brought in **by its ID** (full or first characters) — for sessions started outside cw.
 - Menus, dialogs and confirmations are floating popups, and everything is clickable: buttons,
@@ -56,6 +59,7 @@ terminal.
 ```sh
 cw                 # start screen: new workspace here, or resume one
 cw new             # new workspace in the current directory
+cw new --id ID     # new workspace around an existing Claude conversation (full ID or prefix)
 cw ls              # list workspaces
 cw stop NAME       # save and shut down
 cw update          # self-update to the latest release (--check only reports)

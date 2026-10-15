@@ -23,8 +23,21 @@ func cmdLauncher() error {
 	if err != nil || choice == "" {
 		return err
 	}
-	if choice == "\x00new" {
+	switch {
+	case choice == "\x00new":
 		return cmdNewHere()
+	case choice == "\x00byid":
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		os.Stdout.WriteString("\033[?1049h")
+		f, err := pickConversation(cfg.claudeAliases(), nil)
+		os.Stdout.WriteString("\033[?25h\033[?1049l")
+		if err != nil || f == nil {
+			return err
+		}
+		return startFromConversation(*f)
 	}
 	return cmdStart(choice, ".", false)
 }
@@ -103,6 +116,24 @@ func (l *launcher) run() (string, error) {
 				return "", nil
 			case action == "new" || (k.kind == keyRune && k.r == 'n'):
 				return "\x00new", nil
+			case action == "byid" || (k.kind == keyRune && k.r == 'i'):
+				return "\x00byid", nil
+			case action == "rename" || (k.kind == keyRune && k.r == 'r'):
+				if l.sel == 0 {
+					l.msg = "Elige primero un workspace de la lista."
+					break
+				}
+				e := l.entries[l.sel-1]
+				setRaw(false)
+				if v, ok := askText("Nuevo nombre del workspace", "Nombre", e.saved.displayTitle(), ""); ok {
+					if err := renameWorkspace(e.name, v); err != nil {
+						l.msg = err.Error()
+					} else {
+						l.msg = "Renombrado."
+					}
+				}
+				setRaw(true)
+				l.load()
 			case strings.HasPrefix(action, "ws:"):
 				i, _ := strconv.Atoi(action[3:])
 				return l.entries[i].name, nil
@@ -174,10 +205,12 @@ func (l *launcher) draw() {
 		}
 		btns := []btnDef{{label: "+ Nuevo aquí", id: "new", primary: l.sel == 0}}
 		if l.sel > 0 {
-			btns = append([]btnDef{{label: "Abrir " + l.entries[l.sel-1].name, id: "open", primary: true}},
-				btnDef{label: "+ Nuevo aquí", id: "new"}, btnDef{label: "Borrar guardado", id: "del"})
+			btns = append([]btnDef{{label: "Abrir " + shorten(l.entries[l.sel-1].saved.displayTitle(), 18), id: "open", primary: true}},
+				btnDef{label: "+ Nuevo aquí", id: "new"}, btnDef{label: "Renombrar", id: "rename"}, btnDef{label: "Borrar", id: "del"})
 		}
-		add(buttonLine(0, append(btns, btnDef{label: "Salir", id: "quit"})...))
+		add(buttonLine(0, btns...))
+		add(plainLine(""))
+		add(buttonLine(0, btnDef{label: "↻ Nuevo desde una conversación (ID)…", id: "byid"}, btnDef{label: "Salir", id: "quit"}))
 	}
 
 	var s screen
@@ -214,7 +247,11 @@ func (l *launcher) entryLine(i int, e entry) string {
 	if working > 0 && !e.running {
 		work = " " + sgrBusy + "●" + strconv.Itoa(working) + sgrReset
 	}
-	plain := fmt.Sprintf(" %d  %s ", i+1, fit(e.name, 18))
+	name := e.name
+	if e.saved != nil {
+		name = e.saved.displayTitle()
+	}
+	plain := fmt.Sprintf(" %d  %s ", i+1, fit(name, 18))
 	rest := fmt.Sprintf(" %s  %s  %s ", fit(counts, 22), fit(when, 11), fit(titles, 24))
 	if l.sel == i+1 {
 		stateText := "apagado"

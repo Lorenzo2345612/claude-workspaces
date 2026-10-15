@@ -149,6 +149,8 @@ func cmdUI(args []string) error {
 		err = uiResumeByID(args[1])
 	case "combine":
 		err = uiCombine(args[1])
+	case "renamews":
+		err = uiRenameWorkspace(args[1])
 	case "rename":
 		if len(args) != 3 {
 			return errors.New("uso: _ui rename <ws> tab|slot")
@@ -686,4 +688,48 @@ func setSlotName(t Tmux, pane, name string) error {
 		_, _ = t.Run("rename-window", "-t", pane, name)
 	}
 	return err
+}
+
+// uiRenameWorkspace changes the visible name of the running workspace.
+func uiRenameWorkspace(ws string) error {
+	t := Tmux{WS: ws}
+	cur, _ := t.Run("show", "-gqv", "@cw_ws_title")
+	if cur == "" {
+		cur = ws
+	}
+	v, ok := askText("Nuevo nombre del workspace", "Nombre", cur, "")
+	if !ok {
+		return nil
+	}
+	return renameWorkspace(ws, v)
+}
+
+// renameWorkspace sets a workspace's title, running or not.
+func renameWorkspace(ws, title string) error {
+	title = cleanLabel(title)
+	if title == "" {
+		return errors.New("el nombre no puede quedar vacío")
+	}
+	for _, n := range savedWorkspaces() {
+		if n == ws {
+			continue
+		}
+		if w, err := loadWorkspace(n); err == nil && (strings.EqualFold(w.displayTitle(), title) || strings.EqualFold(n, title)) {
+			return fmt.Errorf("ya hay un workspace llamado %q", title)
+		}
+	}
+	t := Tmux{WS: ws}
+	if t.Running() {
+		if _, err := t.Run("set", "-g", "@cw_ws_title", title); err != nil {
+			return err
+		}
+		_, _ = t.Run("refresh-client", "-S") // fails harmlessly while no client is attached
+		return cmdSave(ws, true)
+	}
+	w, err := loadWorkspace(ws)
+	if err != nil {
+		return err
+	}
+	w.Title = title
+	return saveWorkspace(w)
 }

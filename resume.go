@@ -99,13 +99,29 @@ func uiResumeByID(ws string) error {
 			open[r.slot.SessionID] = r.slot.Alias + " (pestaña " + r.tab + ")"
 		}
 	}
+	f, err := pickConversation(cfg.claudeAliases(), open)
+	if err != nil || f == nil {
+		return err
+	}
+	c := f.conv
+	c.Cwd = f.cwd
+	err = newClaudeDialog(ws, session, &c)
+	if errors.Is(err, errCancelled) {
+		return nil
+	}
+	return err
+}
+
+// pickConversation asks for a conversation ID (or its first characters) and shows what it
+// matches; it returns nil when the user cancels. open marks conversations already in a session.
+func pickConversation(aliases []ClaudeAlias, open map[string]string) (*foundConv, error) {
 	var input []rune
 	var found []foundConv
 	sel := 0
 	msg := ""
 	var hits []hit
 	lookup := func() {
-		found = findConversations(string(input), cfg.claudeAliases())
+		found = findConversations(string(input), aliases)
 		sel = 0
 		msg = ""
 	}
@@ -154,12 +170,12 @@ func uiResumeByID(ws string) error {
 		s.flush(true)
 	}
 	setRaw(true)
+	defer setRaw(false)
 	draw()
 	for {
 		keys, err := readKeys()
 		if err != nil {
-			setRaw(false)
-			return nil
+			return nil, nil
 		}
 		for _, k := range keys {
 			id := ""
@@ -168,8 +184,7 @@ func uiResumeByID(ws string) error {
 			}
 			switch {
 			case id == "cancel" || k.kind == keyEsc:
-				setRaw(false)
-				return nil
+				return nil, nil
 			case strings.HasPrefix(id, "pick:"):
 				sel = atoiDefault(id[5:], 0)
 			case k.kind == keyUp && len(found) > 0:
@@ -192,15 +207,8 @@ func uiResumeByID(ws string) error {
 					msg = "Primero escribe un ID que exista."
 					break
 				}
-				setRaw(false)
 				f := found[sel]
-				c := f.conv
-				c.Cwd = f.cwd
-				err := newClaudeDialog(ws, session, &c)
-				if errors.Is(err, errCancelled) {
-					return nil
-				}
-				return err
+				return &f, nil
 			}
 		}
 		draw()

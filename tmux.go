@@ -177,6 +177,9 @@ func (t Tmux) capture() (*Workspace, error) {
 
 	active, _ := t.Run("show", "-gqv", "@cw_active")
 	w := &Workspace{Name: t.WS}
+	if title, _ := t.Run("show", "-gqv", "@cw_ws_title"); title != t.WS {
+		w.Title = title
+	}
 	for _, s := range sessions {
 		tab := Tab{Title: s[1], Dir: s[2]}
 		if tab.Title == "" {

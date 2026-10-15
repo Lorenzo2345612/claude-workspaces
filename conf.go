@@ -63,7 +63,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// Items whose name starts with "-" are disabled: they serve as group headings.
 	mainMenu := strings.Join([]string{
 		// "--" ends the options: otherwise the first heading ("-CREAR") parses as a flag.
-		fmt.Sprintf(`display-menu -T "#[align=centre] cw %s · %s " -x C -y C --`, version, ws),
+		fmt.Sprintf(`display-menu -T "#[align=centre] cw %s · #{@cw_ws_title} " -x C -y C --`, version),
 		`"-CREAR" "" ""`,
 		fmt.Sprintf(`"  ✦ Sesión de Claude" c { %s }`, newClaudePopup),
 		fmt.Sprintf(`"  ↻ Retomar sesión por ID…" i { %s }`, resumeIDPopup),
@@ -86,6 +86,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		fmt.Sprintf(`"  ✕ Cerrar pestaña" w { %s }`, confirmCloseTab),
 		`"-WORKSPACE" "" ""`,
 		fmt.Sprintf(`"  ↓ Guardar ahora" g { %s }`, save),
+		fmt.Sprintf(`"  ▸ Renombrar workspace…" W { display-popup -E -w 70 -h 10 -T " Renombrar workspace " "%s _ui renamews %s" }`, bq, ws),
 		fmt.Sprintf(`"  ✦ Alias de claude de todo el workspace" K { %s }`, bulkAll),
 		fmt.Sprintf(`"  ◆ Configuración" o { %s }`, configMenu),
 		fmt.Sprintf(`"  ? Ayuda" h { %s }`, helpPopup),
@@ -96,7 +97,9 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	isCurrent := func(cur, other string) string {
 		return fmt.Sprintf(`#{?#{==:#{session_name},#{client_session}},%s,%s}`, cur, other)
 	}
-	brand := " ≡ " + ws + "  "
+	// The brand shows the workspace's title (renamable while it runs); the underline row pads
+	// with one space per character of it.
+	brand := " ≡ #{@cw_ws_title}  "
 	tabsRow := fmt.Sprintf(`#[range=user|menu]#[fg=%s bold]%s#[norange default]`+
 		`#{S:#[range=session|#{session_id}]%s  #{@cw_tab_label}#[norange] #[range=user|xt:#{session_name}]#[fg=%s]✕#[norange default]  }`+
 		`#[range=user|newtab]#[bg=colour237 fg=%s bold] + #[norange default]`+
@@ -104,7 +107,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		`#[range=user|stop]#[bg=colour52 fg=colour217 bold] ⏻ #[norange default] `,
 		colAccent, brand, isCurrent(`#[fg=`+colAccent+` bold]`, `#[fg=`+colMuted+`]`), colDim, colButton, colMuted)
 	// The underline spans the label and its ✕ (refreshTabLabel sizes it to match).
-	underlineRow := strings.Repeat(" ", len([]rune(brand))) +
+	underlineRow := "   #{s/./ /:@cw_ws_title}  " +
 		fmt.Sprintf(`#{S:#[range=session|#{session_id}]  %s  #[norange default]}`,
 			isCurrent(`#[fg=`+colAccent+`]#{@cw_tab_on}`, `#[fg=`+colDim+`]#{@cw_tab_off}`))
 

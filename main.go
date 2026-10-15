@@ -20,6 +20,7 @@ const usage = `cw — workspaces de sesiones de Claude Code en pestañas
 Uso:
   cw                       inicio: crear un workspace en este directorio o retomar uno
   cw new                   crea directamente un workspace en este directorio
+  cw new --id <ID>         crea un workspace con esa conversación de Claude (en su carpeta)
   cw start <nombre> [dir]  entra al workspace: si corre se reconecta, si está guardado lo
                            restaura, y si no existe lo crea con una pestaña en [dir] (por defecto .)
   cw ls                    lista los workspaces guardados y los que están corriendo
@@ -67,8 +68,14 @@ func run(args []string) error {
 		if len(pos) == 2 {
 			dir = pos[1]
 		}
-		return cmdStart(pos[0], dir, here)
+		return cmdStart(resolveWorkspace(pos[0]), dir, here)
 	case "new", "nuevo":
+		if len(rest) == 2 && rest[0] == "--id" {
+			return cmdNewFromID(rest[1])
+		}
+		if len(rest) != 0 {
+			return errors.New("uso: cw new [--id <ID de una conversación>]")
+		}
 		return cmdNewHere()
 	case "ls", "list":
 		return cmdList()
@@ -134,13 +141,19 @@ func withName(args []string, f func(string) error) error {
 	if len(args) != 1 {
 		return errors.New("falta el nombre del workspace")
 	}
-	if err := validWorkspaceName(args[0]); err != nil {
+	ws := resolveWorkspace(args[0])
+	if err := validWorkspaceName(ws); err != nil {
 		return err
 	}
-	return f(args[0])
+	return f(ws)
 }
 
-func cmdStart(ws, dir string, here bool) error {
+func cmdStart(ws, dir string, here bool) error { return startWorkspace(ws, dir, here, nil, "") }
+
+// startWorkspace enters a workspace: reconnects if it runs, restores it if saved, or creates it.
+// A new workspace gets one tab in dir, or seed (a tab already filled, e.g. with a conversation
+// brought in by its ID, opened as a resumed session) and title as its visible name.
+func startWorkspace(ws, dir string, here bool, seed *Tab, title string) error {
 	if err := validWorkspaceName(ws); err != nil {
 		return err
 	}
@@ -154,7 +167,7 @@ func cmdStart(ws, dir string, here bool) error {
 	if err != nil {
 		return fmt.Errorf("configuración inválida en %s: %w", configFile(), err)
 	}
-	if !here {
+	if !here && seed == nil {
 		if opened, err := openOwnWindow(ws, dir, cfg); opened || err != nil {
 			return err
 		}
@@ -186,13 +199,24 @@ func cmdStart(ws, dir string, here bool) error {
 			return err
 		}
 	case errors.Is(err, fs.ErrNotExist):
-		abs, err := expandPath(dir)
-		if err != nil || !isDir(abs) {
-			return fmt.Errorf("el directorio %q no existe", dir)
+		if seed != nil {
+			l.Cfg.LazyStart = false // the user asked for this conversation now
+			if err := l.openTab(t, t.nextTabSession(), seed, true); err != nil {
+				return err
+			}
+			dir = seed.Dir
+		} else {
+			abs, err := expandPath(dir)
+			if err != nil || !isDir(abs) {
+				return fmt.Errorf("el directorio %q no existe", dir)
+			}
+			tab := Tab{Title: filepath.Base(abs), Dir: abs}
+			if err := l.openTab(t, t.nextTabSession(), &tab, false); err != nil {
+				return err
+			}
 		}
-		tab := Tab{Title: filepath.Base(abs), Dir: abs}
-		if err := l.openTab(t, t.nextTabSession(), &tab, false); err != nil {
-			return err
+		if title != "" {
+			_, _ = t.Run("set", "-g", "@cw_ws_title", title)
 		}
 		if err := cmdSave(ws, false); err != nil {
 			return err
@@ -227,6 +251,13 @@ func restore(t Tmux, l *Launcher, w *Workspace) error {
 // attach replaces this process with the tmux client, landing on the last active tab.
 // launchDir — where cw was opened — becomes the default directory of the next new tab.
 func attach(t Tmux, launchDir string) error {
+	if cur, _ := t.Run("show", "-gqv", "@cw_ws_title"); cur == "" {
+		title := t.WS
+		if w, err := loadWorkspace(t.WS); err == nil && w.Title != "" {
+			title = w.Title
+		}
+		_, _ = t.Run("set", "-g", "@cw_ws_title", title)
+	}
 	if abs, err := expandPath(launchDir); err == nil && isDir(abs) {
 		_, _ = t.Run("set", "-g", "@cw_launch_dir", abs)
 	}
@@ -354,13 +385,16 @@ func describe(e entry) string {
 	if e.saved == nil {
 		return fmt.Sprintf("%-20s %-10s", e.name, state)
 	}
+	if e.saved.Title != "" && e.saved.Title != e.name {
+		state += " (id " + e.name + ")"
+	}
 	var titles []string
 	sessions := 0
 	for _, t := range e.saved.Tabs {
 		titles = append(titles, t.Title)
 		sessions += len(t.Slots)
 	}
-	return fmt.Sprintf("%-20s %-10s %2d pestañas, %2d sesiones · %s · %s", e.name, state,
+	return fmt.Sprintf("%-20s %-10s %2d pestañas, %2d sesiones · %s · %s", e.saved.displayTitle(), state,
 		len(e.saved.Tabs), sessions, e.saved.SavedAt.Local().Format("2006-01-02 15:04"), strings.Join(titles, ", "))
 }
 
@@ -383,7 +417,13 @@ func cmdNewHere() error {
 	if err != nil {
 		return err
 	}
-	base := strings.Trim(regexp.MustCompile(`[^A-Za-z0-9_-]+`).ReplaceAllString(filepath.Base(cwd), "-"), "-")
+	return cmdStart(freeWorkspaceName(cwd), cwd, false)
+}
+
+// freeWorkspaceName derives a workspace id from a directory name, with a numeric suffix when
+// that id is taken.
+func freeWorkspaceName(dir string) string {
+	base := strings.Trim(regexp.MustCompile(`[^A-Za-z0-9_-]+`).ReplaceAllString(filepath.Base(dir), "-"), "-")
 	if base == "" {
 		base = "cw"
 	}
@@ -398,5 +438,44 @@ func cmdNewHere() error {
 	for i := 2; taken[name]; i++ {
 		name = fmt.Sprintf("%s-%d", base, i)
 	}
-	return cmdStart(name, cwd, false)
+	return name
+}
+
+// cmdNewFromID creates a workspace around an existing Claude conversation: cw new --id <ID>.
+func cmdNewFromID(query string) error {
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	found := findConversations(query, cfg.claudeAliases())
+	switch len(found) {
+	case 0:
+		return fmt.Errorf("no encontré ninguna conversación de Claude con el ID %q", query)
+	case 1:
+		return startFromConversation(found[0])
+	}
+	var ids []string
+	for _, f := range found {
+		ids = append(ids, f.conv.ID)
+	}
+	return fmt.Errorf("el ID %q coincide con varias conversaciones: %s", query, strings.Join(ids, ", "))
+}
+
+// startFromConversation opens a new workspace whose first tab holds the conversation, resumed,
+// in the directory where it started.
+func startFromConversation(f foundConv) error {
+	dir := f.cwd
+	if !isDir(dir) {
+		dir, _ = os.Getwd()
+	}
+	name := cleanLabel(f.conv.Title)
+	if name == "" {
+		name = cleanLabel(shorten(strings.Join(strings.Fields(f.conv.First), "-"), 24))
+	}
+	if name == "" {
+		name = "claude"
+	}
+	tab := &Tab{Title: filepath.Base(dir), Dir: dir, Slots: []Slot{{Kind: kindClaude, Alias: name, Cwd: dir,
+		SessionID: f.conv.ID, ClaudeAlias: f.conv.Alias, Status: statusIdle}}}
+	return startWorkspace(freeWorkspaceName(dir), dir, true, tab, "")
 }

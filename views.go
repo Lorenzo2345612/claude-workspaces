@@ -7,16 +7,21 @@ import (
 	"strings"
 )
 
-// arrangeView applies a saved layout to a view (falling back to an even grid) and shows the
-// per-session title bars when the view holds more than one session.
+// arrangeView applies a layout to a view ("" keeps the current one; a saved layout that no longer
+// fits falls back to columns) and shows the per-session title bars when the view holds more
+// than one session.
 func (t Tmux) arrangeView(window, layout string) {
 	n, _ := t.Run("display", "-p", "-t", window, "#{window_panes}")
 	if n == "1" || n == "" {
 		_, _ = t.Run("set", "-w", "-t", window, "pane-border-status", "off")
 		return
 	}
-	if layout == "" || t.Command("select-layout", "-t", window, layout).Run() != nil {
-		_, _ = t.Run("select-layout", "-t", window, "tiled")
+	switch {
+	case layout == "":
+		// a session left the view: share the space out again, keeping the arrangement
+		_, _ = t.Run("select-layout", "-t", window, "-E")
+	case t.Command("select-layout", "-t", window, layout).Run() != nil:
+		_, _ = t.Run("select-layout", "-t", window, "even-horizontal")
 	}
 	_, _ = t.Run("set", "-w", "-t", window, "pane-border-status", "top")
 }
@@ -54,15 +59,12 @@ func cmdJoin(args []string) error {
 			return err
 		}
 	}
-	layout := ""
+	// Combined sessions show side by side, in columns, unless a layout was asked for.
+	layout := "even-horizontal"
 	if len(args) > 3 {
 		layout = args[3]
 	}
 	t.arrangeView(dstWin, layout)
-	if layout == "" {
-		// keep the drop position, just even the sizes out
-		_, _ = t.Run("select-layout", "-t", dstWin, "-E")
-	}
 	_, _ = t.Run("select-window", "-t", dstWin)
 	if session, err := t.Run("display", "-p", "-t", dstWin, "#{session_name}"); err == nil {
 		refreshTabLabel(t, session)

@@ -299,6 +299,7 @@ textarea.input { font-family: var(--mono); font-size: 12px; resize: vertical; mi
 .skyvoice { margin: 0 10px 8px; padding: 7px 10px; border-radius: 9px; font-size: 12px; display: flex; align-items: center; gap: 9px;
   background: color-mix(in srgb, var(--ok) 10%, transparent); border: 1px solid color-mix(in srgb, var(--ok) 35%, transparent); }
 .skyvoice.idle { background: transparent; border-color: var(--line); color: var(--muted); }
+.skyvoice a { color: var(--accent2); text-decoration: none; } .skyvoice a:hover { text-decoration: underline; }
 .skyvoice.err { background: transparent; border-color: color-mix(in srgb, var(--danger) 45%, transparent); color: var(--danger); }
 .skyvoice .wave { display: flex; gap: 2px; align-items: center; height: 14px; }
 .skyvoice .wave i { width: 3px; height: 4px; background: var(--ok); border-radius: 2px; animation: skywave 1s infinite ease-in-out; }

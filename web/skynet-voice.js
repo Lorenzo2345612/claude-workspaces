@@ -86,9 +86,18 @@
     try {
       V.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
     } catch (e) {
-      setMode('error', 'Sin acceso al micrófono: ' + e.message); return false;
+      setMode('error', e.name === 'NotAllowedError'
+        ? 'El navegador no dio permiso para el micrófono. En Edge: edge://settings/content/microphone y permite 127.0.0.1.'
+        : 'Sin micrófono: ' + e.message);
+      return false;
     }
     V.ctx = new AudioContext({ sampleRate: RATE });
+    // Opened without a click (the app starting), the browser keeps the audio paused until the
+    // first interaction with the window: resume it then.
+    const resume = () => { if (V.ctx && V.ctx.state === 'suspended') V.ctx.resume().catch(() => {}); };
+    V.ctx.onstatechange = draw;
+    resume();
+    for (const ev of ['pointerdown', 'keydown', 'focus']) window.addEventListener(ev, resume, true);
     const src = V.ctx.createMediaStreamSource(V.stream);
     V.node = V.ctx.createScriptProcessor(4096, 1, 1);
     let rest = new Float32Array(0);
@@ -200,11 +209,26 @@
     state: () => ({ on: V.on || V.push, label: V.mode === 'escuchando' ? '🎙' : (labels[V.mode] || '').replace('NAME', skyName()) }),
     renderBar(el) {
       if (!el) return;
-      if (V.mode === 'off' && !V.progress) { el.replaceChildren(); el.className = 'skyvoice'; return; }
+      if (V.mode === 'off' && !V.progress) {
+        el.className = 'skyvoice idle';
+        el.replaceChildren('🎙 La escucha está apagada. ', h('a', { href: '#', onclick: async ev => {
+          ev.preventDefault();
+          await api.do('config.set', { config: { skynet_voice: true } }).catch(e => toast(e.message, true));
+          await loadConfig(); sync();
+        } }, 'Activar'), ' · o Alt+J para hablar una vez');
+        return;
+      }
       el.className = 'skyvoice' + (V.mode === 'error' ? ' err' : V.mode === 'escuchando' || V.mode === 'cargando' ? ' idle' : '');
       const wave = h('span', { class: 'wave' }, h('i'), h('i'), h('i'), h('i'));
       const txt = V.progress || V.err || (labels[V.mode] || '').replace('NAME', skyName()) + (V.heard && V.mode !== 'escuchando' ? '  ' + V.heard : '');
-      el.replaceChildren(V.mode === 'activo' || V.mode === 'oyendo' ? wave : '', txt);
+      const paused = V.ctx && V.ctx.state === 'suspended' ? ' · haz clic en la ventana para activar el micrófono' : '';
+      el.replaceChildren(V.mode === 'activo' || V.mode === 'oyendo' ? wave : '', txt + paused,
+        V.mode === 'error' ? h('a', { href: '#', style: { marginLeft: 'auto' }, onclick: ev => { ev.preventDefault(); V.on = false; sync(); } }, 'Reintentar') :
+        V.on ? h('a', { href: '#', style: { marginLeft: 'auto' }, onclick: async ev => {
+          ev.preventDefault();
+          await api.do('config.set', { config: { skynet_voice: false } }).catch(e => toast(e.message, true));
+          await loadConfig(); sync();
+        } }, 'Apagar') : '');
     },
   };
 })();

@@ -65,21 +65,60 @@ Each release ships two packages with the same engine and the same saved format:
 
 ## Install
 
-Download the package for your system from the
-[latest release](https://github.com/Lorenzo2345612/claude-workspaces/releases/latest) and follow
-[`packaging/INSTALAR.md`](packaging/INSTALAR.md) (Spanish). In short:
+Download your package from the
+[latest release](https://github.com/Lorenzo2345612/claude-workspaces/releases/latest):
+`claude-workspaces-<v>-<os>` for the desktop app (it includes the terminal version too), or
+`cw-terminal-<v>-<os>` for the terminal version only. A step-by-step guide in Spanish is in
+[`packaging/INSTALAR.md`](packaging/INSTALAR.md).
 
-| System | Steps |
-|---|---|
-| macOS / Linux | `tar xzf cw-*-macos.tar.gz` (or `-linux`), then `sh install.sh` |
-| Windows | unzip `cw-*-windows.zip`, double-click `install.cmd` (installs into WSL and adds a «cw» Windows Terminal profile) |
+The installer asks before each step: it installs **tmux ≥ 3.3** (Homebrew / apt / dnf / pacman /
+zypper / apk, or builds it from source when the distro ships an older one), copies `cw` to
+`~/.local/bin`, creates the app shortcut (desktop package only) and offers to install
+**Claude Code** with its official installer.
 
-The installer asks before installing **tmux ≥ 3.3** (Homebrew / apt / dnf / pacman / zypper / apk,
-or builds it from source when the distro ships an older one), copies `cw` to `~/.local/bin`, and
-offers to install **Claude Code** with its official installer.
+### macOS
 
-On macOS the `Alt` shortcuts use the **Option** key: enable *“Use Option as Meta key”* in your
+```sh
+cd ~/Downloads
+tar xzf claude-workspaces-<v>-macos.tar.gz      # or cw-terminal-<v>-macos.tar.gz
+cd claude-workspaces-<v>-macos
+sh install.sh
+```
+
+- Homebrew is offered when missing (it asks for your Mac password).
+- The desktop package adds **Claude Workspaces.app** to `~/Applications` (Finder → your home
+  folder → Applications; drag it to the Dock). `cw app` in a terminal opens it too.
+- The app window is Chrome, Edge, Chromium or Brave in app mode; without any of them it opens as
+  a tab of your default browser.
+- Open a new terminal afterwards so `~/.local/bin` is on the `PATH`.
+- Terminal version: its `Alt` shortcuts use the **Option** key — enable *“Use Option as Meta
+  key”* in Terminal (*Settings → Profiles → Keyboard*) or iTerm2 (*Profiles → Keys → Left Option
+  key: Esc+*).
+
+### Windows (through WSL)
+
+1. Unzip `claude-workspaces-<v>-windows.zip` (or `cw-terminal-<v>-windows.zip`).
+2. Double-click **`install.cmd`**. Without WSL it offers to install Ubuntu (admin permission and
+   a restart); run `install.cmd` again afterwards.
+3. Open **Claude Workspaces** from the Start menu or the desktop (desktop package). The terminal
+   version is the **cw** profile of Windows Terminal, or `cw` in any Ubuntu terminal.
+
+### Linux
+
+```sh
+tar xzf claude-workspaces-<v>-linux.tar.gz      # or cw-terminal-<v>-linux.tar.gz
+cd claude-workspaces-<v>-linux
+sh install.sh
+```
+
+The desktop package adds **Claude Workspaces** to the applications menu; `cw app` opens it from a
 terminal.
+
+### Updates
+
+Both versions tell you when a new release is out and install it from there (the start screen of
+`cw`, a popup when entering a workspace, or a card in the app). `cw update` does it from the
+command line. Each install updates from its own package.
 
 ## Use
 

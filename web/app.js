@@ -3,6 +3,7 @@
 
 // ---------- helpers ----------
 const $ = (sel, el = document) => el.querySelector(sel);
+const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
 function h(tag, attrs, ...kids) {
   const el = document.createElement(tag);
   for (const [k, v] of Object.entries(attrs || {})) {
@@ -130,6 +131,11 @@ class Term {
     if (document.querySelector('.scrim')) return false; // a dialog is open over the terminal
     if (ev.key === 'Escape' && ctx) { if (ev.type === 'keydown') closeCtx(); ev.preventDefault(); return false; }
     if (shortcut(ev)) { ev.preventDefault(); return false; }
+    // Option is Meta for Claude's shortcuts, but keyboards like the Latin American or Spanish ones
+    // type symbols with it (Option+Q is @): a composed ASCII symbol is typed as itself.
+    if (isMac && ev.altKey && !ev.ctrlKey && !ev.metaKey && /^[!-\/:-@\[-`{-~]$/.test(ev.key)) {
+      this.term.input(ev.key, true); ev.preventDefault(); return false;
+    }
     const mod = ev.ctrlKey || ev.metaKey;
     if (mod && !ev.altKey && (ev.key === 'v' || ev.key === 'V')) return false; // the browser pastes
     if (mod && !ev.altKey && (ev.key === 'c' || ev.key === 'C') && (ev.shiftKey || this.term.hasSelection())) {

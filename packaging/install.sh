@@ -9,7 +9,8 @@
 #   1. installs tmux >= 3.3 if missing or too old (Homebrew on macOS; apt/dnf/pacman/zypper/apk
 #      on Linux; builds tmux from source when the distro's package is too old, e.g. Ubuntu 22.04);
 #   2. copies the cw binary for this OS/CPU into ~/.local/bin and makes sure it is on the PATH;
-#   3. offers to install Claude Code with its official installer when `claude` is missing.
+#   3. adds a «Claude Workspaces» menu entry for the desktop app on Linux desktops;
+#   4. offers to install Claude Code with its official installer when `claude` is missing.
 set -eu
 
 TMUX_SOURCE_VERSION=3.5a
@@ -165,6 +166,27 @@ case ":$PATH:" in
     ;;
 esac
 
+# ---------------------------------------------------------------- app launcher
+# A menu entry for the desktop app (cw app) on Linux desktops; Windows gets its shortcut from
+# install.ps1, macOS opens it with `cw app`.
+if [ "$OS" = linux ] && [ -z "${WSL_DISTRO_NAME:-}" ] && [ -f "$HERE/cw.png" ]; then
+  apps="${XDG_DATA_HOME:-$HOME/.local/share}/applications"
+  icons="${XDG_DATA_HOME:-$HOME/.local/share}/icons"
+  mkdir -p "$apps" "$icons"
+  cp "$HERE/cw.png" "$icons/claude-workspaces.png"
+  cat > "$apps/claude-workspaces.desktop" <<DESKTOP
+[Desktop Entry]
+Type=Application
+Name=Claude Workspaces
+Comment=Sesiones de Claude Code en pestañas
+Exec=$BIN_DIR/cw app
+Icon=$icons/claude-workspaces.png
+Terminal=false
+Categories=Development;
+DESKTOP
+  say "Agregada «Claude Workspaces» al menú de aplicaciones."
+fi
+
 # ---------------------------------------------------------------- Claude Code
 if command -v claude >/dev/null 2>&1 || [ -x "$HOME/.local/bin/claude" ]; then
   say "Claude Code ya está instalado."
@@ -177,4 +199,4 @@ elif [ "$CLAUDE" = 1 ]; then
   fi
 fi
 
-say "Listo. Escribe cw para empezar."
+say "Listo. Escribe cw app para abrir la app, o cw para la versión de terminal."

@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>cw · rediseño</title>
+<style>
+  :root {
+    --bg: #0e0f13; --panel: #15171d; --panel2: #1b1e26; --line: #262a35; --line2: #2f3442;
+    --text: #e8eaf0; --muted: #8b91a1; --dim: #5d6373;
+    --accent: #7c8cff; --accent2: #a78bfa; --accentbg: rgba(124,140,255,.14);
+    --green: #4ade80; --amber: #fbbf24; --red: #f87171;
+    --term: #0b0c10; --radius: 12px;
+    font-family: "Inter", "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #08090c; color: var(--text); font-size: 14px; }
+  .page { max-width: 1320px; margin: 0 auto; padding: 36px 32px 60px; }
+  h1 { font-size: 28px; margin: 0 0 6px; letter-spacing: -.02em; }
+  .lead { color: var(--muted); margin: 0 0 8px; max-width: 900px; line-height: 1.55; }
+  h2 { font-size: 18px; margin: 48px 0 6px; letter-spacing: -.01em; }
+  h2 small { color: var(--muted); font-weight: 400; font-size: 14px; margin-left: 8px; }
+  .note { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; line-height: 1.5; max-width: 980px; }
+
+  /* window chrome */
+  .win { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+         box-shadow: 0 30px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(255,255,255,.02) inset; }
+  .titlebar { height: 38px; display: flex; align-items: center; gap: 10px; padding: 0 14px;
+              background: #101218; border-bottom: 1px solid var(--line); }
+  .dots { display: flex; gap: 7px; } .dots i { width: 11px; height: 11px; border-radius: 50%; display: block; }
+  .dots i:nth-child(1){background:#ff5f57} .dots i:nth-child(2){background:#febc2e} .dots i:nth-child(3){background:#28c840}
+  .titlebar .t { color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+  .titlebar .sp { flex: 1; }
+  .ver { font-size: 11px; color: var(--dim); border: 1px solid var(--line2); padding: 2px 7px; border-radius: 99px; }
+
+  .app { display: grid; grid-template-columns: 236px 1fr; height: 640px; }
+  /* sidebar */
+  .side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; }
+  .ws { padding: 16px 16px 12px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
+  .logo { width: 30px; height: 30px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+          display: grid; place-items: center; font-weight: 700; color: #0b0c10; font-size: 15px; }
+  .ws b { font-size: 14px; display: block; } .ws span { color: var(--muted); font-size: 12px; }
+  .ws .chev { margin-left: auto; color: var(--dim); }
+  .sec { padding: 14px 16px 6px; font-size: 11px; letter-spacing: .08em; color: var(--dim); text-transform: uppercase;
+         display: flex; justify-content: space-between; align-items: center; }
+  .sec .add { color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; }
+  .tab { margin: 2px 8px; padding: 9px 10px; border-radius: 9px; display: flex; gap: 10px; align-items: flex-start; cursor: pointer; }
+  .tab:hover { background: var(--panel2); }
+  .tab.on { background: var(--accentbg); }
+  .tab .ic { width: 22px; height: 22px; border-radius: 6px; background: var(--panel2); display: grid; place-items: center; font-size: 12px; color: var(--muted); flex: none; margin-top: 1px; }
+  .tab.on .ic { background: var(--accent); color: #0b0c10; }
+  .tab .nm { font-weight: 600; font-size: 13.5px; } .tab .dir { color: var(--dim); font-size: 11.5px; margin-top: 2px; }
+  .tab .badges { margin-left: auto; display: flex; gap: 4px; margin-top: 2px; }
+  .b { font-size: 10.5px; padding: 1px 6px; border-radius: 99px; font-weight: 600; }
+  .b.busy { background: rgba(251,191,36,.15); color: var(--amber); }
+  .b.wait { background: rgba(248,113,113,.15); color: var(--red); }
+  .side .foot { margin-top: auto; padding: 12px; border-top: 1px solid var(--line); display: flex; gap: 8px; }
+  .ghost { flex: 1; border: 1px solid var(--line2); background: transparent; color: var(--muted); border-radius: 9px; padding: 8px; font: inherit; font-size: 12.5px; }
+  .power { width: 36px; border: 1px solid rgba(248,113,113,.35); background: rgba(248,113,113,.08); color: var(--red); border-radius: 9px; }
+
+  /* main */
+  .main { display: flex; flex-direction: column; min-width: 0; }
+  .sessions { display: flex; align-items: center; gap: 6px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: #111319; }
+  .s { display: flex; align-items: center; gap: 8px; padding: 7px 10px 7px 12px; border-radius: 9px; border: 1px solid transparent; color: var(--muted); font-size: 13px; cursor: pointer; }
+  .s:hover { background: var(--panel2); }
+  .s.on { background: var(--panel2); border-color: var(--line2); color: var(--text); }
+  .s .x { color: var(--dim); font-size: 12px; margin-left: 2px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; }
+  .dot.busy { background: var(--amber); box-shadow: 0 0 0 3px rgba(251,191,36,.15); }
+  .dot.idle { background: var(--green); } .dot.wait { background: var(--red); }
+  .tag { font-size: 10.5px; color: var(--accent2); background: rgba(167,139,250,.12); padding: 1px 6px; border-radius: 99px; }
+  .newbtn { margin-left: 6px; display: flex; gap: 6px; }
+  .pill { border: 1px dashed var(--line2); color: var(--muted); border-radius: 9px; padding: 6px 10px; font-size: 12.5px; background: transparent; font: inherit; font-size: 12.5px; }
+  .sessions .right { margin-left: auto; color: var(--dim); font-size: 12px; }
+
+  .stage { flex: 1; padding: 12px; display: flex; gap: 12px; min-height: 0; background: var(--bg); }
+  .term { flex: 1; background: var(--term); border: 1px solid var(--line); border-radius: var(--radius); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+  .term.on { border-color: rgba(124,140,255,.5); box-shadow: 0 0 0 1px rgba(124,140,255,.25); }
+  .thead { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); background: #0f1116; }
+  .thead b { color: var(--text); font-weight: 600; }
+  .thead .act { margin-left: auto; display: flex; gap: 10px; color: var(--dim); }
+  .tbody { padding: 14px 16px; font: 13px/1.6 "JetBrains Mono", "Cascadia Code", "SF Mono", Menlo, monospace; color: #c9cdd8; flex: 1; overflow: hidden; }
+  .tbody .u { color: #8be9fd; } .tbody .c { color: #a78bfa; } .tbody .g { color: var(--green); } .tbody .m { color: #6b7180; }
+  .tbody .prompt { margin-top: 12px; border: 1px solid #2a2f3b; border-radius: 10px; padding: 10px 12px; color: #9aa0ae; background: #0e1015; }
+
+  /* floating context panel */
+  .ctx { position: absolute; width: 300px; background: rgba(27,30,38,.96); backdrop-filter: blur(10px); border: 1px solid var(--line2);
+         border-radius: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.55); padding: 8px; font-size: 13px; }
+  .ctx h4 { margin: 4px 8px 8px; font-size: 13px; display: flex; justify-content: space-between; }
+  .ctx h4 span { color: var(--dim); font-weight: 400; cursor: pointer; }
+  .ctx .grp { color: var(--dim); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; padding: 8px 8px 4px; }
+  .ctx .it { padding: 7px 8px; border-radius: 7px; display: flex; gap: 10px; color: #d6d9e2; }
+  .ctx .it:hover, .ctx .it.hl { background: var(--accentbg); color: var(--text); }
+  .ctx .it .k { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .ctx .it.danger { color: var(--red); }
+  .rel { position: relative; }
+
+  /* other screens */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 22px; }
+  .start { padding: 40px 48px; background: radial-gradient(1200px 400px at 50% -10%, rgba(124,140,255,.12), transparent), var(--bg); }
+  .start h3 { margin: 0 0 4px; font-size: 22px; letter-spacing: -.01em; }
+  .start p { color: var(--muted); margin: 0 0 22px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .wcard { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .wcard.new { border-style: dashed; display: grid; place-items: center; color: var(--muted); text-align: center; }
+  .wcard .row { display: flex; justify-content: space-between; align-items: center; }
+  .wcard b { font-size: 15px; } .wcard .meta { color: var(--dim); font-size: 12px; margin-top: 6px; }
+  .wcard .chips { display: flex; gap: 6px; margin-top: 12px; flex-wrap: wrap; }
+  .chip { background: var(--panel2); border: 1px solid var(--line); border-radius: 99px; padding: 3px 9px; font-size: 11.5px; color: var(--muted); }
+  .live { color: var(--green); font-size: 11.5px; }
+
+  .modal { width: 520px; margin: 30px auto; background: var(--panel); border: 1px solid var(--line2); border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .modal header { padding: 18px 20px 4px; font-weight: 600; font-size: 16px; }
+  .modal .sub { padding: 0 20px 12px; color: var(--muted); font-size: 12.5px; border-bottom: 1px solid var(--line); }
+  .modal .body { padding: 16px 20px; display: grid; gap: 14px; }
+  label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 6px; }
+  .input { background: var(--bg); border: 1px solid var(--line2); border-radius: 9px; padding: 10px 12px; color: var(--text); font-size: 13.5px; }
+  .input.focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(124,140,255,.18); }
+  .seg { display: flex; gap: 6px; flex-wrap: wrap; }
+  .seg span { border: 1px solid var(--line2); border-radius: 9px; padding: 7px 11px; font-size: 12.5px; color: var(--muted); }
+  .seg span.on { border-color: var(--accent); background: var(--accentbg); color: var(--text); }
+  .code { font: 12px/1.5 "JetBrains Mono", Menlo, monospace; color: #9aa0ae; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 10px 12px; }
+  .check { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: 12.5px; }
+  .check i { width: 16px; height: 16px; border-radius: 5px; background: var(--accent); display: grid; place-items: center; color: #0b0c10; font-style: normal; font-size: 11px; }
+  .modal footer { padding: 14px 20px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--line); }
+  .btn { border-radius: 9px; padding: 9px 16px; font: inherit; font-size: 13px; border: 1px solid var(--line2); background: transparent; color: var(--text); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #0b0c10; font-weight: 600; }
+
+  .settings { display: grid; grid-template-columns: 200px 1fr; height: 470px; }
+  .settings nav { border-right: 1px solid var(--line); padding: 14px 8px; background: var(--panel); }
+  .settings nav div { padding: 8px 12px; border-radius: 8px; color: var(--muted); font-size: 13px; }
+  .settings nav div.on { background: var(--accentbg); color: var(--text); }
+  .settings section { padding: 22px 28px; }
+  .setrow { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .setrow small { display: block; color: var(--dim); margin-top: 3px; font-size: 12px; }
+  .toggle { width: 38px; height: 22px; border-radius: 99px; background: var(--line2); position: relative; }
+  .toggle.on { background: var(--accent); } .toggle i { position: absolute; top: 3px; left: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+  .toggle.on i { left: 19px; }
+  .swatches { display: flex; gap: 8px; } .swatches i { width: 22px; height: 22px; border-radius: 50%; display: block; border: 2px solid transparent; }
+  .swatches i.on { border-color: #fff; }
+
+  .tech { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; color: var(--muted); line-height: 1.6; font-size: 13.5px; }
+  .tech b { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>cw · rediseño</h1>
+  <p class="lead">Propuesta de una app de escritorio propia, sin aspecto de terminal: barra lateral con las pestañas,
+  sesiones como pestañas de navegador, paneles con bordes suaves y menús flotantes. Las sesiones de Claude siguen
+  siendo terminales de verdad dentro de cada panel. Por defecto se ve <b>una sola sesión</b>; dividir es opcional.</p>
+
+  <h2>1 · Vista normal <small>— una sesión, sin dividir</small></h2>
+  <p class="note">Izquierda: el workspace y sus pestañas (tareas), con su carpeta y contadores (● trabajando, ? pide permiso).
+  Arriba: las sesiones de la pestaña como pestañas de navegador, con su estado, su alias de Claude y su ✕. Abajo a la
+  izquierda, «Configuración» y el botón de apagar.</p>
+  <div class="win">
+    <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="t">cw — Backend KYC</span><span class="sp"></span><span class="ver">0.8.0</span></div>
+    <div class="app">
+      <aside class="side">
+        <div class="ws"><div class="logo">≡</div><div><b>Backend KYC</b><span>4 pestañas · 7 sesiones</span></div><span class="chev">⌄</span></div>
+        <div class="sec">Pestañas <span class="add">+</span></div>
+        <div class="tab on"><div class="ic">▤</div><div><div class="nm">bug-185</div><div class="dir">~/work/backend</div></div><div class="badges"><span class="b busy">● 2</span></div></div>
+        <div class="tab"><div class="ic">▤</div><div><div class="nm">front</div><div class="dir">~/work/frontend</div></div><div class="badges"><span class="b wait">? 1</span></div></div>
+        <div class="tab"><div class="ic">▤</div><div><div class="nm">infra</div><div class="dir">~/ops</div></div></div>
+        <div class="tab"><div class="ic">▤</div><div><div class="nm">revisiones</div><div class="dir">~/work/backend-wt-291</div></div></div>
+        <div class="foot"><button class="ghost">⚙ Configuración</button><button class="power" title="Apagar y guardar">⏻</button></div>
+      </aside>
+      <div class="main">
+        <div class="sessions">
+          <div class="s on"><span class="dot busy"></span>fix-matriz <span class="tag">yolo</span><span class="x">✕</span></div>
+          <div class="s"><span class="dot busy"></span>review-291 <span class="tag">claude-2</span><span class="x">✕</span></div>
+          <div class="s"><span class="dot idle"></span>tests<span class="x">✕</span></div>
+          <div class="s">❯ terminal<span class="x">✕</span></div>
+          <div class="newbtn"><button class="pill">＋ Claude</button><button class="pill">＋ Terminal</button></div>
+          <span class="right">~/work/backend</span>
+        </div>
+        <div class="stage">
+          <div class="term on">
+            <div class="thead"><span class="dot busy"></span><b>fix-matriz</b> · yolo · trabajando<span class="act">⇲ dividir &nbsp; ⋯</span></div>
+            <div class="tbody">
+              <div><span class="u">❯</span> arregla el filtro de acentos de la matriz de riesgo</div>
+              <div style="margin-top:10px"><span class="c">●</span> Revisé <span class="g">risk_matrix/services/catalog.py</span>: la búsqueda compara sin normalizar.</div>
+              <div class="m">  ⎿ Read webapp/risk_matrix/services/catalog.py (212 lines)</div>
+              <div class="m">  ⎿ Edit catalog.py · +6 −2</div>
+              <div style="margin-top:10px"><span class="c">●</span> Corrí los tests de <span class="g">risk_matrix</span>: 42 passed in 3.1s.</div>
+              <div class="m" style="margin-top:10px">✻ Pensando… (esc para interrumpir)</div>
+              <div class="prompt">Escribe un mensaje para Claude…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h2>2 · Vista combinada <small>— dos sesiones en columnas, con el panel de clic derecho abierto</small></h2>
+  <p class="note">Cada sesión tiene su propio encabezado (nombre, estado, alias). El clic derecho abre un panel flotante
+  que se queda abierto mientras haces varias acciones; se cierra con ✕ o Esc.</p>
+  <div class="win rel">
+    <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="t">cw — Backend KYC</span><span class="sp"></span><span class="ver">0.8.0</span></div>
+    <div class="app">
+      <aside class="side">
+        <div class="ws"><div class="logo">≡</div><div><b>Backend KYC</b><span>4 pestañas · 7 sesiones</span></div><span class="chev">⌄</span></div>
+        <div class="sec">Pestañas <span class="add">+</span></div>
+        <div class="tab on"><div class="ic">▤</div><div><div class="nm">bug-185</div><div class="dir">~/work/backend</div></div><div class="badges"><span class="b busy">● 2</span></div></div>
+        <div class="tab"><div class="ic">▤</div><div><div class="nm">front</div><div class="dir">~/work/frontend</div></div><div class="badges"><span class="b wait">? 1</span></div></div>
+        <div class="tab"><div class="ic">▤</div><div><div class="nm">infra</div><div class="dir">~/ops</div></div></div>
+        <div class="foot"><button class="ghost">⚙ Configuración</button><button class="power">⏻</button></div>
+      </aside>
+      <div class="main">
+        <div class="sessions">
+          <div class="s on">⧉ <span class="dot busy"></span>fix-matriz <span class="x">✕</span> <span style="color:var(--dim)">│</span> <span class="dot busy"></span>review-291 <span class="x">✕</span></div>
+          <div class="s"><span class="dot idle"></span>tests<span class="x">✕</span></div>
+          <div class="newbtn"><button class="pill">＋ Claude</button><button class="pill">＋ Terminal</button></div>
+        </div>
+        <div class="stage">
+          <div class="term on">
+            <div class="thead"><span class="dot busy"></span><b>fix-matriz</b> · yolo<span class="act">⇱ &nbsp; ✕</span></div>
+            <div class="tbody"><div><span class="u">❯</span> arregla el filtro de acentos</div><div style="margin-top:10px"><span class="c">●</span> Corrí los tests: 42 passed.</div><div class="m" style="margin-top:10px">✻ Pensando…</div><div class="prompt">Escribe un mensaje…</div></div>
+          </div>
+          <div class="term">
+            <div class="thead"><span class="dot busy"></span><b>review-291</b> · claude-2<span class="act">⇱ &nbsp; ✕</span></div>
+            <div class="tbody"><div><span class="u">❯</span> revisa el plan de la 291</div><div style="margin-top:10px"><span class="c">●</span> Encontré 3 riesgos en el plan…</div><div class="m" style="margin-top:10px">◯ 2 agentes en segundo plano</div><div class="prompt">Escribe un mensaje…</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="ctx" style="left: 330px; top: 92px;">
+      <h4>review-291 <span>✕</span></h4>
+      <div class="grp">Vista</div>
+      <div class="it">← Mover a la izquierda</div>
+      <div class="it">→ Mover a la derecha</div>
+      <div class="it hl">⧉ Ver junto a tests</div>
+      <div class="it">▥ Distribución <span class="k">columnas ›</span></div>
+      <div class="grp">Sesión</div>
+      <div class="it">▸ Renombrar</div>
+      <div class="it">✦ Cambiar alias de Claude <span class="k">claude-2</span></div>
+      <div class="it">⇱ Separar de la vista</div>
+      <div class="it danger">✕ Cerrar sesión</div>
+    </div>
+  </div>
+
+  <h2>3 · Inicio <small>— al abrir cw</small></h2>
+  <div class="win">
+    <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="t">cw</span><span class="sp"></span><span class="ver">0.8.0</span></div>
+    <div class="start">
+      <h3>Workspaces</h3>
+      <p>Retoma uno, crea uno nuevo en una carpeta o empieza desde una conversación de Claude.</p>
+      <div class="cards">
+        <div class="wcard"><div class="row"><b>Backend KYC</b><span class="live">● abierto</span></div><div class="meta">4 pestañas · 7 sesiones · hace 5 min</div><div class="chips"><span class="chip">bug-185</span><span class="chip">front</span><span class="chip">infra</span><span class="chip">+1</span></div></div>
+        <div class="wcard"><div class="row"><b>Revisión 291</b><span class="chip">apagado</span></div><div class="meta">2 pestañas · 3 sesiones · ayer · <span style="color:var(--amber)">● 2 trabajando al apagar</span></div><div class="chips"><span class="chip">plan</span><span class="chip">tests</span></div></div>
+        <div class="wcard"><div class="row"><b>Manual KYC</b><span class="chip">apagado</span></div><div class="meta">1 pestaña · 2 sesiones · 12 oct</div><div class="chips"><span class="chip">manual</span></div></div>
+        <div class="wcard new"><div><div style="font-size:22px">＋</div>Nuevo workspace aquí<div class="meta">~/work/backend</div></div></div>
+        <div class="wcard new"><div><div style="font-size:22px">↻</div>Desde una conversación<div class="meta">pega el ID de una sesión de Claude</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <h2>4 · Nueva sesión de Claude <small>— diálogo</small></h2>
+  <div class="grid2">
+    <div class="modal">
+      <header>Nueva sesión de Claude</header>
+      <div class="sub">en la pestaña bug-185 · ~/work/backend</div>
+      <div class="body">
+        <div><label>Nombre</label><div class="input focus">fix-matriz▍</div></div>
+        <div><label>Alias de Claude</label><div class="seg"><span>claude</span><span class="on">yolo</span><span>claude-2-yolo</span><span>dsl</span><span>＋</span></div></div>
+        <div><label>Argumentos extra</label><div class="input" style="color:var(--dim)">--model opus</div></div>
+        <div><label>Se ejecutará</label><div class="code">yolo --session-id 7c5d… --name fix-matriz</div></div>
+      </div>
+      <footer><button class="btn">Cancelar</button><button class="btn primary">Crear sesión</button></footer>
+    </div>
+    <div class="modal">
+      <header>Cambiar alias de la vista</header>
+      <div class="sub">2 sesiones · fix-matriz, review-291</div>
+      <div class="body">
+        <div><label>Nuevo alias</label><div class="seg"><span>claude</span><span>yolo</span><span class="on">claude-2-yolo</span><span>dsl</span></div></div>
+        <div class="check"><i>✓</i> Mandar «continue» a las que estaban trabajando</div>
+        <div class="code">fix-matriz → claude-2-yolo · se reinicia y continúa<br>review-291 → claude-2-yolo · se reinicia</div>
+      </div>
+      <footer><button class="btn">Cancelar</button><button class="btn primary">Cambiar 2 sesiones</button></footer>
+    </div>
+  </div>
+
+  <h2>5 · Configuración</h2>
+  <div class="win">
+    <div class="titlebar"><div class="dots"><i></i><i></i><i></i></div><span class="t">cw — Configuración</span></div>
+    <div class="settings">
+      <nav><div class="on">General</div><div>Alias de Claude</div><div>Apariencia</div><div>Atajos</div></nav>
+      <section>
+        <div class="setrow"><div>Mensaje de continuación<small>Lo reciben las sesiones que estaban trabajando al apagar o reiniciar.</small></div><div class="input" style="width:240px">continue</div></div>
+        <div class="setrow"><div>Arranque diferido<small>Las sesiones ociosas esperan a que entres en ellas.</small></div><div class="toggle"><i></i></div></div>
+        <div class="setrow"><div>Autoguardado<small>Cada cuánto se guarda el estado del workspace.</small></div><div class="seg"><span>1 min</span><span class="on">2 min</span><span>5 min</span></div></div>
+        <div class="setrow"><div>Tema de color</div><div class="swatches"><i class="on" style="background:#7c8cff"></i><i style="background:#a78bfa"></i><i style="background:#4ade80"></i><i style="background:#fb923c"></i><i style="background:#f472b6"></i><i style="background:#9ca3af"></i></div></div>
+      </section>
+    </div>
+  </div>
+
+  <h2>Qué implica</h2>
+  <div class="tech">
+    <b>Es una app de escritorio, no una app dentro de la terminal.</b> Para que se vea así hay que cambiar la base:
+    una ventana propia (Tauri o Wails) con una interfaz web, y cada sesión como una terminal real embebida
+    (xterm.js, el mismo motor de la terminal de VS Code). Lo que ya existe —workspaces, guardado y restauración,
+    alias de Claude, hooks de estado, retomar por ID, vistas combinadas— se conserva como el «motor» en Go.<br><br>
+    <b>Plataformas:</b> Windows nativo, macOS y Linux. <b>Memoria:</b> la ventana suma ~100–150 MB a lo que ya
+    gastan los procesos de Claude. <b>Esfuerzo:</b> varias semanas para tener la paridad con la versión actual.
+    <b>Mientras tanto</b> la versión de terminal sigue funcionando y actualizándose.
+  </div>
+</div>
+</body>
+</html>

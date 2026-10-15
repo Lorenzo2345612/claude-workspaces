@@ -22,14 +22,14 @@ pack_dir() { # name, binaries…
   d="$STAGE/$name"
   mkdir -p "$d/bin"
   for b in "$@"; do cp "$STAGE/$b" "$d/bin/"; done
-  cp "$ROOT/packaging/install.sh" "$ROOT/packaging/LEEME.txt" "$ROOT/packaging/INSTALAR.md" "$d/"
+  cp "$ROOT/packaging/install.sh" "$ROOT/packaging/LEEME.txt" "$ROOT/packaging/INSTALAR.md" "$ROOT/packaging/cw.png" "$d/"
   chmod 755 "$d/install.sh" "$d"/bin/*
 }
 
 pack_dir "cw-$VERSION-linux" cw-linux-amd64 cw-linux-arm64
 pack_dir "cw-$VERSION-macos" cw-darwin-amd64 cw-darwin-arm64
 pack_dir "cw-$VERSION-windows" cw-linux-amd64 cw-linux-arm64
-cp "$ROOT/packaging/install.ps1" "$ROOT/packaging/install.cmd" "$STAGE/cw-$VERSION-windows/"
+cp "$ROOT/packaging/install.ps1" "$ROOT/packaging/install.cmd" "$ROOT/packaging/cw.ico" "$STAGE/cw-$VERSION-windows/"
 
 tar -C "$STAGE" -czf "$OUT/cw-$VERSION-linux.tar.gz" "cw-$VERSION-linux"
 tar -C "$STAGE" -czf "$OUT/cw-$VERSION-macos.tar.gz" "cw-$VERSION-macos"

@@ -31,6 +31,10 @@ type Config struct {
 	DefaultClaudeAlias string        `json:"default_claude_alias"`
 	// Theme is the colour scheme: azul, morado, verde, naranja, rosa or gris.
 	Theme string `json:"theme"`
+	// AppPort is the local port of the app's server (cw app); 0 means the default.
+	AppPort int `json:"app_port,omitempty"`
+	// AppFontSize is the font size of the app's terminals; 0 means the default.
+	AppFontSize int `json:"app_font_size,omitempty"`
 }
 
 const (

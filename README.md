@@ -10,6 +10,13 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
    fix-matriz ○   review-arb ● yolo   shell     + Claude    + Terminal      ~/work/frontend
 ```
 
+- **Desktop app** (`cw app`, new in 0.8) — the same workspaces in a window of their own: a sidebar
+  with the tabs, sessions as browser-like tabs, real terminals (xterm.js) in rounded panels,
+  floating right-click panels, dialogs and a settings screen. One session per view by default;
+  combine views in columns, rows or a grid. The window is the system's Edge/Chrome engine in app
+  mode, served by a small local cw server; sessions keep running in tmux when the window closes
+  and reappear when it opens again. On Windows the installer adds a «Claude Workspaces» shortcut
+  (Start menu and desktop) that runs it inside WSL.
 - **Workspaces** — named sets of tabs. `cw` opens a start screen to create one in the current
   directory or resume a saved one. **Stop** saves the exact state (tabs, directories, sessions,
   their names and which ones were working); **start** reopens everything with `claude --resume`

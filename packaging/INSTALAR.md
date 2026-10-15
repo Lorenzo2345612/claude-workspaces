@@ -1,5 +1,10 @@
 # Cómo instalar cw
 
+> **La app de escritorio:** después de instalar, `cw app` abre una ventana propia con tus
+> workspaces (pestañas a la izquierda, sesiones arriba, terminales reales). Usa Edge o Chrome en
+> modo aplicación, así que no instala ningún navegador extra. Si cierras la ventana, las sesiones
+> siguen corriendo y vuelven a aparecer al abrirla.
+
 `cw` organiza tus sesiones de Claude Code en pestañas dentro de la terminal y guarda y restaura
 todo con un comando. Funciona en **macOS**, **Linux** y **Windows (a través de WSL)**.
 
@@ -23,7 +28,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.7.0-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.8.0-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -35,8 +40,10 @@ Según cómo esté tu equipo:
 - **Si ya tienes WSL**: instala todo dentro de tu distribución por defecto. Te puede pedir tu
   contraseña de Linux (la de `sudo`) para instalar tmux.
 
-Al terminar, abre **Windows Terminal**, haz clic en la flecha **˅** junto a la pestaña nueva y
-elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de Ubuntu.
+Al terminar, abre **Claude Workspaces** desde el menú Inicio o el escritorio: es la app, con su
+propia ventana. La versión de terminal sigue disponible: abre **Windows Terminal**, haz clic en
+la flecha **˅** junto a la pestaña nueva y elige el perfil **cw**, o escribe `cw` en cualquier
+terminal de Ubuntu.
 
 ---
 
@@ -46,8 +53,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.7.0-macos.tar.gz
-   cd cw-0.7.0-macos
+   tar xzf cw-0.8.0-macos.tar.gz
+   cd cw-0.8.0-macos
    sh install.sh
    ```
 
@@ -76,8 +83,8 @@ elige el perfil **cw**. También puedes escribir `cw` en cualquier terminal de U
 ## Linux
 
 ```sh
-tar xzf cw-0.7.0-linux.tar.gz
-cd cw-0.7.0-linux
+tar xzf cw-0.8.0-linux.tar.gz
+cd cw-0.8.0-linux
 sh install.sh
 ```
 

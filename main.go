@@ -19,6 +19,7 @@ const usage = `cw — workspaces de sesiones de Claude Code en pestañas
 
 Uso:
   cw                       inicio: crear un workspace en este directorio o retomar uno
+  cw app                   abre la app de escritorio (ventana propia con todas las sesiones)
   cw new                   crea directamente un workspace en este directorio
   cw new --id <ID>         crea un workspace con esa conversación de Claude (en su carpeta)
   cw start <nombre> [dir]  entra al workspace: si corre se reconecta, si está guardado lo
@@ -87,6 +88,10 @@ func run(args []string) error {
 		return withName(rest, cmdRemove)
 	case "config":
 		return cmdConfig()
+	case "app":
+		return cmdApp(rest)
+	case "_idle":
+		select {}
 	case "update", "actualizar":
 		return cmdUpdate(rest)
 	case "version", "--version", "-v":
@@ -162,6 +167,9 @@ func startWorkspace(ws, dir string, here bool, seed *Tab, title string) error {
 	}
 	if err := checkTmux(); err != nil {
 		return err
+	}
+	if t := (Tmux{WS: ws}); t.Running() && appMode(t) {
+		return fmt.Errorf("el workspace %q está abierto en la app; ábrelo con: cw app", ws)
 	}
 	cfg, err := loadConfig()
 	if err != nil {
@@ -277,6 +285,9 @@ func cmdSave(ws string, quiet bool) error {
 	t := Tmux{WS: ws}
 	if !t.Running() {
 		return fmt.Errorf("el workspace %q no está corriendo", ws)
+	}
+	if appMode(t) {
+		return appSave(ws)
 	}
 	w, err := t.capture()
 	if err != nil {

@@ -2,7 +2,8 @@
 #   1. comprueba que WSL tenga una distribución instalada (si no, la instala: pide permisos
 #      de administrador y luego hay que reiniciar y volver a correr el instalador);
 #   2. corre install.sh dentro de WSL (instala tmux, cw y, si quieres, Claude Code);
-#   3. agrega a Windows Terminal un perfil «cw» que abre cw directamente.
+#   3. agrega a Windows Terminal un perfil «cw» que abre cw directamente;
+#   4. crea los accesos directos «Claude Workspaces» (menú Inicio y escritorio) que abren la app.
 #
 # Uso: doble clic en install.cmd, o en PowerShell:  powershell -ExecutionPolicy Bypass -File install.ps1
 param([switch]$Yes, [switch]$NoClaude)
@@ -56,5 +57,25 @@ $json = $wtProfile | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Join-Path $fragmentDir 'cw.json'), $json, (New-Object System.Text.UTF8Encoding $false))
 Say 'Perfil «cw» agregado a Windows Terminal (menú ˅ de pestañas nuevas).'
 
-Say 'Listo. Abre Windows Terminal y elige el perfil «cw», o escribe cw en tu terminal de Ubuntu.'
+# Accesos directos de la app: un .vbs abre wsl.exe sin ventana de consola, y cw app --mantener
+# deja corriendo el lado Linux (servidor y sesiones) mientras la app está abierta.
+$appDir = Join-Path $env:LOCALAPPDATA 'cw'
+New-Item -ItemType Directory -Force -Path $appDir | Out-Null
+Copy-Item -Force (Join-Path $PSScriptRoot 'cw.ico') (Join-Path $appDir 'cw.ico')
+$vbs = Join-Path $appDir 'cw-app.vbs'
+$vbsText = "Set sh = CreateObject(""WScript.Shell"")`r`n" +
+    "sh.Run ""wsl.exe -d $distro --cd ~ -- bash -lc """"exec `$HOME/.local/bin/cw app --mantener"""""", 0, False`r`n"
+[System.IO.File]::WriteAllText($vbs, $vbsText, (New-Object System.Text.UTF8Encoding $false))
+$shell = New-Object -ComObject WScript.Shell
+foreach ($dir in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) {
+    $lnk = $shell.CreateShortcut((Join-Path $dir 'Claude Workspaces.lnk'))
+    $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
+    $lnk.Arguments = '"' + $vbs + '"'
+    $lnk.IconLocation = (Join-Path $appDir 'cw.ico')
+    $lnk.Description = 'Sesiones de Claude Code en pestañas'
+    $lnk.Save()
+}
+Say 'Accesos directos «Claude Workspaces» creados en el menú Inicio y el escritorio.'
+
+Say 'Listo. Abre «Claude Workspaces» desde el menú Inicio, o el perfil «cw» de Windows Terminal para la versión de terminal.'
 Read-Host 'Enter para cerrar' | Out-Null

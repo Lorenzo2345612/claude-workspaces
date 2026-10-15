@@ -34,6 +34,9 @@ type mcpTab struct {
 	Views    int            `json:"views"`
 	Counts   map[string]int `json:"counts,omitempty"`
 	sessions []mcpSession
+	id       string   // app workspaces: the tab's id in the layout
+	session  string   // terminal workspaces: the tmux session that is the tab
+	viewIDs  []string // app workspaces: the id of each view, in order
 }
 
 type mcpWorkspace struct {
@@ -87,8 +90,32 @@ func mcpLoad(ws string) (*mcpWorkspace, error) {
 		}
 	}
 	out := &mcpWorkspace{Name: ws, Title: w.Title, Running: true, App: app, Dir: w.Dir, Counts: map[string]int{}}
+	// The ids the actions need, in the order the capture lists tabs and views.
+	var layout *appLayout
+	var tmuxSessions []string
+	if app {
+		layout = t.loadLayout()
+	} else if rows, err := t.Lines("list-sessions", "-F", "#{session_name}"); err == nil {
+		for _, r := range rows {
+			tmuxSessions = append(tmuxSessions, r[0])
+		}
+		sort.Strings(tmuxSessions)
+	}
 	for i, tab := range w.Tabs {
 		mt := mcpTab{Index: i + 1, Title: tab.Title, Dir: tab.Dir, Active: i == w.ActiveTab, Counts: map[string]int{}}
+		if layout != nil && i < len(layout.Tabs) {
+			mt.id = layout.Tabs[i].ID
+			for _, v := range layout.Tabs[i].Views {
+				for _, id := range v.Slots {
+					if panes[id] != "" {
+						mt.viewIDs = append(mt.viewIDs, v.ID)
+						break
+					}
+				}
+			}
+		} else if i < len(tmuxSessions) {
+			mt.session = tmuxSessions[i]
+		}
 		for _, s := range tab.Slots {
 			ms := mcpSession{ID: s.ID, Name: s.Alias, Kind: s.Kind, Status: mcpStatus(s), Dir: s.Cwd,
 				Workspace: ws, Tab: tab.Title, TabIndex: i + 1, View: s.View + 1, pane: panes[s.ID]}

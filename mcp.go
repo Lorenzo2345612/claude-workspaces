@@ -41,7 +41,9 @@ func cmdMCP() error {
 		byName[t.Name] = t
 	}
 	in := bufio.NewReaderSize(os.Stdin, 1<<20)
+	// stdout carries only the protocol: whatever a reused step prints goes to stderr instead.
 	enc := json.NewEncoder(os.Stdout)
+	os.Stdout = os.Stderr
 	reply := func(id json.RawMessage, result any, rerr *rpcError) {
 		msg := map[string]any{"jsonrpc": "2.0", "id": id}
 		if rerr != nil {
@@ -169,5 +171,5 @@ func argInt(a map[string]any, k string, def int) int {
 
 // mcpTools is every tool cw mcp offers.
 func mcpTools() []mcpTool {
-	return append(mcpReadTools(), mcpSessionTools()...)
+	return append(append(mcpReadTools(), mcpSessionTools()...), mcpStructTools()...)
 }

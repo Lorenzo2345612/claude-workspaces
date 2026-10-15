@@ -64,7 +64,12 @@ if ($desktop) {
     # deja corriendo el lado Linux (servidor y sesiones) mientras la app está abierta.
     $appDir = Join-Path $env:LOCALAPPDATA 'cw'
     New-Item -ItemType Directory -Force -Path $appDir | Out-Null
-    Copy-Item -Force (Join-Path $PSScriptRoot 'cw.ico') (Join-Path $appDir 'cw.ico')
+    # Explorer caches a shortcut's icon by file path: a name that changes with the content makes a
+    # new logo show up instead of the cached old one.
+    $icoHash = (Get-FileHash (Join-Path $PSScriptRoot 'cw.ico') -Algorithm SHA256).Hash.Substring(0, 8).ToLower()
+    $ico = Join-Path $appDir "cw-$icoHash.ico"
+    Get-ChildItem $appDir -Filter 'cw*.ico' -ErrorAction SilentlyContinue | Where-Object { $_.FullName -ne $ico } | Remove-Item -Force -ErrorAction SilentlyContinue
+    Copy-Item -Force (Join-Path $PSScriptRoot 'cw.ico') $ico
     $vbs = Join-Path $appDir 'cw-app.vbs'
     $vbsText = "Set sh = CreateObject(""WScript.Shell"")`r`n" +
         "sh.Run ""wsl.exe -d $distro --cd ~ -- bash -lc """"exec `$HOME/.local/bin/cw app --mantener"""""", 0, False`r`n"
@@ -74,10 +79,11 @@ if ($desktop) {
         $lnk = $shell.CreateShortcut((Join-Path $dir 'Claude Workspaces.lnk'))
         $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
         $lnk.Arguments = '"' + $vbs + '"'
-        $lnk.IconLocation = (Join-Path $appDir 'cw.ico')
+        $lnk.IconLocation = $ico
         $lnk.Description = 'Sesiones de Claude Code en pestañas'
         $lnk.Save()
     }
+    & (Join-Path $env:WINDIR 'System32\ie4uinit.exe') -show 2>$null # refresh Explorer's icon cache
     Say 'Accesos directos «Claude Workspaces» creados en el menú Inicio y el escritorio.'
 }
 

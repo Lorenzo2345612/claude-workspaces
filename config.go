@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Config holds the user-editable settings, stored in ~/.config/cw/config.json.
@@ -38,6 +39,18 @@ type Config struct {
 	// AutoSwitchAlias moves a session whose Claude account ran out of quota to an alias of an
 	// account that still has it; nil means on.
 	AutoSwitchAlias *bool `json:"auto_switch_alias,omitempty"`
+	// Skynet is the orchestrator: a Claude session (Sonnet by default) that sees every workspace
+	// and drives them through cw mcp, by text or by voice in the app. Off by default.
+	SkynetEnabled bool   `json:"skynet_enabled,omitempty"`
+	SkynetName    string `json:"skynet_name,omitempty"`  // the name that wakes it by voice; "" means Skynet
+	SkynetModel   string `json:"skynet_model,omitempty"` // "" means sonnet
+	// SkynetAlias pins the claude alias it runs with; "" picks one with quota and switches
+	// to another when that account runs out.
+	SkynetAlias string `json:"skynet_alias,omitempty"`
+	// SkynetNotify tells the user when a session asks something; nil means on.
+	SkynetNotify *bool `json:"skynet_notify,omitempty"`
+	// SkynetVoice listens to the microphone in the app's window.
+	SkynetVoice bool `json:"skynet_voice,omitempty"`
 	// SkynetAutoApprove lets the orchestrator answer permission dialogs without asking the user.
 	SkynetAutoApprove bool `json:"skynet_auto_approve,omitempty"`
 	// HideClaudeAlias drops the plain "claude" alias from the list (when there are others).
@@ -123,3 +136,19 @@ func writeFileAtomic(path string, data []byte) error {
 }
 
 func (c Config) autoSwitchAlias() bool { return c.AutoSwitchAlias == nil || *c.AutoSwitchAlias }
+
+func (c Config) skynetName() string {
+	if n := strings.TrimSpace(c.SkynetName); n != "" {
+		return n
+	}
+	return "Skynet"
+}
+
+func (c Config) skynetModel() string {
+	if c.SkynetModel != "" {
+		return c.SkynetModel
+	}
+	return "sonnet"
+}
+
+func (c Config) skynetNotify() bool { return c.SkynetNotify == nil || *c.SkynetNotify }

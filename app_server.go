@@ -559,6 +559,7 @@ func (s *appServer) autosaveLoop() {
 		case <-time.After(20 * time.Second):
 		}
 		quotaTick()
+		skynetTick()
 		cfg, _ := loadConfig()
 		for _, ws := range runningWorkspaces() {
 			t := Tmux{WS: ws}

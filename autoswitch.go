@@ -18,7 +18,7 @@ import (
 const quotaCheckEvery = 55 * time.Second
 
 // limitMessageRe recognises Claude Code's notice that the account hit its limit.
-var limitMessageRe = regexp.MustCompile(`(?i)(usage limit|limit reached|límite de uso|limite alcanzado|límite alcanzado|out of (extra )?usage)`)
+var limitMessageRe = regexp.MustCompile(`(?i)(usage limit|limit reached|hit your (\w+ )?limit|límite de uso|limite alcanzado|límite alcanzado|out of (extra )?usage)`)
 
 // quotaTick runs the check at most once every quotaCheckEvery across every cw process (the app's
 // server and the terminal workspaces' autosave both call it).

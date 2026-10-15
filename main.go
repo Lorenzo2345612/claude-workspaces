@@ -30,6 +30,7 @@ Uso:
   cw rm <nombre>           borra el estado guardado de un workspace apagado
   cw uso                   uso de Claude de cada cuenta: sesión de 5 h, semana, reinicios y tokens
   cw mcp                   servidor MCP (stdio) con herramientas para ver y manejar los workspaces
+  cw skynet                chat con Skynet, el orquestador (--estado, --detener, --nueva)
   cw config                muestra la ruta y el contenido de la configuración
   cw version               muestra la versión
   cw update [--check]      se actualiza a la última versión publicada (--check solo avisa)
@@ -155,6 +156,8 @@ func run(args []string) error {
 		return cmdUso()
 	case "mcp":
 		return cmdMCP()
+	case "skynet":
+		return cmdSkynet(rest)
 	case "app":
 		return cmdApp(rest)
 	case "_idle":
@@ -406,6 +409,7 @@ func cmdStop(ws string) error {
 
 func cmdAutosave(ws string) error {
 	quotaTick()
+	skynetTick()
 	settleWaiting(ws)
 	cfg, _ := loadConfig()
 	if st, err := os.Stat(workspaceFile(ws)); err == nil &&

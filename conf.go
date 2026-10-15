@@ -119,9 +119,16 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		// A tmux range also claims the cell right after it, so a space outside any range separates
 		// the session's range from its ✕ (otherwise clicking the ✕ would select the session).
 		// A view showing several sessions lists them all: "⧉ api ● · ui ○".
-		item := fmt.Sprintf(`#{@cw_alias}%s#[%s]%s#{?#{e|<:#{pane_index},#{window_panes}}, · ,}`, indicator, style, alias)
-		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#[range=window|#{window_index}]#[%s] #{?#{e|>:#{window_panes},1},⧉ ,}#{P:%s,%s}#[norange] #[range=user|xw:#{window_id}]#[%s]✕#[norange] #[default] }`,
-			style, item, item, style)
+		single := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] #{@cw_alias}%s#[%s]%s#[norange] #[range=user|xw:#{window_id}]#[%s]✕#[norange] #[default] `,
+			style, indicator, style, alias, style)
+		// A view with several sessions: each session is its own clickable item with its own ✕
+		// (closing only that session), like a session on its own; the active one is bold.
+		// tmux resolves a "pane" range to the view's active pane, so each name carries its own
+		// pane id in a user range ("sp:%N") that the click handlers read.
+		item := fmt.Sprintf(`#[range=user|sp:#{pane_id}]#[%s]#{?pane_active,#[bold],#[nobold]}#{@cw_alias}%s#[%s]%s#[norange] #[range=user|xw:#{pane_id}]#[%s]✕#[norange]#{?#{e|<:#{pane_index},#{window_panes}},#[%s] │ ,}`,
+			style, indicator, style, alias, style, style)
+		multi := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] ⧉ #[norange]#{P:%s,%s}#[%s] #[default] `, style, item, item, style)
+		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#{?#{e|>:#{window_panes},1},%s,%s}}`, multi, single)
 	}
 	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[bg=colour237 fg=%s bold] + Claude #[norange default]  `+
 		`#[range=user|newshell]#[bg=colour237 fg=%s bold] + Terminal #[norange default]`+
@@ -213,10 +220,10 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// Right click: a context menu for the tab or the session under the mouse.
 	tabMenu := fmt.Sprintf(`display-menu -T "#[align=centre] #{@cw_title} " -x M -y S "← Mover a la izquierda" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' -1" } "→ Mover a la derecha" "" { run-shell "%[1]s _tabmove %[2]s '#{client_session}' +1" } "" "▸ Renombrar pestaña" "" { %[3]s } "✦ Alias de claude de la pestaña" "" { %[5]s } "✕ Cerrar pestaña" "" { %[4]s }`,
 		bq, ws, renameTab, confirmCloseTab, bulkTab)
-	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = } { if -F "#{==:#{mouse_status_range},window}" { run-shell -t = "%s _slotmenu %s '#{client_name}' '#{window_id}' '#{mouse_x}' '#{mouse_y}'" } } }`, bq, ws)
+	w(`bind -n MouseDown3Status { if -F "#{==:#{mouse_status_range},session}" { switch-client -t = } { if -F "#{==:#{mouse_status_range},window}" { run-shell -t = "%[1]s _slotmenu %[2]s '#{client_name}' '#{window_id}' '#{mouse_x}' '#{mouse_y}'" } { if -F "#{m:sp:*,#{mouse_status_range}}" { run-shell "%[1]s _slotmenu %[2]s '#{client_name}' '#{s/^sp.//:mouse_status_range}' '#{mouse_x}' '#{mouse_y}'" } } } }`, bq, ws)
 	// The session menu is prepared on press and opened on release: a menu opened after the
 	// press's run-shell closes as soon as the button comes up.
-	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{==:#{mouse_status_range},window}" { source-file -q "%s" } } }`, tabMenu, slotMenuFile(ws))
+	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{||:#{==:#{mouse_status_range},window},#{m:sp:*,#{mouse_status_range}}}" { source-file -q "%s" } } }`, tabMenu, slotMenuFile(ws))
 	// Menus open when the button comes up: one opened on press closes as soon as it is released
 	// away from an item, and keeping it open (-O) stops its items from taking clicks.
 	w(`bind -n MouseUp1Status { if -F "#{==:#{mouse_status_range},menu}" { %s } }`, mainMenu)
@@ -235,7 +242,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 		{"help", helpPopup}, {"stop", confirmStop},
 	}
 	// A click on a session pill selects that window; a click on a tab switches to that tab.
-	click := `if -F "#{==:#{mouse_status_range},window}" { select-window -t = } { switch-client -t = }`
+	click := `if -F "#{==:#{mouse_status_range},window}" { select-window -t = } { if -F "#{m:sp:*,#{mouse_status_range}}" { run-shell -C "select-window -t #{s/^sp.//:mouse_status_range} ; select-pane -t #{s/^sp.//:mouse_status_range}" } { switch-client -t = } }`
 	click = fmt.Sprintf(`if -F "#{m:x[tw]:*,#{mouse_status_range}}" { run-shell "%s _barclick %s '#{client_name}' '#{mouse_status_range}'" } { %s }`, bq, ws, click)
 	for i := len(clicks) - 1; i >= 0; i-- {
 		click = fmt.Sprintf(`if -F "#{==:#{mouse_status_range},%s}" { %s } { %s }`, clicks[i].rng, clicks[i].cmd, click)

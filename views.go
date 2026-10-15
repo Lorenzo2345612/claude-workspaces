@@ -141,15 +141,24 @@ func cmdSlotMenu(args []string) error {
 	if len(args) != 5 {
 		return fmt.Errorf("uso: _slotmenu <ws> <cliente> <vista> <x> <y>")
 	}
-	ws, client, win, x, y := args[0], args[1], args[2], args[3], args[4]
+	ws, client, target, x, y := args[0], args[1], args[2], args[3], args[4]
 	t := Tmux{WS: ws}
 	migrateLegacyOptions(t)
+	// A pane target (%N) is one session of a combined view: its menu covers just that session.
+	onlyPane := ""
+	if strings.HasPrefix(target, "%") {
+		onlyPane = target
+	}
+	win, err := t.Run("display", "-p", "-t", target, "#{window_id}")
+	if err != nil {
+		return err
+	}
 	bin, err := os.Executable()
 	if err != nil {
 		return err
 	}
 	session, _ := t.Run("display", "-p", "-t", win, "#{session_name}")
-	info, _ := t.Run("display", "-p", "-t", win, "#{window_panes}"+sep+"#{@cw_kind}"+sep+"#{@cw_alias}")
+	info, _ := t.Run("display", "-p", "-t", target, "#{window_panes}"+sep+"#{@cw_kind}"+sep+"#{@cw_alias}")
 	f := strings.Split(info, sep)
 	q := func(s string) string { return strings.ReplaceAll(s, `"`, `\"`) }
 	shell := func(a ...string) string {
@@ -165,27 +174,31 @@ func cmdSlotMenu(args []string) error {
 	_ = client
 	menu := []string{"display-menu", "-x", x, "-y", y, "-T", "#[align=centre] " + q(title) + " ", "--"}
 	add := func(label, cmd string) { menu = append(menu, label, "", cmd) }
-	add("← Mover a la izquierda", fmt.Sprintf("select-window -t %s ; swap-window -t -1", win))
-	add("→ Mover a la derecha", fmt.Sprintf("select-window -t %s ; swap-window -t +1", win))
-	menu = append(menu, "", "", "")
-	others := 0
-	for _, v := range listViews(t) {
-		if v.window == win || v.session != session {
-			continue
+	if onlyPane != "" {
+		add("◉ Ir a esta sesión", fmt.Sprintf("select-window -t %s ; select-pane -t %s", win, onlyPane))
+	} else {
+		add("← Mover a la izquierda", fmt.Sprintf("select-window -t %s ; swap-window -t -1", win))
+		add("→ Mover a la derecha", fmt.Sprintf("select-window -t %s ; swap-window -t +1", win))
+		menu = append(menu, "", "", "")
+		others := 0
+		for _, v := range listViews(t) {
+			if v.window == win || v.session != session {
+				continue
+			}
+			others++
+			add("⧉ Ver junto a "+q(shorten(strings.Join(v.names, " · "), 30)), shell("_join", ws, v.window, win))
 		}
-		others++
-		add("⧉ Ver junto a "+q(shorten(strings.Join(v.names, " · "), 30)), shell("_join", ws, v.window, win))
+		if others == 0 {
+			menu = append(menu, "-⧉ No hay otras sesiones en esta pestaña", "", "")
+		}
+		add("⧉ Combinar con sesiones de otras pestañas…",
+			fmt.Sprintf("select-window -t %s ; %s", win, popup("Combinar sesiones en esta vista", 78, 24, "_ui", "combine", ws)))
 	}
-	if others == 0 {
-		menu = append(menu, "-⧉ No hay otras sesiones en esta pestaña", "", "")
-	}
-	add("⧉ Combinar con sesiones de otras pestañas…",
-		fmt.Sprintf("select-window -t %s ; %s", win, popup("Combinar sesiones en esta vista", 78, 24, "_ui", "combine", ws)))
 	// One group per session of the view: every action names the pane it acts on, so in a
 	// combined view each session can be renamed, edited or given another alias on its own.
 	panes, _ := t.Lines("list-panes", "-t", win, "-F", "#{pane_id}"+sep+"#{@cw_alias}"+sep+"#{@cw_kind}")
 	for _, p := range panes {
-		if len(p) != 3 || p[2] == kindHome {
+		if len(p) != 3 || p[2] == kindHome || (onlyPane != "" && p[0] != onlyPane) {
 			continue
 		}
 		name := p[1]
@@ -193,7 +206,7 @@ func cmdSlotMenu(args []string) error {
 			name = "shell"
 		}
 		menu = append(menu, "", "", "")
-		if len(panes) > 1 {
+		if len(panes) > 1 && onlyPane == "" {
 			menu = append(menu, "-"+q(shorten(name, 34)), "", "")
 		}
 		if p[2] == kindClaude {
@@ -206,7 +219,7 @@ func cmdSlotMenu(args []string) error {
 		}
 		add("  ✕ Cerrar", popup("Cerrar sesión", 66, 13, "_ui", "confirm", ws, "close", p[0]))
 	}
-	if len(panes) > 1 {
+	if len(panes) > 1 && onlyPane == "" {
 		menu = append(menu, "", "", "")
 		add("✦ Cambiar alias de toda la vista…", fmt.Sprintf("select-window -t %s ; %s", win, popup("Alias de claude de la vista", 70, 16, "_ui", "bulkalias", ws, "view")))
 		add("✕ Cerrar la vista", popup("Cerrar vista", 66, 13, "_ui", "confirm", ws, "close", win))

@@ -158,13 +158,32 @@ func fillAccountUsage(u *accountUsage) {
 		u.Err = "la sesión de esta cuenta venció; abre Claude con uno de sus alias para renovarla"
 		return
 	}
+	// Every cw process (app server, quota check, popups, cw mcp) asks for the same numbers: they
+	// share one answer per account for a minute, and a failed query falls back to the last one.
+	cache := filepath.Join(runDir(), "usage-"+shortHash(u.ConfigDir)+".json")
+	var cached usageCache
+	if data, err := os.ReadFile(cache); err == nil && json.Unmarshal(data, &cached) == nil {
+		if time.Since(cached.Tried) < usageCacheFor {
+			cached.apply(u)
+			return
+		}
+	}
+	cached.Tried = time.Now()
+	fail := func(msg string) {
+		_ = writeJSONFile(cache, cached)
+		if !cached.At.IsZero() && time.Since(cached.At) < 30*time.Minute {
+			cached.apply(u)
+			return
+		}
+		u.Err = msg
+	}
 	req, _ := http.NewRequest("GET", usageAPI, nil)
 	req.Header.Set("Authorization", "Bearer "+cred.AccessToken)
 	req.Header.Set("anthropic-beta", "oauth-2025-04-20")
 	req.Header.Set("User-Agent", "cw/"+version)
 	resp, err := (&http.Client{Timeout: 8 * time.Second}).Do(req)
 	if err != nil {
-		u.Err = "no pude consultar el uso: " + err.Error()
+		fail("no pude consultar el uso: " + err.Error())
 		return
 	}
 	defer resp.Body.Close()
@@ -173,7 +192,7 @@ func fillAccountUsage(u *accountUsage) {
 		return
 	}
 	if resp.StatusCode != http.StatusOK {
-		u.Err = "el servicio de uso respondió " + resp.Status
+		fail("el servicio de uso respondió " + resp.Status)
 		return
 	}
 	var body map[string]json.RawMessage
@@ -193,6 +212,41 @@ func fillAccountUsage(u *accountUsage) {
 		return &usageWindow{Pct: *w.Utilization, ResetsAt: t}
 	}
 	u.Session, u.Week, u.WeekOpus, u.WeekSonnet = win("five_hour"), win("seven_day"), win("seven_day_opus"), win("seven_day_sonnet")
+	cached = usageCache{At: cached.Tried, Tried: cached.Tried, Session: u.Session, Week: u.Week, WeekOpus: u.WeekOpus, WeekSonnet: u.WeekSonnet}
+	_ = writeJSONFile(cache, cached)
+}
+
+const usageCacheFor = 50 * time.Second
+
+// usageCache is the last answer of the usage service for one account.
+type usageCache struct {
+	At         time.Time    `json:"at"`    // when the windows below were read (zero: never)
+	Tried      time.Time    `json:"tried"` // the last query, successful or not
+	Session    *usageWindow `json:"session,omitempty"`
+	Week       *usageWindow `json:"week,omitempty"`
+	WeekOpus   *usageWindow `json:"weekOpus,omitempty"`
+	WeekSonnet *usageWindow `json:"weekSonnet,omitempty"`
+}
+
+func (c usageCache) apply(u *accountUsage) {
+	if c.At.IsZero() {
+		u.Err = "el servicio de uso no respondió; reintento en un momento"
+		return
+	}
+	u.Session, u.Week, u.WeekOpus, u.WeekSonnet = c.Session, c.Week, c.WeekOpus, c.WeekSonnet
+}
+
+func shortHash(s string) string {
+	h := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(h[:4])
+}
+
+func writeJSONFile(path string, v any) error {
+	data, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+	return writeFileAtomic(path, data)
 }
 
 type claudeOAuth struct {

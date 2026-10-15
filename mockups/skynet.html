@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>cw · Skynet (mockup)</title>
+<style>
+:root{--bg:#141414;--side:#111;--raise:#1b1b1b;--raise2:#202020;--line:rgba(255,255,255,.075);--line2:rgba(255,255,255,.12);
+--text:#e9e7e3;--muted:#9b988f;--dim:#67645e;--accent:#8c95cf;--accent2:#a5aee0;--accentbg:rgba(140,149,207,.16);
+--busy:#ff9f0a;--wait:#ff3b30;--ok:#30d158;--mono:"Cascadia Mono",Consolas,Menlo,monospace}
+*{box-sizing:border-box}body{margin:0;background:#0b0b0b;color:var(--text);font:13px "Segoe UI",system-ui,sans-serif;padding:24px}
+h1{font-size:18px;margin:0 0 4px}h2{font-size:14px;margin:28px 0 10px;color:var(--accent2)}.note{color:var(--muted);margin:0 0 16px;max-width:900px;line-height:1.5}
+.app{display:grid;grid-template-columns:230px 1fr 380px;height:640px;border:1px solid var(--line2);border-radius:10px;overflow:hidden;background:var(--bg)}
+.side{background:var(--side);border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;padding:2px 8px 12px}.logo{width:18px;height:18px;border-radius:5px;background:linear-gradient(#2a2b33,#141416);display:grid;place-items:center;color:#a5aee0;font-size:12px}
+.tab{padding:6px 8px;border-radius:6px;display:flex;justify-content:space-between;color:var(--muted)}.tab.on{background:rgba(255,255,255,.075);color:var(--text)}
+.ses{padding:4px 8px 4px 22px;display:flex;align-items:center;gap:7px;color:var(--muted);font-size:12px}
+.d{width:7px;height:7px;border-radius:50%;display:inline-block}.d.busy{background:var(--busy)}.d.waiting{background:var(--wait)}.d.idle{background:var(--ok)}
+.cnt{font-size:11px;display:flex;gap:6px}.cnt i{font-style:normal;display:flex;align-items:center;gap:3px}
+.foot{margin-top:auto;border-top:1px solid var(--line);padding-top:8px}.sk{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;background:var(--accentbg);color:var(--accent2)}
+.mic{width:8px;height:8px;border-radius:50%;background:var(--ok);box-shadow:0 0 0 0 rgba(48,209,88,.7);animation:p 1.6s infinite}@keyframes p{70%{box-shadow:0 0 0 7px rgba(48,209,88,0)}}
+.main{display:flex;flex-direction:column}.bar{height:38px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:6px;padding:0 10px}
+.pill{padding:4px 10px;border-radius:99px;background:var(--raise2);color:var(--muted);font-size:12px;display:flex;gap:6px;align-items:center}.pill.on{color:var(--text);background:rgba(255,255,255,.1)}
+.term{flex:1;font:12px/1.55 var(--mono);padding:14px;color:#cfcac0;white-space:pre;overflow:hidden}
+.term .q{color:#fff;background:#262626;display:block;padding:6px 8px;border-left:3px solid var(--wait)}
+.chat{border-left:1px solid var(--line);background:var(--raise);display:flex;flex-direction:column}
+.chead{padding:10px 12px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}.chead b{flex:1}
+.state{font-size:11px;color:var(--ok);display:flex;align-items:center;gap:6px}
+.msgs{flex:1;padding:12px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.m{max-width:92%;padding:8px 10px;border-radius:10px;line-height:1.45}.m.u{align-self:flex-end;background:var(--accentbg);color:var(--text)}.m.u small{display:block;color:var(--accent2);font-size:10px;margin-bottom:2px}
+.m.s{align-self:flex-start;background:var(--raise2)}
+.tool{font:11px var(--mono);color:var(--dim);padding:2px 4px}.tool b{color:var(--muted);font-weight:normal}
+.ask{border:1px solid rgba(255,59,48,.45);background:rgba(255,59,48,.08);border-radius:10px;padding:10px}
+.ask .t{font-size:11px;color:var(--wait);display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.opts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}.opts span{padding:4px 9px;border-radius:6px;background:var(--raise2);border:1px solid var(--line2);font-size:12px}
+.input{border-top:1px solid var(--line);padding:10px;display:flex;gap:8px;align-items:center}
+.input .box{flex:1;background:var(--raise2);border:1px solid var(--line2);border-radius:8px;padding:8px 10px;color:var(--dim)}
+.micbtn{width:32px;height:32px;border-radius:8px;background:var(--raise2);border:1px solid var(--line2);display:grid;place-items:center}
+.listen{margin:0 12px 10px;padding:8px 10px;border-radius:8px;background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.35);display:flex;gap:10px;align-items:center;font-size:12px}
+.wave{display:flex;gap:2px;align-items:center;height:16px}.wave i{width:3px;background:var(--ok);border-radius:2px;animation:w 1s infinite ease-in-out}.wave i:nth-child(2){animation-delay:.15s}.wave i:nth-child(3){animation-delay:.3s}.wave i:nth-child(4){animation-delay:.45s}@keyframes w{0%,100%{height:4px}50%{height:15px}}
+.row{display:flex;gap:24px;flex-wrap:wrap}
+.card{background:var(--raise);border:1px solid var(--line2);border-radius:10px;padding:16px;width:440px}
+.f{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}.f:last-child{border:0}.f span{color:var(--muted);font-size:12px}
+.tg{width:30px;height:17px;border-radius:99px;background:var(--accent);position:relative}.tg:after{content:"";position:absolute;right:2px;top:2px;width:13px;height:13px;border-radius:50%;background:#fff}
+.tg.off{background:#444}.tg.off:after{left:2px;right:auto}
+.sel{background:var(--raise2);border:1px solid var(--line2);border-radius:6px;padding:4px 8px;font-size:12px}
+table{border-collapse:collapse;width:100%;font-size:12px}td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child{font-family:var(--mono);color:var(--accent2);white-space:nowrap}
+.grp{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em;padding-top:12px}
+.menu{background:var(--raise2);border:1px solid var(--line2);border-radius:8px;padding:5px;width:240px}.menu div{padding:6px 10px;border-radius:5px;display:flex;justify-content:space-between}.menu .hl{background:rgba(255,255,255,.07)}
+</style></head><body>
+<h1>Skynet — orquestador por voz y texto</h1>
+<p class="note">Mockup. Panel de chat a la derecha de la app. Escucha el nombre configurado («Skynet»), transcribe la instrucción en tu equipo y actúa sobre los workspaces con las herramientas de cw. Cuando una sesión pregunta algo, te avisa aquí y respondes por voz o por texto.</p>
+
+<h2>1 · App con Skynet abierto</h2>
+<div class="app">
+  <div class="side">
+    <div class="brand"><span class="logo">✦</span>backend</div>
+    <div class="tab on"><span>kyc</span><span class="cnt"><i><span class="d busy"></span>2</i><i><span class="d waiting"></span>1</i></span></div>
+    <div class="ses"><span class="d waiting"></span>fix-matriz</div>
+    <div class="ses"><span class="d busy"></span>review-arb</div>
+    <div class="ses"><span class="d busy"></span>tests-kyc</div>
+    <div class="tab"><span>bug-185</span><span class="cnt"><i><span class="d idle"></span>1</i></span></div>
+    <div class="tab"><span>front</span><span class="cnt"><i><span class="d busy"></span>1</i></span></div>
+    <div class="tab"><span>infra</span><span class="cnt"><i><span class="d idle"></span>2</i></span></div>
+    <div class="foot"><div class="sk"><span class="mic"></span>Skynet · escuchando</div></div>
+  </div>
+  <div class="main">
+    <div class="bar"><span class="pill"><span class="d waiting"></span>fix-matriz</span><span class="pill on"><span class="d busy"></span>review-arb</span><span class="pill"><span class="d busy"></span>tests-kyc</span></div>
+<div class="term">● Leyendo webapp/risk_matrix/migrations/0042_statistic.py
+● Corriendo pytest risk_matrix -k statistic …  23 passed
+
+<span class="q">¿Borro la migración 0042 y la regenero con el campo nuevo?
+ ❯ 1. Sí, regenerarla
+   2. No, crear una 0043 encima
+   3. Type something.</span>
+</div>
+  </div>
+  <div class="chat">
+    <div class="chead"><span class="logo">✦</span><b>Skynet</b><span class="state"><span class="mic"></span>escuchando «Skynet»</span></div>
+    <div class="msgs">
+      <div class="m u"><small>🎙 voz</small>Skynet, ¿cómo van las sesiones de kyc?</div>
+      <div class="tool">⚙ <b>listar_sesiones</b>(pestaña: kyc)</div>
+      <div class="m s">En <b>kyc</b> hay tres: <b>review-arb</b> y <b>tests-kyc</b> están trabajando; <b>fix-matriz</b> está esperando una respuesta tuya.</div>
+      <div class="ask">
+        <div class="t"><span class="d waiting"></span>kyc › fix-matriz pregunta</div>
+        ¿Borro la migración 0042 y la regenero con el campo nuevo?
+        <div class="opts"><span>1 · Sí, regenerarla</span><span>2 · No, crear una 0043</span><span>Ir a la sesión</span></div>
+      </div>
+      <div class="m u"><small>🎙 voz</small>Dile que cree una 0043, y en tests-kyc que cuando termine corra también los de watchlists.</div>
+      <div class="tool">⚙ <b>responder_pregunta</b>(fix-matriz, opción 2)</div>
+      <div class="tool">⚙ <b>enviar_a_sesion</b>(tests-kyc, «al terminar corre también los tests de watchlists»)</div>
+      <div class="m s">Listo: fix-matriz va a crear la 0043, y tests-kyc correrá los de watchlists al terminar.</div>
+    </div>
+    <div class="listen"><span class="wave"><i></i><i></i><i></i><i></i></span>«…y abre una pestaña nueva para infra…»</div>
+    <div class="input"><div class="box">Escribe o di «Skynet…»</div><div class="micbtn">🎙</div></div>
+  </div>
+</div>
+
+<h2>2 · Ajustes → Skynet, y menú del workspace</h2>
+<div class="row">
+  <div class="card">
+    <div class="f"><div>Skynet<br><span>Orquestador por voz y texto</span></div><div class="tg"></div></div>
+    <div class="f"><div>Nombre para activarlo</div><div class="sel">Skynet</div></div>
+    <div class="f"><div>Alias que usa<br><span>Su consumo sale de esa cuenta</span></div><div class="sel">claude-2-yolo ▾</div></div>
+    <div class="f"><div>Modelo</div><div class="sel">Sonnet ▾</div></div>
+    <div class="f"><div>Escuchar el micrófono<br><span>La voz se transcribe en tu equipo</span></div><div class="tg"></div></div>
+    <div class="f"><div>Avisar cuando una sesión pregunta</div><div class="tg"></div></div>
+    <div class="f"><div>Aprobar permisos sin preguntarme</div><div class="tg off"></div></div>
+  </div>
+  <div class="menu">
+    <div>Nueva pestaña</div><div>Carpeta del workspace…</div><div>Uso</div><div>Recursos</div>
+    <div class="hl"><span>✦ Skynet</span><span style="color:var(--ok)">encendido</span></div>
+    <div>Ajustes</div>
+  </div>
+</div>
+
+<h2>3 · Herramientas de Skynet (todo lo que hace la app)</h2>
+<div class="card" style="width:900px"><table>
+<tr><td colspan="2" class="grp">Leer</td></tr>
+<tr><td>listar_workspaces</td><td>Workspaces abiertos y guardados, con sus contadores de estado</td></tr>
+<tr><td>listar_pestanas</td><td>Pestañas de un workspace: nombre, carpeta, contadores</td></tr>
+<tr><td>listar_vistas</td><td>Vistas (grupos de sesiones lado a lado) dentro de una pestaña</td></tr>
+<tr><td>listar_sesiones</td><td>Sesiones de una vista, pestaña o workspace: nombre, tipo, alias, estado, carpeta</td></tr>
+<tr><td>leer_sesion</td><td>Pantalla actual o últimas N líneas de una sesión</td></tr>
+<tr><td>ver_pregunta</td><td>Pregunta o permiso pendiente de una sesión, con sus opciones</td></tr>
+<tr><td>conversaciones</td><td>Conversaciones recientes de Claude que se pueden reanudar</td></tr>
+<tr><td>uso · recursos</td><td>Cuota de cada cuenta; memoria y CPU por sesión</td></tr>
+<tr><td>alias · ajustes</td><td>Alias de Claude configurados y la configuración de cw</td></tr>
+<tr><td colspan="2" class="grp">Sesiones</td></tr>
+<tr><td>enviar_a_sesion</td><td>Escribe un mensaje y lo envía a una sesión</td></tr>
+<tr><td>responder_pregunta</td><td>Elige una opción o escribe una respuesta (permisos: solo con tu confirmación)</td></tr>
+<tr><td>interrumpir</td><td>Esc a una sesión que está trabajando</td></tr>
+<tr><td>nueva_sesion</td><td>Claude (con alias) o terminal, en una pestaña o vista</td></tr>
+<tr><td>dividir · enfocar</td><td>Divide una vista con una sesión nueva; enfoca una sesión</td></tr>
+<tr><td>renombrar · editar</td><td>Cambia nombre, alias o carpeta de una sesión</td></tr>
+<tr><td>suspender · reanudar</td><td>Una sesión o una pestaña entera</td></tr>
+<tr><td>reiniciar · cerrar · reabrir</td><td>Reinicia el proceso, cierra o reabre la última cerrada</td></tr>
+<tr><td colspan="2" class="grp">Pestañas y vistas</td></tr>
+<tr><td>nueva_pestana · renombrar · mover · cerrar</td><td>Gestión de pestañas; carpeta de la pestaña</td></tr>
+<tr><td>seleccionar · mover · unir · disposición · a_pestana · cerrar</td><td>Gestión de vistas</td></tr>
+<tr><td>cambiar_alias</td><td>Alias de varias sesiones a la vez (vista, pestaña o todo)</td></tr>
+<tr><td colspan="2" class="grp">Workspaces</td></tr>
+<tr><td>abrir · apagar · carpeta</td><td>Abre o apaga un workspace; cambia su carpeta</td></tr>
+<tr><td colspan="2" class="grp">Comunicación</td></tr>
+<tr><td>avisar</td><td>Muestra un aviso en la app y en la terminal</td></tr>
+<tr><td>skills</td><td>Skills propios de Skynet (resumen del día, revisar sesiones paradas, etc.)</td></tr>
+</table></div>
+</body></html>

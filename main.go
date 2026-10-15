@@ -29,6 +29,7 @@ Uso:
   cw stop <nombre>         guarda el estado y apaga el workspace (también: cw apagar)
   cw rm <nombre>           borra el estado guardado de un workspace apagado
   cw uso                   uso de Claude de cada cuenta: sesión de 5 h, semana, reinicios y tokens
+  cw mcp                   servidor MCP (stdio) con herramientas para ver y manejar los workspaces
   cw config                muestra la ruta y el contenido de la configuración
   cw version               muestra la versión
   cw update [--check]      se actualiza a la última versión publicada (--check solo avisa)
@@ -152,6 +153,8 @@ func run(args []string) error {
 		return cmdConfig()
 	case "uso", "usage":
 		return cmdUso()
+	case "mcp":
+		return cmdMCP()
 	case "app":
 		return cmdApp(rest)
 	case "_idle":

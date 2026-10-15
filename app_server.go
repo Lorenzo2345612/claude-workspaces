@@ -100,9 +100,26 @@ func cmdApp(args []string) error {
 		}
 	}
 	dir, _ := os.Getwd()
+	// Started from a shortcut, the Dock or a menu, the PATH is the bare system one (no Homebrew,
+	// no ~/.local/bin): take the user's shell PATH before looking for tmux or claude.
+	adoptShellPath()
 	if foreground {
 		return serveApp(dir)
 	}
+	if hold {
+		// Launched by a shortcut: nobody sees stderr, so a failure is logged and shown.
+		if err := cmdAppRun(dir, window, printURL, stop, hold); err != nil {
+			reportLaunchError(err)
+			return err
+		}
+		return nil
+	}
+	return cmdAppRun(dir, window, printURL, stop, hold)
+}
+
+// cmdAppRun is cmdApp after its flags: find or start the server, open the window, and wait
+// while it runs when hold is set.
+func cmdAppRun(dir string, window, printURL, stop, hold bool) error {
 	if os.Getenv("CW_WS") != "" && window {
 		return errors.New("estás dentro de un workspace de la terminal; abre la app desde otra terminal")
 	}
@@ -226,13 +243,19 @@ func urlQueryEscape(s string) string {
 // shortcut or a menu entry, it gets a bare PATH without what ~/.bashrc or ~/.zshrc add (often
 // ~/.local/bin, where claude lives), and every session it opens would inherit that.
 func adoptShellPath() {
+	if os.Getenv("CW_SHELL_PATH") == "1" {
+		return // inherited from the cw that started this one
+	}
+	defer os.Setenv("CW_SHELL_PATH", "1")
 	sh := os.Getenv("SHELL")
 	if sh == "" {
 		sh = "/bin/bash"
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, sh, "-ic", `printf '\n@@CWPATH@@%s@@\n' "$PATH"`)
+	// Login and interactive: zsh on macOS sets up Homebrew in .zprofile (login), most PATH
+	// additions live in .bashrc / .zshrc (interactive).
+	cmd := exec.CommandContext(ctx, sh, "-lic", `printf '\n@@CWPATH@@%s@@\n' "$PATH"`)
 	cmd.Env = append(os.Environ(), "TERM=dumb")
 	cmd.Stdin = nil
 	out, _ := cmd.Output()
@@ -243,7 +266,8 @@ func adoptShellPath() {
 		}
 	}
 	parts = append(parts, filepath.SplitList(os.Getenv("PATH"))...)
-	parts = append(parts, filepath.Join(homeDir(), ".local", "bin"), filepath.Join(homeDir(), ".claude", "local"))
+	parts = append(parts, filepath.Join(homeDir(), ".local", "bin"), filepath.Join(homeDir(), ".claude", "local"),
+		"/opt/homebrew/bin", "/usr/local/bin", "/home/linuxbrew/.linuxbrew/bin")
 	seen := map[string]bool{}
 	var merged []string
 	for _, d := range parts {
@@ -253,6 +277,25 @@ func adoptShellPath() {
 		}
 	}
 	os.Setenv("PATH", strings.Join(merged, string(filepath.ListSeparator)))
+}
+
+// reportLaunchError records why the app did not open and shows it: a dialog on macOS, a desktop
+// notification on Linux when available.
+func reportLaunchError(err error) {
+	msg := "Claude Workspaces no pudo abrirse: " + err.Error()
+	if f, e := os.OpenFile(filepath.Join(runDir(), "app-launch.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); e == nil {
+		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), msg)
+		f.Close()
+	}
+	switch {
+	case runtime.GOOS == "darwin":
+		script := `display alert "Claude Workspaces" message ` + strconv.Quote(msg) + ` as critical`
+		_ = exec.Command("osascript", "-e", script).Run()
+	default:
+		if p, e := exec.LookPath("notify-send"); e == nil {
+			_ = exec.Command(p, "Claude Workspaces", msg).Run()
+		}
+	}
 }
 
 func serveApp(launchDir string) error {

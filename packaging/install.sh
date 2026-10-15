@@ -194,7 +194,10 @@ if [ "$OS" = darwin ] && [ -f "$HERE/cw.icns" ]; then
   cp "$HERE/cw.icns" "$app/Contents/Resources/cw.icns"
   cat > "$app/Contents/MacOS/claude-workspaces" <<APP
 #!/bin/sh
-exec "$BIN_DIR/cw" app --mantener
+# Opened from Finder or the Dock the PATH is the bare system one: Homebrew and ~/.local/bin first.
+export PATH="/opt/homebrew/bin:/usr/local/bin:\$HOME/.local/bin:\$PATH"
+mkdir -p "\$HOME/.local/share/cw/run"
+exec "$BIN_DIR/cw" app --mantener >>"\$HOME/.local/share/cw/run/app-launch.log" 2>&1
 APP
   chmod 755 "$app/Contents/MacOS/claude-workspaces"
   cat > "$app/Contents/Info.plist" <<PLIST

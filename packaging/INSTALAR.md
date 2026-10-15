@@ -28,7 +28,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `cw-0.8.2-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `cw-0.8.3-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -53,8 +53,8 @@ terminal de Ubuntu.
 
    ```sh
    cd ~/Downloads
-   tar xzf cw-0.8.2-macos.tar.gz
-   cd cw-0.8.2-macos
+   tar xzf cw-0.8.3-macos.tar.gz
+   cd cw-0.8.3-macos
    sh install.sh
    ```
 
@@ -83,8 +83,8 @@ terminal de Ubuntu.
 ## Linux
 
 ```sh
-tar xzf cw-0.8.2-linux.tar.gz
-cd cw-0.8.2-linux
+tar xzf cw-0.8.3-linux.tar.gz
+cd cw-0.8.3-linux
 sh install.sh
 ```
 

@@ -38,20 +38,20 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	newClaudePopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Nueva sesión de Claude " "%s _ui newclaude %s"`, bq, ws)
 	sessionsPopup := fmt.Sprintf(`display-popup -E -w 78 -h 22 -T " Sesiones " "%s _ui sessions %s"`, bq, ws)
 	editCurrentPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Editar sesión " "%s _ui editcurrent %s"`, bq, ws)
-	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}'"`, bq, ws)
+	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}' || true"`, bq, ws)
 	renameTab := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar pestaña " "%s _ui rename %s tab"`, bq, ws)
-	configMenu := fmt.Sprintf(`run-shell -b "%s _configmenu %s '#{client_name}'"`, bq, ws)
+	configMenu := fmt.Sprintf(`run-shell -b "%s _configmenu %s '#{client_name}' || true"`, bq, ws)
 	renameSlot := fmt.Sprintf(`display-popup -E -w 70 -h 10 -T " Renombrar sesión " "%s _ui rename %s slot"`, bq, ws)
 	bulkTab := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude de la pestaña " "%s _ui bulkalias %s tab"`, bq, ws)
 	bulkAll := fmt.Sprintf(`display-popup -E -w 70 -h 16 -T " Alias de claude del workspace " "%s _ui bulkalias %s all"`, bq, ws)
 	switchAliasPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Cambiar alias de claude " "%s _ui editcurrent %s"`, bq, ws)
 	helpPopup := fmt.Sprintf(`display-popup -E -w 82 -h 30 -T " Ayuda " "%s _ui help %s"`, bq, ws)
-	save := fmt.Sprintf(`run-shell "%s save %s" ; display-message "Estado guardado"`, bq, ws)
+	save := fmt.Sprintf(`run-shell "%s save %s >/dev/null 2>&1 || true" ; display-message "Estado guardado"`, bq, ws)
 	resumeIDPopup := fmt.Sprintf(`display-popup -E -w 84 -h 20 -T " Retomar sesión de Claude por ID " "%s _ui resumeid %s"`, bq, ws)
 	combinePopup := fmt.Sprintf(`display-popup -E -w 78 -h 24 -T " Combinar sesiones en esta vista " "%s _ui combine %s"`, bq, ws)
-	splitOut := fmt.Sprintf(`run-shell "%s _splitout %s '#{pane_id}'"`, bq, ws)
+	splitOut := fmt.Sprintf(`run-shell "%s _splitout %s '#{pane_id}' || true"`, bq, ws)
 	layoutCmd := func(name string) string {
-		return fmt.Sprintf(`run-shell "%s _layout %s '#{window_id}' %s"`, bq, ws, name)
+		return fmt.Sprintf(`run-shell "%s _layout %s '#{window_id}' %s || true"`, bq, ws, name)
 	}
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
@@ -198,14 +198,14 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	w(`bind -n M-e { %s }`, sessionsPopup)
 	w(`bind -n M-p { %s }`, switchAliasPopup)
 	// Closing a session changes its tab's counters.
-	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s" }`, bq, ws)
+	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s || true" }`, bq, ws)
 	// Enter on a session that exited with an error reopens it; anywhere else it is a plain Enter.
-	w(`bind -n Enter { if -F "#{pane_dead}" { run-shell "%s _respawn %s '#{pane_id}'" } { send-keys Enter } }`, bq, ws)
+	w(`bind -n Enter { if -F "#{pane_dead}" { run-shell "%s _respawn %s '#{pane_id}' || true" } { send-keys Enter } }`, bq, ws)
 	// Reordering: Alt+Shift+←/→ moves the current session, Alt+< / Alt+> the current tab.
 	w(`bind -n M-S-Left swap-window -d -t -1`)
 	w(`bind -n M-S-Right swap-window -d -t +1`)
-	w(`bind -n M-< run-shell "%s _tabmove %s '#{client_session}' -1"`, bq, ws)
-	w(`bind -n M-> run-shell "%s _tabmove %s '#{client_session}' +1"`, bq, ws)
+	w(`bind -n M-< run-shell "%s _tabmove %s '#{client_session}' -1 || true"`, bq, ws)
+	w(`bind -n M-> run-shell "%s _tabmove %s '#{client_session}' +1 || true"`, bq, ws)
 	// Dragging in the bar: a session pill swaps with the one under the mouse; a tab moves to the
 	// position of the tab under the mouse.
 	// Pills swap natively (run-shell -C runs a tmux command, no process): the dragged session
@@ -222,7 +222,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	// The session menu is prepared on press and opened on release: a menu opened after the
 	// press's run-shell closes as soon as the button comes up.
 	ctx := func(kind, target string) string {
-		return fmt.Sprintf(`run-shell -b -t = "%s _ctxpopup %s '#{client_name}' %s '%s'"`, bq, ws, kind, target)
+		return fmt.Sprintf(`run-shell -b -t = "%s _ctxpopup %s '#{client_name}' %s '%s' || true"`, bq, ws, kind, target)
 	}
 	w(`bind -n MouseUp3Status { if -F "#{==:#{mouse_status_range},session}" { %s } { if -F "#{==:#{mouse_status_range},window}" { %s } { if -F "#{m:sp:*,#{mouse_status_range}}" { %s } } } }`,
 		ctx("tab", "#{session_id}"), ctx("slot", "#{window_id}"), ctx("slot", "#{s/^sp.//:mouse_status_range}"))
@@ -245,7 +245,7 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	}
 	// A click on a session pill selects that window; a click on a tab switches to that tab.
 	click := `if -F "#{==:#{mouse_status_range},window}" { select-window -t = } { if -F "#{m:sp:*,#{mouse_status_range}}" { run-shell -C "select-window -t #{s/^sp.//:mouse_status_range} ; select-pane -t #{s/^sp.//:mouse_status_range}" } { switch-client -t = } }`
-	click = fmt.Sprintf(`if -F "#{m:x[tw]:*,#{mouse_status_range}}" { run-shell "%s _barclick %s '#{client_name}' '#{mouse_status_range}'" } { %s }`, bq, ws, click)
+	click = fmt.Sprintf(`if -F "#{m:x[tw]:*,#{mouse_status_range}}" { run-shell "%s _barclick %s '#{client_name}' '#{mouse_status_range}' || true" } { %s }`, bq, ws, click)
 	for i := len(clicks) - 1; i >= 0; i-- {
 		click = fmt.Sprintf(`if -F "#{==:#{mouse_status_range},%s}" { %s } { %s }`, clicks[i].rng, clicks[i].cmd, click)
 	}
@@ -257,6 +257,6 @@ func tmuxConf(ws, bin string, barTop bool) string {
 	w(`unbind -n MouseDragEnd1Status`)
 	// Right click inside a session (unless the program there uses the mouse): its action panel.
 	w(`bind -n MouseDown3Pane { select-pane -t = ; if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } }`)
-	w(`bind -n MouseUp3Pane { if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { run-shell -b -t = "%s _ctxpopup %s '#{client_name}' slot '#{pane_id}'" } }`, bq, ws)
+	w(`bind -n MouseUp3Pane { if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } { run-shell -b -t = "%s _ctxpopup %s '#{client_name}' slot '#{pane_id}' || true" } }`, bq, ws)
 	return b.String()
 }

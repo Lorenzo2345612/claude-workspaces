@@ -37,9 +37,38 @@ Alt+←/→ sesiones · Alt+↑/↓ pestañas · todo con clic; clic derecho y a
 `
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
+	err := run(os.Args[1:])
+	if err != nil && len(os.Args) > 1 && quietInternal(os.Args[1]) {
+		// Called by a binding of the bar through run-shell: tmux would paint the error over the
+		// session in view mode. Log it and show it as a brief message instead.
+		reportInternalError(os.Args[1:], err)
+		return
+	}
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "cw:", err)
 		os.Exit(1)
+	}
+}
+
+// quietInternal reports whether an internal command runs from tmux bindings (run-shell), whose
+// failures must never print.
+func quietInternal(cmd string) bool {
+	switch cmd {
+	case "_ctxpopup", "_barclick", "_configmenu", "_conf", "_new", "_splitout", "_layout", "_labels",
+		"_respawn", "_tabmove", "_winmove", "_join", "_title":
+		return true
+	}
+	return false
+}
+
+func reportInternalError(args []string, err error) {
+	line := time.Now().Format(time.RFC3339) + " " + strings.Join(args, " ") + ": " + err.Error() + "\n"
+	if f, e := os.OpenFile(filepath.Join(runDir(), "errors.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); e == nil {
+		_, _ = f.WriteString(line)
+		f.Close()
+	}
+	if len(args) > 1 && validWorkspaceName(args[1]) == nil {
+		_, _ = Tmux{WS: args[1]}.Run("display-message", "-d", "4000", "cw: "+err.Error())
 	}
 }
 

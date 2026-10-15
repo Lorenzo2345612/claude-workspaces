@@ -56,7 +56,7 @@ func cmdConfigMenu(args []string) error {
 		return fmt.Sprintf(`display-popup -E -w 84 -h %d -T " %s " "%s"`, h, title, q(joinArgs(append([]string{bin}, inner...))))
 	}
 	toggle := func(what string) string {
-		return fmt.Sprintf(`run-shell "%s"`, q(joinArgs([]string{bin, "_conf", ws, what, client})))
+		return fmt.Sprintf(`run-shell "%s || true"`, q(joinArgs([]string{bin, "_conf", ws, what, client})))
 	}
 	yesNo := func(b bool) string {
 		if b {

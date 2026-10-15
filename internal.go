@@ -389,8 +389,10 @@ func respawnSlot(ws, pane string, sendContinue bool) error {
 	if len(f) != 7 {
 		return errors.New("panel sin datos de cw")
 	}
+	// The continue message goes only to a session that was working (or waiting for a permission)
+	// when it is restarted, as on a workspace restore; an idle one just reopens.
 	status := statusIdle
-	if sendContinue {
+	if cur, _ := t.Run("display", "-p", "-t", pane, "#{@cw_status}"); sendContinue && (cur == statusBusy || cur == statusWaiting) {
 		status = statusBusy // makes claudeArgv append the continue message
 	}
 	s := Slot{ID: f[0], Kind: f[1], Alias: f[2], Cwd: f[3], SessionID: f[4], Status: status,

@@ -194,7 +194,7 @@ func editSession(ws string, r sessionRow) error {
 	oldAlias := cfg.claudeAlias(r.slot.ClaudeAlias).Name
 	f.onAliasChange = func(name string) string {
 		if name != oldAlias {
-			return "Al reiniciar con " + name + ", mandar «" + shorten(cfg.ContinueMessage, 18) + "»"
+			return "Con " + name + ": si estaba trabajando, mandarle «" + shorten(cfg.ContinueMessage, 14) + "»"
 		}
 		return ""
 	}

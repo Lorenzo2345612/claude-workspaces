@@ -235,7 +235,7 @@ func uiBulkAlias(ws, scope string) error {
 		if sendContinue {
 			box = "[x]"
 		}
-		s.btn(8, 4, sgrBusy+" "+box+" Al reiniciar, mandar «"+shorten(cfg.ContinueMessage, 20)+"» "+sgrReset, "check")
+		s.btn(8, 4, sgrBusy+" "+box+" A las que estaban trabajando, mandarles «"+shorten(cfg.ContinueMessage, 16)+"» "+sgrReset, "check")
 		var names []string
 		for _, r := range targets {
 			names = append(names, r.slot.Alias)

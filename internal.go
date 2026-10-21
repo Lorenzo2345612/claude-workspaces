@@ -372,6 +372,12 @@ func cmdHook() error {
 		args = append(args, ";", "set", "-p", "-t", pane, "@cw_sid", in.SessionID)
 	}
 	t := Tmux{WS: ws}
+	if in.HookEventName == "SessionStart" && in.SessionID != "" {
+		if alias, err := t.Run("display", "-p", "-t", pane, "#{@cw_claude_alias}"); err == nil {
+			cfg, _ := loadConfig()
+			recordUsageOwner(in.SessionID, cfg.claudeAlias(alias).Name)
+		}
+	}
 	_, _ = t.Run(args...)
 	if session, err := t.Run("display", "-p", "-t", pane, "#{session_name}"); err == nil {
 		refreshTabLabel(t, session)

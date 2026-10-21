@@ -291,7 +291,12 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	// Dragging inside a session selects text, as tmux does by default (combining is done from the
 	// right-click panel, not by dragging).
 	w(`bind -n MouseDrag1Pane { if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send-keys -M } { copy-mode -M } }`)
+	w(`bind -n MouseDrag1Border resize-pane -M`)
 	w(`unbind -n MouseDragEnd1Pane`)
+	for _, direction := range []string{"Left", "Right", "Up", "Down"} {
+		flag := map[string]string{"Left": "-L", "Right": "-R", "Up": "-U", "Down": "-D"}[direction]
+		w(`bind -n C-M-%s resize-pane %s 5`, direction, flag)
+	}
 	w(`unbind -n MouseDragEnd1Status`)
 	// Right click inside a session (unless the program there uses the mouse): its action panel.
 	w(`bind -n MouseDown3Pane { select-pane -t = ; if -F "#{||:#{mouse_any_flag},#{pane_in_mode}}" { send-keys -M } }`)

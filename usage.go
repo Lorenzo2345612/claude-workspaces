@@ -68,7 +68,7 @@ type accountUsage struct {
 // claudeUsage reports every account the configured aliases use.
 func claudeUsage(cfg Config) []accountUsage { return claudeUsageWith(cfg, true) }
 
-func claudeUsageWith(cfg Config, tokens bool) []accountUsage {
+func claudeUsageWith(cfg Config, tokens bool, fresh ...bool) []accountUsage {
 	type group struct {
 		dir      string
 		aliases  []string
@@ -108,7 +108,7 @@ func claudeUsageWith(cfg Config, tokens bool) []accountUsage {
 		wg.Add(1)
 		go func(u *accountUsage) {
 			defer wg.Done()
-			fillAccountUsage(u)
+			fillAccountUsage(u, fresh...)
 		}(&out[i])
 	}
 	wg.Wait()
@@ -147,7 +147,7 @@ func claudeUsageWith(cfg Config, tokens bool) []accountUsage {
 	return out
 }
 
-func fillAccountUsage(u *accountUsage) {
+func fillAccountUsage(u *accountUsage, fresh ...bool) {
 	cred, err := readClaudeCredentials(u.ConfigDir)
 	if err != nil {
 		u.Err = err.Error()
@@ -160,10 +160,10 @@ func fillAccountUsage(u *accountUsage) {
 	}
 	// Every cw process (app server, quota check, popups, cw mcp) asks for the same numbers: they
 	// share one answer per account for a minute, and a failed query falls back to the last one.
-	cache := filepath.Join(runDir(), "usage-"+shortHash(u.ConfigDir)+".json")
+	cache := filepath.Join(runDir(), "usage-"+shortHash(u.ConfigDir+"\x00"+cred.AccessToken)+".json")
 	var cached usageCache
 	if data, err := os.ReadFile(cache); err == nil && json.Unmarshal(data, &cached) == nil {
-		if time.Since(cached.Tried) < usageCacheFor {
+		if (len(fresh) == 0 || !fresh[0]) && time.Since(cached.Tried) < usageCacheFor && time.Since(cached.At) < 30*time.Minute {
 			cached.apply(u)
 			return
 		}

@@ -11,6 +11,8 @@ import (
 
 // Config holds the user-editable settings, stored in ~/.config/cw/config.json.
 type Config struct {
+	// UsageIntervalSeconds controla la lectura incremental del historial; 0 equivale a una hora.
+	UsageIntervalSeconds int `json:"usage_interval_seconds,omitempty"`
 	// ContinueMessage is sent to every Claude session that was working when the workspace was stopped.
 	ContinueMessage string `json:"continue_message"`
 	// LazyStart, when true, leaves idle Claude sessions asleep until you press Enter in their tab.

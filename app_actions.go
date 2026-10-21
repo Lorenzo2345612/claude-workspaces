@@ -148,10 +148,34 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			l.removeSlot(id)
 		}
 		dst.Slots = append(dst.Slots, ids...)
+		dst.Weights = nil
 		dt.Active, l.Active = dst.ID, dt.ID
 		if len(ids) > 0 {
 			dst.Focus = ids[0]
 		}
+		return nil, save()
+	case "view.resize":
+		_, v := l.findView(q.View)
+		if v == nil {
+			return nil, errors.New("esa vista ya no existe")
+		}
+		count := len(v.Slots)
+		if v.Layout == layoutGrid && count > 0 {
+			cols := 1
+			for cols*cols < count {
+				cols++
+			}
+			count = cols + (count+cols-1)/cols
+		}
+		if len(q.Weights) != count {
+			return nil, errors.New("proporciones inválidas")
+		}
+		for _, weight := range q.Weights {
+			if !(weight >= 0.05 && weight <= 100) {
+				return nil, errors.New("proporciones inválidas")
+			}
+		}
+		v.Weights = append([]float64(nil), q.Weights...)
 		return nil, save()
 	case "view.layout":
 		_, v := l.findView(q.View)
@@ -161,6 +185,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		switch q.Layout {
 		case layoutCols, layoutRows, layoutGrid:
 			v.Layout = q.Layout
+			v.Weights = nil
 		default:
 			return nil, fmt.Errorf("distribución desconocida %q", q.Layout)
 		}
@@ -238,6 +263,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		}
 		if _, v := l.findView(q.View); v != nil && q.View != "" {
 			v.Slots = append(v.Slots, s.ID)
+			v.Weights = nil
 			v.Focus = s.ID
 		} else {
 			v := &appView{ID: shortID(), Layout: layoutCols, Slots: []string{s.ID}, Focus: s.ID}

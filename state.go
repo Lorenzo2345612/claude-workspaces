@@ -40,7 +40,8 @@ type Tab struct {
 	ActiveSlot int    `json:"active_slot"`
 	Slots      []Slot `json:"slots"`
 	// Layouts holds, per view, the tmux layout of a view that shows several sessions ("" for one).
-	Layouts []string `json:"layouts,omitempty"`
+	Layouts     []string    `json:"layouts,omitempty"`
+	ViewWeights [][]float64 `json:"view_weights,omitempty"`
 }
 
 // Slot is one tmux window: a Claude session or a plain shell.

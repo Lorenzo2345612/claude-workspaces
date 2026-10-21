@@ -81,7 +81,7 @@ func cmdUso() error {
 	for _, l := range usageLines(accounts, 100) {
 		fmt.Println(l)
 	}
-	return nil
+	return printUsageHistory()
 }
 
 // uiUsage shows the usage in a popup until a key or a click: _ui uso <ws>.

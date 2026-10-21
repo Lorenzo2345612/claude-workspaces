@@ -423,6 +423,81 @@ function renderStatus(el) {
 }
 
 let stageKey = '';
+let resizingView = null;
+function viewWeights(view) {
+  const cols = Math.ceil(Math.sqrt(view.slots.length));
+  const count = view.layout === 'grid' ? cols + Math.ceil(view.slots.length / cols) : view.slots.length;
+  return Array.from({ length: count }, (_, i) => Number.isFinite(view.weights?.[i]) && view.weights[i] > 0 ? view.weights[i] : 1);
+}
+function applyViewWeights(stage, view) {
+  stage.style.gridTemplateColumns = '';
+  stage.style.gridTemplateRows = '';
+  const weights = viewWeights(view);
+  if (view.layout === 'grid') {
+    const cols = Math.ceil(Math.sqrt(view.slots.length));
+    stage.style.gridTemplateRows = weights.slice(cols).map(w => 'minmax(0, ' + w + 'fr)').join(' ');
+    stage.style.gridTemplateColumns = weights.slice(0, cols).map(w => 'minmax(0, ' + w + 'fr)').join(' ');
+  } else {
+    stage.style[view.layout === 'rows' ? 'gridTemplateRows' : 'gridTemplateColumns'] = weights.map(w => 'minmax(0, ' + w + 'fr)').join(' ');
+  }
+}
+function paneResizer(stage, initialView, index, horizontal = false) {
+  const current = () => curView()?.id === initialView.id ? curView() : initialView;
+  let view = current();
+  const rows = horizontal || view.layout === 'rows', cols = Math.ceil(Math.sqrt(view.slots.length));
+  if (view.layout === 'grid') {
+    if (horizontal) {
+      if (index % cols !== 0 || index + cols >= view.slots.length) return null;
+      index = cols + Math.floor(index / cols);
+    } else {
+      if (index % cols === cols - 1 || index + 1 >= view.slots.length) return null;
+      index %= cols;
+    }
+  } else if (horizontal || index >= view.slots.length - 1) return null;
+  const handle = h('div', { class: 'pane-resizer' + (rows ? ' horizontal' : ''), role: 'separator', tabindex: '0',
+    'aria-label': 'Cambiar tamaño entre sesiones', 'aria-orientation': rows ? 'horizontal' : 'vertical',
+    title: 'Arrastra para cambiar tamaños; flechas para ajustar' });
+  const change = (weights, delta) => {
+    const sum = weights[index] + weights[index + 1], minimum = Math.min(0.2, sum / 4);
+    weights[index] = Math.max(minimum, Math.min(sum - minimum, weights[index] + delta));
+    weights[index + 1] = sum - weights[index];
+    view.weights = weights;
+    applyViewWeights(stage, view);
+  };
+  const save = () => act('view.resize', { view: view.id, weights: view.weights }).catch(() => {});
+  handle.addEventListener('keydown', ev => {
+    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(ev.key)) return;
+    ev.preventDefault(); ev.stopPropagation();
+    view = current();
+    const weights = viewWeights(view);
+    change(weights, ['ArrowLeft', 'ArrowUp'].includes(ev.key) ? -0.1 : 0.1); save();
+  });
+  handle.addEventListener('pointerdown', ev => {
+    ev.preventDefault(); ev.stopPropagation();
+    view = current();
+    const weights = viewWeights(view), original = [...weights];
+    const start = rows ? ev.clientY : ev.clientX, rect = stage.getBoundingClientRect();
+    const size = rows ? rect.height : rect.width;
+    const total = (view.layout === 'grid' ? (rows ? weights.slice(cols) : weights.slice(0, cols)) : weights).reduce((a, b) => a + b, 0);
+    resizingView = view.id;
+    handle.setPointerCapture(ev.pointerId);
+    const move = e => change([...original], ((rows ? e.clientY : e.clientX) - start) / Math.max(1, size) * total);
+    const end = e => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', cancel);
+      resizingView = null;
+      if (view.weights) save();
+    };
+    const cancel = () => {
+      view.weights = original; applyViewWeights(stage, view);
+      handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', cancel); resizingView = null;
+    };
+    handle.addEventListener('pointermove', move); handle.addEventListener('pointerup', end); handle.addEventListener('pointercancel', cancel);
+  });
+  return handle;
+}
 function renderStage(stage) {
   const tab = curTab(), view = curView(tab);
   if (!view) {
@@ -437,9 +512,13 @@ function renderStage(stage) {
     stage.className = 'stage ' + (multi ? view.layout || 'cols' : 'cols');
     stage.style.setProperty('--gc', Math.ceil(Math.sqrt(view.slots.length)));
     const hadFocus = document.activeElement && document.activeElement.closest && document.activeElement.closest('.termhost');
-    stage.replaceChildren(...view.slots.map(id => {
+    stage.replaceChildren(...view.slots.map((id, index) => {
       const frame = h('div', { class: 'pane', 'data-slot': id }, multi ? h('div', { class: 'ph' }) : null, h('div', { class: 'banner-slot' }), h('div', { class: 'tbody' }));
       $('.tbody', frame).append(getTerm(id).el);
+      const handle = multi && paneResizer(stage, view, index);
+      if (handle) frame.append(handle);
+      const rowHandle = multi && view.layout === 'grid' && paneResizer(stage, view, index, true);
+      if (rowHandle) frame.append(rowHandle);
       return frame;
     }));
     requestAnimationFrame(() => {
@@ -448,6 +527,7 @@ function renderStage(stage) {
       if (f && (hadFocus || !$('.scrim'))) f.focus();
     });
   }
+  if (resizingView !== view.id) applyViewWeights(stage, view);
   for (const frame of stage.querySelectorAll('.pane')) {
     const id = frame.dataset.slot, s = slotOf(id);
     frame.classList.toggle('focus', multi && view.focus === id);
@@ -1031,6 +1111,8 @@ async function dlgSettings(section) {
           h('button', { class: 'toggle' + (c.auto_switch_alias !== false ? ' on' : ''), onclick: () => set({ auto_switch_alias: c.auto_switch_alias === false }).then(draw) }, h('i'))),
         h('div', { class: 'setrow' }, h('div', {}, 'Atajos de navegador', h('small', {}, 'Ctrl+T, Ctrl+W, Ctrl+Tab… actúan sobre las sesiones de la pestaña. Apágalos si los quieres para Claude (Ctrl+W borra una palabra).')),
           h('button', { class: 'toggle' + (c.browser_keys !== false ? ' on' : ''), onclick: () => set({ browser_keys: c.browser_keys === false }).then(draw) }, h('i'))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Historial de consumo', h('small', {}, 'Lectura local en segundo plano; intervalo en segundos.')),
+          h('input', { class: 'input', type: 'number', min: '60', max: '86400', value: c.usage_interval_seconds || 3600, style: { width: '110px' }, onchange: ev => set({ usage_interval_seconds: Number(ev.target.value) }) })),
         h('div', { class: 'setrow' }, h('div', {}, 'Autoguardado', h('small', {}, 'Cada cuánto se guarda el estado del workspace.')),
           seg([60, 120, 300].map(v => ({ value: v, label: v / 60 + ' min' })), c.autosave_seconds, v => set({ autosave_seconds: v }))),
         h('div', { class: 'setrow' }, h('div', {}, 'Argumentos para todas las sesiones', h('small', {}, 'Se agregan a cada sesión de Claude que se abra.')), cargs),
@@ -1119,10 +1201,89 @@ function fmtReset(iso) {
 }
 function usageBar(label, w) {
   if (!w) return null;
-  const pct = Math.round(w.pct), lvl = pct >= 90 ? 'hi' : pct >= 70 ? 'mid' : '';
+  const pct = Math.round(Math.max(0, Math.min(100, w.pct))), lvl = pct >= 90 ? 'hi' : pct >= 70 ? 'mid' : '';
   return h('div', { class: 'urow' }, h('span', { class: 'ul' }, label),
     h('div', { class: 'ubar ' + lvl }, h('i', { style: { width: Math.min(100, pct) + '%' } })),
-    h('b', {}, pct + ' %'), h('span', { class: 'ur' }, 'se reinicia ' + fmtReset(w.resetsAt)));
+    h('b', { title: pct + ' % utilizado' }, (100 - pct) + ' % libre'), h('span', { class: 'ur' }, 'se reinicia ' + fmtReset(w.resetsAt)));
+}
+function usageHistoryPanel(history) {
+  const chart = h('div', { class: 'stack' });
+  const days = h('select', { class: 'input', 'aria-label': 'Periodo' }, [1, 7, 30].map(n => h('option', { value: n, selected: n === 7 }, n + (n === 1 ? ' día' : ' días'))));
+  const alias = h('select', { class: 'input', 'aria-label': 'Alias' }, h('option', { value: '' }, 'Todos los alias'),
+    [...new Set(history.points.map(p => p.alias))].sort().map(a => h('option', { value: a }, a)));
+  const metrics = [['total', 'Tokens totales'], ['in', 'Entrada'], ['out', 'Salida'], ['cacheW', 'Caché escritura'], ['cacheR', 'Caché lectura']];
+  const metric = h('select', { class: 'input', 'aria-label': 'Tokens' }, metrics.map(([key, label]) => h('option', { value: key }, label)));
+  const value = p => metric.value === 'total' ? Object.values(p.tokens).reduce((a, b) => a + b, 0) : p.tokens[metric.value];
+  const draw = () => {
+    const end = Math.floor(Date.now() / 3600000) * 3600, start = end - (Number(days.value) * 24 - 1) * 3600;
+    const groups = new Map();
+    for (const p of history.points) {
+      if (p.hour < start || p.hour > end || (alias.value && p.alias !== alias.value)) continue;
+      const key = JSON.stringify([p.alias, p.model]);
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(p);
+    }
+    chart.replaceChildren();
+    if (!groups.size) chart.append(h('div', { class: 'hint' }, 'Sin consumo registrado en este periodo.'));
+    for (const [key, points] of groups) {
+      const [name, model] = JSON.parse(key), hours = new Map();
+      for (const p of points) hours.set(p.hour, (hours.get(p.hour) || 0) + value(p));
+      const series = [];
+      for (let hour = start; hour <= end; hour += 3600) series.push([hour, hours.get(hour) || 0]);
+      const peak = Math.max(1, ...series.map(p => p[1]));
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('viewBox', '0 0 640 180');
+      svg.setAttribute('role', 'img');
+      svg.setAttribute('aria-label', name + ' · ' + model + ' · ' + metric.selectedOptions[0].text);
+      const add = (tag, attrs) => {
+        const el = document.createElementNS(svg.namespaceURI, tag);
+        for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+        svg.append(el); return el;
+      };
+      const x = i => 52 + i / Math.max(1, series.length - 1) * 576;
+      const y = n => 144 - n / peak * 120;
+      for (const n of [0, peak / 2, peak]) {
+        add('line', { x1: 52, x2: 628, y1: y(n), y2: y(n), class: 'history-axis' });
+        add('text', { x: 46, y: y(n) + 4, 'text-anchor': 'end' }).textContent = fmtTok(Math.round(n));
+      }
+      add('polyline', { points: series.map((p, i) => x(i) + ',' + y(p[1])).join(' '), class: 'history-line', fill: 'none' });
+      const date = hour => new Date(hour * 1000).toLocaleString('es-MX', { month: 'short', day: 'numeric', hour: '2-digit' });
+      add('text', { x: 52, y: 172 }).textContent = date(start);
+      add('text', { x: 628, y: 172, 'text-anchor': 'end' }).textContent = date(end);
+      const crosshair = add('line', { x1: 52, x2: 52, y1: 20, y2: 144, class: 'history-crosshair', visibility: 'hidden' });
+      const tip = h('div', { class: 'hint', role: 'status' }, 'Tokens/hora · máximo ' + fmtTok(peak));
+      const show = i => {
+        const p = series[Math.max(0, Math.min(series.length - 1, i))];
+        crosshair.setAttribute('visibility', 'visible');
+        crosshair.setAttribute('x1', x(i)); crosshair.setAttribute('x2', x(i));
+        tip.textContent = p[1].toLocaleString('es-MX') + ' tokens · ' + date(p[0]);
+      };
+      let selected = 0;
+      svg.setAttribute('tabindex', '0');
+      svg.addEventListener('pointermove', ev => {
+        const r = svg.getBoundingClientRect();
+        selected = Math.max(0, Math.min(series.length - 1, Math.round(((ev.clientX - r.left) / r.width * 640 - 52) / 576 * (series.length - 1))));
+        show(selected);
+      });
+      svg.addEventListener('focus', () => show(selected));
+      svg.addEventListener('keydown', ev => {
+        if (!['ArrowLeft', 'ArrowRight'].includes(ev.key)) return;
+        ev.preventDefault(); ev.stopPropagation();
+        selected = Math.max(0, Math.min(series.length - 1, selected + (ev.key === 'ArrowRight' ? 1 : -1))); show(selected);
+      });
+      const table = h('table', {}, h('thead', {}, h('tr', {}, ['Hora', 'Entrada', 'Salida', 'Caché escritura', 'Caché lectura'].map(label => h('th', {}, label)))),
+        h('tbody', {}, points.map(p => h('tr', {}, h('td', {}, date(p.hour)), ['in', 'out', 'cacheW', 'cacheR'].map(k => h('td', {}, p.tokens[k].toLocaleString('es-MX')))))));
+      chart.append(h('div', { class: 'ucard history-chart' }, h('b', {}, name + ' · ' + model),
+        h('span', { class: 'ul' }, metric.selectedOptions[0].text + ' por hora'), svg, tip,
+        h('details', {}, h('summary', {}, 'Ver datos exactos'), h('div', { class: 'history-table' }, table))));
+    }
+  };
+  for (const control of [days, alias, metric]) control.addEventListener('change', draw);
+  draw();
+  return h('section', { class: 'stack' }, h('h3', {}, 'Historial por alias y modelo'),
+    h('div', { class: 'history-filters' }, days, alias, metric),
+    h('div', { class: 'hint' }, history.at.startsWith('0001') ? 'Primera lectura pendiente.' : 'Actualizado: ' + new Date(history.at).toLocaleString('es-MX')),
+    h('div', { class: 'hint' }, 'Las carpetas compartidas sin atribución previa aparecen como «Sin atribuir»; no se duplican por alias.'), chart);
 }
 async function dlgUsage() {
   const body = h('div', { class: 'stack' }, h('div', { class: 'hint' }, 'Consultando el uso de cada cuenta…'));
@@ -1142,6 +1303,8 @@ async function dlgUsage() {
       if (a.sharedWith && a.sharedWith.length) card.append(h('div', { class: 'hint' }, 'Tokens sumados con ' + a.sharedWith.join(', ') + ': comparten la carpeta de conversaciones.'));
       return card;
     }));
+    try { body.append(usageHistoryPanel(await api.get('usage-history'))); }
+    catch (e) { body.append(h('div', { class: 'hint err' }, e.message)); }
   }
   fill(false);
   return m;

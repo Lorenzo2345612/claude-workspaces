@@ -41,10 +41,11 @@ type appTab struct {
 }
 
 type appView struct {
-	ID     string   `json:"id"`
-	Layout string   `json:"layout"`
-	Slots  []string `json:"slots"`
-	Focus  string   `json:"focus"`
+	ID      string    `json:"id"`
+	Layout  string    `json:"layout"`
+	Slots   []string  `json:"slots"`
+	Focus   string    `json:"focus"`
+	Weights []float64 `json:"weights,omitempty"`
 }
 
 func slotSession(id string) string { return slotPrefix + id }
@@ -167,6 +168,9 @@ func (l *appLayout) removeSlot(id string) {
 				if s != id {
 					kept = append(kept, s)
 				}
+			}
+			if len(kept) != len(v.Slots) {
+				v.Weights = nil
 			}
 			v.Slots = kept
 			if v.Focus == id && len(kept) > 0 {
@@ -354,6 +358,7 @@ func appCapture(t Tmux) (*Workspace, error) {
 				layout = tmuxLayoutName(v.Layout)
 			}
 			tab.Layouts = append(tab.Layouts, layout)
+			tab.ViewWeights = append(tab.ViewWeights, append([]float64(nil), v.Weights...))
 			tab.Slots = append(tab.Slots, slots...)
 			view++
 		}
@@ -446,6 +451,9 @@ func appRestore(t Tmux, l *Launcher, w *Workspace) error {
 					layout = appLayoutName(tab.Layouts[s.View])
 				}
 				v = &appView{ID: shortID(), Layout: layout}
+				if s.View >= 0 && s.View < len(tab.ViewWeights) {
+					v.Weights = append([]float64(nil), tab.ViewWeights[s.View]...)
+				}
 				views[s.View] = v
 				at.Views = append(at.Views, v)
 			}

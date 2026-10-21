@@ -25,6 +25,14 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   keeps its place and its conversation, also across stop/start; Enter or ▶ resumes it.
 - **Claude usage per account** (`cw uso`, Alt+u, the app's «Uso»): how much of the 5-hour and the
   weekly windows each account behind the aliases has used, when they reset, and the tokens spent.
+- **Historial por alias y modelo**: `cw uso` y el panel «Uso» de la app muestran entrada,
+  salida, escritura y lectura de caché. Un proceso local lee los transcripts incrementalmente
+  cada hora; `usage_interval_seconds` permite cambiar el intervalo (60–86400 segundos, 0 = 1 hora),
+  también desde Ajustes → General. Se conservan 30 días. Las conversaciones históricas en
+  carpetas compartidas sin atribución fiable aparecen como «Sin atribuir», sin duplicar tokens.
+- **Tamaños de sesiones combinadas**: arrastra los separadores en la app con ratón o pantalla
+  táctil; también puedes enfocarlos y usar las flechas. Las proporciones se guardan al reiniciar.
+  En CLI, arrastra el borde o usa Ctrl+Alt+flechas.
 - **Resources**: memory and CPU of every session with all its processes (Alt+m → Recursos, the
   app's «Recursos»).
 - **Switch alias when out of quota** (on by default): sessions stopped by an exhausted account

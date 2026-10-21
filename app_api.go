@@ -272,6 +272,13 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]string{"current": version, "latest": availableUpdate()})
 	case "usage":
 		writeJSON(w, cachedUsage(q.Get("fresh") == "1"))
+	case "usage-history":
+		h, err := readUsageHistory()
+		if err != nil {
+			http.Error(w, `{"error":"No se pudo leer el historial"}`, http.StatusInternalServerError)
+			return
+		}
+		writeJSON(w, map[string]any{"at": h.At, "points": h.Points})
 	case "resources":
 		ws := q.Get("ws")
 		t := Tmux{WS: ws}
@@ -375,49 +382,51 @@ func runtimePlatform() string {
 
 // doReq is the body of every action: the fields each one uses.
 type doReq struct {
-	Action       string   `json:"action"`
-	WS           string   `json:"ws"`
-	Tab          string   `json:"tab"`
-	View         string   `json:"view"`
-	Target       string   `json:"target"`
-	Slot         string   `json:"slot"`
-	Title        string   `json:"title"`
-	Dir          string   `json:"dir"`
-	Name         string   `json:"name"`
-	Kind         string   `json:"kind"`
-	Alias        string   `json:"alias"`
-	Args         string   `json:"args"`
-	Resume       string   `json:"resume"`
-	Start        string   `json:"start"`
-	Layout       string   `json:"layout"`
-	Scope        string   `json:"scope"`
-	To           int      `json:"to"`
-	Cols         int      `json:"cols"`
-	Rows         int      `json:"rows"`
-	Restart      bool     `json:"restart"`
-	SendContinue bool     `json:"sendContinue"`
-	Convert      bool     `json:"convert"`
-	Old          string   `json:"old"`
-	Env          []string `json:"env"`
-	ArgList      []string `json:"argList"`
+	Action       string    `json:"action"`
+	WS           string    `json:"ws"`
+	Tab          string    `json:"tab"`
+	View         string    `json:"view"`
+	Target       string    `json:"target"`
+	Slot         string    `json:"slot"`
+	Title        string    `json:"title"`
+	Dir          string    `json:"dir"`
+	Name         string    `json:"name"`
+	Kind         string    `json:"kind"`
+	Alias        string    `json:"alias"`
+	Args         string    `json:"args"`
+	Resume       string    `json:"resume"`
+	Start        string    `json:"start"`
+	Layout       string    `json:"layout"`
+	Weights      []float64 `json:"weights"`
+	Scope        string    `json:"scope"`
+	To           int       `json:"to"`
+	Cols         int       `json:"cols"`
+	Rows         int       `json:"rows"`
+	Restart      bool      `json:"restart"`
+	SendContinue bool      `json:"sendContinue"`
+	Convert      bool      `json:"convert"`
+	Old          string    `json:"old"`
+	Env          []string  `json:"env"`
+	ArgList      []string  `json:"argList"`
 	Config       *struct {
-		ContinueMessage    *string   `json:"continue_message"`
-		LazyStart          *bool     `json:"lazy_start"`
-		AutosaveSeconds    *int      `json:"autosave_seconds"`
-		ClaudeArgs         *[]string `json:"claude_args"`
-		Theme              *string   `json:"theme"`
-		DefaultClaudeAlias *string   `json:"default_claude_alias"`
-		BrowserKeys        *bool     `json:"browser_keys"`
-		AppMode            *string   `json:"app_mode"`
-		AutoSwitchAlias    *bool     `json:"auto_switch_alias"`
-		AppFontSize        *int      `json:"app_font_size"`
-		SkynetEnabled      *bool     `json:"skynet_enabled"`
-		SkynetName         *string   `json:"skynet_name"`
-		SkynetModel        *string   `json:"skynet_model"`
-		SkynetAlias        *string   `json:"skynet_alias"`
-		SkynetNotify       *bool     `json:"skynet_notify"`
-		SkynetVoice        *bool     `json:"skynet_voice"`
-		SkynetAutoApprove  *bool     `json:"skynet_auto_approve"`
+		ContinueMessage      *string   `json:"continue_message"`
+		LazyStart            *bool     `json:"lazy_start"`
+		UsageIntervalSeconds *int      `json:"usage_interval_seconds"`
+		AutosaveSeconds      *int      `json:"autosave_seconds"`
+		ClaudeArgs           *[]string `json:"claude_args"`
+		Theme                *string   `json:"theme"`
+		DefaultClaudeAlias   *string   `json:"default_claude_alias"`
+		BrowserKeys          *bool     `json:"browser_keys"`
+		AppMode              *string   `json:"app_mode"`
+		AutoSwitchAlias      *bool     `json:"auto_switch_alias"`
+		AppFontSize          *int      `json:"app_font_size"`
+		SkynetEnabled        *bool     `json:"skynet_enabled"`
+		SkynetName           *string   `json:"skynet_name"`
+		SkynetModel          *string   `json:"skynet_model"`
+		SkynetAlias          *string   `json:"skynet_alias"`
+		SkynetNotify         *bool     `json:"skynet_notify"`
+		SkynetVoice          *bool     `json:"skynet_voice"`
+		SkynetAutoApprove    *bool     `json:"skynet_auto_approve"`
 	} `json:"config"`
 }
 
@@ -621,6 +630,12 @@ func applyConfigPatch(q *doReq) error {
 		return err
 	}
 	if c := q.Config; c != nil {
+		if c.UsageIntervalSeconds != nil {
+			if *c.UsageIntervalSeconds != 0 && (*c.UsageIntervalSeconds < 60 || *c.UsageIntervalSeconds > 86400) {
+				return errors.New("el intervalo debe ser 0 o entre 60 y 86400 segundos")
+			}
+			cfg.UsageIntervalSeconds = *c.UsageIntervalSeconds
+		}
 		if c.ContinueMessage != nil {
 			cfg.ContinueMessage = *c.ContinueMessage
 		}
@@ -861,7 +876,7 @@ func cachedUsage(fresh bool) []accountUsage {
 	defer usageMu.Unlock()
 	if fresh || usageLast == nil || time.Since(usageAt) > time.Minute {
 		cfg, _ := loadConfig()
-		usageLast = claudeUsage(cfg)
+		usageLast = claudeUsageWith(cfg, true, fresh)
 		sortAccounts(usageLast)
 		usageAt = time.Now()
 	}

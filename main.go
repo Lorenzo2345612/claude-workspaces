@@ -111,6 +111,9 @@ func run(args []string) error {
 	if cfg, err := loadConfig(); err == nil {
 		applyTheme(cfg.Theme)
 	}
+	if len(args) == 0 || args[0] == "start" || args[0] == "new" || args[0] == "app" || args[0] == "uso" || args[0] == "usage" {
+		ensureUsageWorker()
+	}
 	if len(args) == 0 {
 		return cmdLauncher()
 	}
@@ -160,6 +163,8 @@ func run(args []string) error {
 		return cmdSkynet(rest)
 	case "app":
 		return cmdApp(rest)
+	case "_usage-worker":
+		return runUsageWorker()
 	case "_idle":
 		select {}
 	case "update", "actualizar":

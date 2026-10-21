@@ -90,6 +90,9 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 		rest = append(rest, "--resume", path)
 	}
 	rest = append(rest, "--name", s.Alias, "--settings", l.hookSettings())
+	if appMode(Tmux{WS: l.WS}) {
+		rest = append(rest, "--append-system-prompt", markdownInstructions(l.Bin))
+	}
 	rest = append(rest, l.Cfg.ClaudeArgs...)
 	rest = append(rest, s.Args...)
 	display := statusIdle

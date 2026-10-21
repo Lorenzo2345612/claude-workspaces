@@ -165,6 +165,33 @@ cw help
 | `Alt+←/→`, `Alt+↑/↓`, `Alt+1..9` | move between sessions and tabs |
 | `Alt+h` | help |
 
+## Abrir Markdown desde Claude
+
+Dentro de una sesión de cw abierta en la app, ejecuta:
+
+```sh
+cw open -- docs/plan.md
+```
+
+No requiere MCP ni Skynet. Al iniciar sus sesiones en la app, cw añade una instrucción
+para que Claude descubra el comando y lo ejecute con Bash cuando le pidas mostrar un
+documento, sin modificar el `CLAUDE.md` del proyecto. Las sesiones ya abiertas deben
+reiniciarse para recibir esa instrucción. Las rutas relativas parten del directorio actual.
+
+Desde otra terminal, indica el destino antes de la ruta:
+
+```sh
+cw open --workspace NOMBRE --session ID -- docs/plan.md
+cw open --workspace NOMBRE --tab 1 --view 1 -- docs/plan.md
+```
+
+Cada archivo se abre en una subpestaña de la vista, junto a «Sesiones»; abrir el
+mismo archivo selecciona su subpestaña existente. Puedes alternar, cerrar documentos
+y actualizar su contenido sin detener las sesiones. Las subpestañas se guardan con
+el workspace. Admite `.md` y `.markdown`, UTF-8, hasta 2 MiB, en modo de solo lectura.
+El visor muestra encabezados, listas, negritas, citas y bloques de código; no ejecuta
+HTML ni carga recursos remotos. Requiere un workspace abierto en la app.
+
 ## How it tracks Claude sessions
 
 Each new session gets a UUID from cw and starts with `claude --session-id <uuid> --name <name>`.

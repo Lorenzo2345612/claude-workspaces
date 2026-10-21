@@ -266,6 +266,35 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	cfg, _ := loadConfig()
 	switch strings.TrimPrefix(r.URL.Path, "/api/get/") {
+	case "document":
+		ws := q.Get("ws")
+		if err := validWorkspaceName(ws); err != nil {
+			writeErr(w, err)
+			return
+		}
+		a := appWS(ws)
+		a.mu.Lock()
+		_, v := (Tmux{WS: ws}).loadLayout().findView(q.Get("view"))
+		path := ""
+		if v != nil {
+			for _, d := range v.Documents {
+				if d.ID == q.Get("document") {
+					path = d.Path
+					break
+				}
+			}
+		}
+		a.mu.Unlock()
+		if path == "" {
+			writeErr(w, errors.New("ese documento ya no existe"))
+			return
+		}
+		content, err := readMarkdown(path)
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, map[string]string{"content": content})
 	case "workspaces":
 		writeJSON(w, listUIWorkspaces())
 	case "update":
@@ -382,6 +411,8 @@ func runtimePlatform() string {
 
 // doReq is the body of every action: the fields each one uses.
 type doReq struct {
+	Path         string    `json:"path"`
+	Document     string    `json:"document"`
 	Action       string    `json:"action"`
 	WS           string    `json:"ws"`
 	Tab          string    `json:"tab"`

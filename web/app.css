@@ -75,6 +75,18 @@ kbd { font: 10.5px var(--mono); border: 1px solid var(--line2); border-radius: 4
 .ib.pw { margin-left: auto; } .ib.pw:hover { color: var(--danger); }
 .foot .ver { color: var(--dim); font-size: 11px; }
 
+.stage[hidden], .document-panel[hidden], .document-tabs[hidden] { display: none; }
+.document-tabs { display: flex; flex: none; gap: 4px; overflow-x: auto; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+.document-tabs button { background: transparent; border: 0; border-radius: 5px; padding: 6px 10px; color: var(--muted); white-space: nowrap; }
+.document-tabs button.on { background: var(--sel); color: var(--text); }
+.document-tab { display: flex; flex: none; }
+.document-panel { flex: 1; min-height: 0; overflow: auto; }
+.document-toolbar { display: flex; align-items: center; gap: 12px; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+.document-toolbar span { flex: 1; overflow-wrap: anywhere; color: var(--muted); }
+.markdown-content { max-width: 900px; margin: auto; padding: 20px; line-height: 1.65; overflow-wrap: anywhere; }
+.markdown-content pre { overflow-x: auto; padding: 14px; background: var(--raise2); border-radius: 6px; }
+.markdown-content code { font-family: var(--mono); }
+.markdown-content blockquote { margin-left: 0; padding-left: 16px; border-left: 3px solid var(--line2); color: var(--muted); }
 .main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
 .bar { height: 40px; display: flex; align-items: center; gap: 10px; padding: 0 8px 0 14px; border-bottom: 1px solid var(--line); flex: none; }
 .crumb { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }

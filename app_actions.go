@@ -5,6 +5,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 )
 
 // wsAction runs an action on a workspace open in the app; the caller holds its lock.
@@ -40,6 +41,58 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 	}
 
 	switch q.Action {
+	case "document.open", "document.select", "document.close":
+		at, v := l.findView(q.View)
+		if v == nil {
+			return nil, errors.New("esa vista ya no existe")
+		}
+		if q.Action == "document.open" {
+			if q.Path == "" {
+				return nil, errors.New("indica la ruta del Markdown")
+			}
+			path := expandHome(q.Path)
+			if !filepath.IsAbs(path) {
+				path = filepath.Join(at.Dir, path)
+			}
+			path, err := filepath.Abs(path)
+			if err != nil {
+				return nil, err
+			}
+			if _, err := readMarkdown(path); err != nil {
+				return nil, err
+			}
+			for _, d := range v.Documents {
+				if d.Path == path {
+					v.DocumentActive = d.ID
+					at.Active, l.Active = v.ID, at.ID
+					return map[string]any{"document": d.ID}, save()
+				}
+			}
+			d := appDocument{ID: shortID(), Path: path, Title: filepath.Base(path)}
+			v.Documents = append(v.Documents, d)
+			v.DocumentActive = d.ID
+			at.Active, l.Active = v.ID, at.ID
+			return map[string]any{"document": d.ID}, save()
+		}
+		if q.Document == "" && q.Action == "document.select" {
+			v.DocumentActive = ""
+			return nil, save()
+		}
+		for i, d := range v.Documents {
+			if d.ID != q.Document {
+				continue
+			}
+			if q.Action == "document.close" {
+				v.Documents = append(v.Documents[:i], v.Documents[i+1:]...)
+				if v.DocumentActive == d.ID {
+					v.DocumentActive = ""
+				}
+			} else {
+				v.DocumentActive = d.ID
+			}
+			return nil, save()
+		}
+		return nil, errors.New("ese documento ya no existe")
 	case "tab.new":
 		dir, err := expandPath(q.Dir)
 		if err != nil || !isDir(dir) {

@@ -301,12 +301,13 @@ function render() {
   if (!app) {
     root.replaceChildren();
     app = h('div', { class: 'app' }, h('aside', { class: 'side' }),
-      h('div', { class: 'main' }, h('div', { class: 'bar' }), h('div', { class: 'stage' }), h('div', { class: 'status' })));
+      h('div', { class: 'main' }, h('div', { class: 'bar' }), h('div', { class: 'document-tabs' }), h('div', { class: 'document-panel', hidden: true }), h('div', { class: 'stage' }), h('div', { class: 'status' })));
     root.append(app);
   }
   renderSide($('.side', app));
   renderBar($('.bar', app));
   renderStage($('.stage', app));
+  renderDocuments(app);
   renderStatus($('.status', app));
   renderSky(app);
   // An open menu is left alone (rebuilding it on every status change made it flicker and closed

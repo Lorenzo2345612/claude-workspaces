@@ -747,6 +747,12 @@ func saveAliasFromUI(old, name string, env, args []string) error {
 		return err
 	}
 	a := ClaudeAlias{Name: name}
+	for _, existing := range cfg.claudeAliases() {
+		if existing.Name == old || existing.Name == name {
+			a.Command = existing.Command
+			break
+		}
+	}
 	for _, kv := range env {
 		kv = strings.TrimSpace(kv)
 		if kv == "" {

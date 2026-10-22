@@ -218,7 +218,7 @@ func uiClaudeAliases() error {
 			case k.kind == keyEnter:
 				old := list[sel]
 				if old.FromShell { // keep it linked to the shell: edit the stored (name-only) entry
-					old = ClaudeAlias{Name: old.Name}
+					old = ClaudeAlias{Name: old.Name, Command: old.Command}
 				}
 				if a, ok := editClaudeAlias(cfg, old, false); ok {
 					replaced := false
@@ -298,7 +298,7 @@ func editClaudeAlias(cfg Config, a ClaudeAlias, isNew bool) (ClaudeAlias, bool) 
 	if !f.run() {
 		return a, false
 	}
-	out := ClaudeAlias{Name: cleanLabel(string(f.values[0])), Args: splitArgs(string(f.values[2]))}
+	out := ClaudeAlias{Name: cleanLabel(string(f.values[0])), Args: splitArgs(string(f.values[2])), Command: a.Command}
 	for _, kv := range splitArgs(string(f.values[1])) {
 		k, v, _ := strings.Cut(kv, "=")
 		out.Env = append(out.Env, k+"="+expandHome(v))

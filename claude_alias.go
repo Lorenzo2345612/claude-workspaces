@@ -17,9 +17,10 @@ import (
 // ClaudeAlias is a named way of launching Claude Code, like a shell alias:
 // environment variables (CLAUDE_CONFIG_DIR, CLAUDE_YOLO…) plus arguments (--model…).
 type ClaudeAlias struct {
-	Name string   `json:"name"`
-	Env  []string `json:"env,omitempty"`  // KEY=VALUE
-	Args []string `json:"args,omitempty"` // passed right after the claude executable
+	Name    string   `json:"name"`
+	Env     []string `json:"env,omitempty"`     // KEY=VALUE
+	Args    []string `json:"args,omitempty"`    // passed right after the claude executable
+	Command string   `json:"command,omitempty"` // optional compatible launcher, e.g. claude-codex
 	// FromShell is set when Env/Args come from the shell alias of the same name (the alias was
 	// registered with just its name): it is read from the rc files on every launch.
 	FromShell bool `json:"-"`
@@ -40,7 +41,10 @@ var shellAliasCache map[string]ClaudeAlias
 
 // resolve fills an alias registered with only its name from the shell alias of that name.
 func (a ClaudeAlias) resolve() ClaudeAlias {
-	if len(a.Env) > 0 || len(a.Args) > 0 || a.Name == builtinAlias {
+	if len(a.Env) > 0 || len(a.Args) > 0 || a.Command != "" || a.Name == builtinAlias {
+		if a.Name == "claude-codex" && a.Command == "" {
+			a.Command = "claude-codex"
+		}
 		return a
 	}
 	a.ViaShell = os.Getenv("SHELL") != ""
@@ -54,6 +58,10 @@ func (a ClaudeAlias) resolve() ClaudeAlias {
 		// Keep its definition (env, args) to know its config dir and to describe it.
 		s.FromShell, s.ViaShell = true, a.ViaShell
 		return s
+	}
+	if a.Name == "claude-codex" {
+		a.Command = "claude-codex"
+		a.ViaShell = false
 	}
 	return a
 }
@@ -177,7 +185,11 @@ func (a ClaudeAlias) configDir() string {
 // summary is a one-line description: "CLAUDE_YOLO=1 claude --dangerously-skip-permissions".
 func (a ClaudeAlias) summary() string {
 	parts := append([]string{}, a.Env...)
-	parts = append(parts, "claude")
+	command := a.Command
+	if command == "" {
+		command = "claude"
+	}
+	parts = append(parts, command)
 	parts = append(parts, a.Args...)
 	switch {
 	case a.ViaShell && a.FromShell:
@@ -215,7 +227,7 @@ var aliasListRe = regexp.MustCompile(`^(?:alias\s+)?([A-Za-z0-9_.+-]+)=(.*)$`)
 func importShellAliases() []ClaudeAlias {
 	// Starting the user's interactive shell takes from half a second to several (zsh with
 	// plugins): every cw process (dialogs, hooks, the app's server) shares one reading for a while.
-	cache := filepath.Join(runDir(), "shell-aliases.json")
+	cache := filepath.Join(runDir(), "shell-aliases-v2.json")
 	if st, err := os.Stat(cache); err == nil && time.Since(st.ModTime()) < shellAliasesTTL {
 		var list []ClaudeAlias
 		if data, err := os.ReadFile(cache); err == nil && json.Unmarshal(data, &list) == nil {
@@ -235,7 +247,7 @@ const shellAliasesTTL = 10 * time.Minute
 // added or imported an alias).
 func forgetShellAliases() {
 	shellAliasCache = nil
-	_ = os.Remove(filepath.Join(runDir(), "shell-aliases.json"))
+	_ = os.Remove(filepath.Join(runDir(), "shell-aliases-v2.json"))
 }
 
 // readShellAliases asks the shell for its aliases that launch claude (see importShellAliases).
@@ -267,6 +279,11 @@ func readShellAliases() []ClaudeAlias {
 	for _, name := range order {
 		if a, ok := parseClaudeAlias(name, defs[name]); ok {
 			out = append(out, a)
+		}
+	}
+	if _, defined := defs["claude-codex"]; !defined {
+		if _, err := exec.LookPath("claude-codex"); err == nil {
+			out = append(out, ClaudeAlias{Name: "claude-codex", Command: "claude-codex"})
 		}
 	}
 	return out
@@ -311,8 +328,15 @@ func parseClaudeAlias(name, body string) (ClaudeAlias, bool) {
 		a.Env = append(a.Env, k+"="+expandHome(v))
 		i++
 	}
-	if i >= len(words) || filepath.Base(words[i]) != "claude" {
+	if i >= len(words) {
 		return a, false
+	}
+	command := filepath.Base(words[i])
+	if command != "claude" && command != "claude-codex" {
+		return a, false
+	}
+	if command == "claude-codex" {
+		a.Command = words[i]
 	}
 	a.Args = append(a.Args, words[i+1:]...)
 	return a, true

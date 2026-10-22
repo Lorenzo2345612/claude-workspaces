@@ -108,7 +108,11 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 		// Run the user's own command (alias, function or script) exactly as typed in a terminal.
 		argv = []string{os.Getenv("SHELL"), "-ic", alias.Name + " " + joinArgs(rest)}
 	} else {
-		argv = append(append([]string{l.ClaudeBin}, alias.Args...), rest...)
+		command := l.ClaudeBin
+		if alias.Command != "" {
+			command = alias.Command
+		}
+		argv = append(append([]string{command}, alias.Args...), rest...)
 	}
 	argv = l.unsetOtherAliasVars(alias, argv)
 

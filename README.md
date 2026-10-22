@@ -57,6 +57,9 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - **Claude aliases** — named ways of launching claude (env vars + arguments, or your own shell
   alias such as `yolo`, run through your shell). Pick one per session; switching it restarts the
   session in the same conversation, optionally sending the continue message.
+  Shell aliases invoking `claude-codex` are supported, and the executable itself
+  appears when installed on PATH. Combining views preserves each session's alias
+  and process; changing an alias afterwards resumes that session through its launcher.
 - Workspaces can be **renamed** (even while open); commands accept the new name or the original id.
 - A workspace can also **start from a conversation**: give its ID and it opens in that
   conversation's directory with the conversation resumed.

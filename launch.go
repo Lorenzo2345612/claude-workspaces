@@ -27,7 +27,8 @@ func newLauncher(ws string, cfg Config) (*Launcher, error) {
 	}
 	claudeBin, err := exec.LookPath(cfg.ClaudeCommand)
 	if err != nil {
-		return nil, fmt.Errorf("no encuentro %q en el PATH: %w", cfg.ClaudeCommand, err)
+		// A Codex-only installation can still open workspaces and terminals.
+		claudeBin = cfg.ClaudeCommand
 	}
 	return &Launcher{WS: ws, Bin: bin, ClaudeBin: claudeBin, Cfg: cfg}, nil
 }
@@ -63,6 +64,9 @@ func (l *Launcher) hookSettings() string {
 // resuming=false starts a brand-new conversation with a pre-assigned ID.
 func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 	alias := l.Cfg.claudeAlias(s.ClaudeAlias)
+	if alias.isCodex() {
+		return l.codexArgv(s, alias, resuming)
+	}
 	s.ClaudeAlias = alias.Name
 	var others []string
 	for _, a := range l.Cfg.claudeAliases() {
@@ -103,6 +107,9 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 		}
 	}
 
+	if s.InitialMessage != "" {
+		rest = append(rest, "--", s.InitialMessage)
+	}
 	var argv []string
 	if alias.ViaShell {
 		// Run the user's own command (alias, function or script) exactly as typed in a terminal.

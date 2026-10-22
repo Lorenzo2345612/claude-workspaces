@@ -34,6 +34,9 @@ func findConversations(query string, cfg Config) []foundConv {
 	var out []foundConv
 	seenDir, seenID := map[string]bool{}, map[string]bool{}
 	for _, a := range aliases {
+		if a.isCodex() {
+			continue
+		}
 		projects := filepath.Join(a.configDir(), "projects")
 		real, err := filepath.EvalSymlinks(projects)
 		if err != nil || seenDir[real] {
@@ -250,6 +253,9 @@ func guessAlias(cfg Config, id, path string) string {
 	projects, _ := filepath.EvalSymlinks(filepath.Dir(filepath.Dir(path)))
 	var reach []ClaudeAlias
 	for _, a := range cfg.claudeAliases() {
+		if a.isCodex() {
+			continue
+		}
 		if p, err := filepath.EvalSymlinks(filepath.Join(a.configDir(), "projects")); err == nil && p == projects {
 			reach = append(reach, a)
 		}

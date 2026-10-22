@@ -39,6 +39,9 @@ func recentConversations(dir string, limit int, exclude map[string]bool, cfg Con
 	var fs []fileAt
 	seenDir := map[string]bool{}
 	for _, a := range aliases {
+		if a.isCodex() {
+			continue
+		}
 		// Config dirs often share one projects folder through a symlink: list each real folder once.
 		pd := claudeProjectDir(a.configDir(), dir)
 		real, err := filepath.EvalSymlinks(pd)

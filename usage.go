@@ -77,6 +77,9 @@ func claudeUsageWith(cfg Config, tokens bool, fresh ...bool) []accountUsage {
 	var order []string
 	groups := map[string]*group{}
 	for _, a := range cfg.claudeAliases() {
+		if a.isCodex() {
+			continue
+		}
 		dir := cfg.accountDir(a)
 		ext := ""
 		for _, kv := range a.Env {

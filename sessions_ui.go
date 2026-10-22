@@ -219,6 +219,9 @@ func editSession(ws string, r sessionRow) error {
 	if action == actCancel {
 		return nil
 	}
+	if err := checkAgentAlias(cfg, oldAlias, f.selectedAlias()); err != nil {
+		return err
+	}
 	alias := cleanLabel(string(f.alias))
 	args := splitArgs(string(f.args))
 	if err := setSlotName(t, r.paneID, alias); err != nil {

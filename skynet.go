@@ -224,6 +224,9 @@ func (s *skynet) setState(state, errMsg string) {
 // (the least used), never one that just ran out.
 func (s *skynet) pickAlias(cfg Config) (string, error) {
 	if cfg.SkynetAlias != "" {
+		if cfg.claudeAlias(cfg.SkynetAlias).isCodex() {
+			return "", errors.New("Skynet requiere un alias de Claude")
+		}
 		return cfg.claudeAlias(cfg.SkynetAlias).Name, nil
 	}
 	accounts := claudeLimits(cfg)

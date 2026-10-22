@@ -106,7 +106,7 @@ func (f *newTabForm) draw() {
 	row = max(row, 5) + 1
 	s.at(row, 4, "Empezar con")
 	col := 17
-	for i, opt := range []string{" ✦ Claude ", " ❯ Terminal ", " ○ Vacía "} {
+	for i, opt := range []string{" ✦ Agente ", " ❯ Terminal ", " ○ Vacía "} {
 		style := sgrField
 		if i == f.start {
 			style = sgrSel
@@ -124,7 +124,7 @@ func (f *newTabForm) draw() {
 			style = sgrSel
 		}
 		a := f.claudeAliases[f.aliasIdx]
-		s.at(row, 4, "Claude")
+		s.at(row, 4, "Agente")
 		s.at(row, 17, style+" ‹ "+fit(a.Name, 20)+" › "+sgrReset+sgrDim+" "+fit(a.summary(), fieldWidth-26)+sgrReset)
 		s.zone(row, 17, 3, "aprev")
 		s.zone(row, 20, 20, "anext")

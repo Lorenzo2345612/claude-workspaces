@@ -1,6 +1,6 @@
-# cw — Claude Code workspaces
+# cw — Claude Code and Codex workspaces
 
-A terminal app that keeps your Claude Code sessions organised in **tabs**, each tab rooted in a
+A terminal app that keeps your Claude Code and Codex sessions organised in **tabs**, each tab rooted in a
 directory, and saves / restores the whole set with one command. Built on tmux; runs on **macOS**,
 **Linux** and **Windows (through WSL)**.
 
@@ -194,6 +194,39 @@ y actualizar su contenido sin detener las sesiones. Las subpestañas se guardan 
 el workspace. Admite `.md` y `.markdown`, UTF-8, hasta 2 MiB, en modo de solo lectura.
 El visor muestra encabezados, listas, negritas, citas y bloques de código; no ejecuta
 HTML ni carga recursos remotos. Requiere un workspace abierto en la app.
+
+## Claude y Codex: retomar entre agentes
+
+Al crear una sesión, selecciona `claude`, uno de tus aliases o `codex` en **Agente / alias**.
+Codex se ejecuta con su CLI nativa; sus argumentos se configuran por separado con
+`codex_args` y su ejecutable con `codex_command` (por defecto `codex`). No necesita
+que Claude esté instalado. Los aliases del shell que ejecutan `codex` también se pueden importar.
+
+En el menú contextual de una sesión, **Retomar con Codex** y **Retomar con Claude**
+abren una sesión nueva en la misma carpeta y conservan la original. En **Configuración → General**
+de la app, o en **Alt+m → Configuración** de la terminal, escribe el nombre de la skill
+que existe en tu proyecto para cada destino:
+
+- `resume_codex_skill`: por defecto `retomar-con-codex`.
+- `resume_claude_skill`: por defecto `retomar-con-claude`.
+
+El primer mensaje será, por ejemplo:
+
+```text
+retomar-con-codex retoma la sesión de claude con id 01234567-89ab-cdef-0123-456789abcdef
+```
+
+La skill del proyecto debe saber recuperar el contexto del agente de origen usando ese ID;
+cw envía la instrucción y no convierte los historiales. No se copian los argumentos del
+agente de origen. Al guardar y restaurar el workspace, cada conversación se reabre con su
+propio agente (`codex resume ID` o `claude --resume ID`); el mensaje de traspaso no se repite.
+
+Codex debe admitir hooks de ciclo de vida. En su primer uso, revisa y confía en los hooks
+de cw con `/hooks` para que se registre el ID real y la actividad de la sesión.
+Si se omitió `SessionStart`, el siguiente evento de actividad también registra el ID.
+Sin hooks habilitados y autorizados, cw no puede identificar ni restaurar una conversación
+nueva de Codex. Véase la [documentación oficial de hooks](https://learn.chatgpt.com/docs/hooks).
+El panel de consumo y el cambio automático por cuota siguen usando las cuentas de Claude.
 
 ## How it tracks Claude sessions
 

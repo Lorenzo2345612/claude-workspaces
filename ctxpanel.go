@@ -404,7 +404,9 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		add("▸ Renombrar", "rename:"+p[0])
 		add("▸ Editar sesión", "edit:"+p[0])
 		if p[2] == kindClaude {
-			add("✦ Cambiar alias de claude", "edit:"+p[0])
+			add("✦ Cambiar alias de agente", "edit:"+p[0])
+			add("Retomar con Codex", "handoff-codex:"+p[0])
+			add("Retomar con Claude", "handoff-claude:"+p[0])
 			if p[3] == statusSleeping {
 				add("▶ Reanudar", "life:"+p[0])
 			} else {
@@ -431,6 +433,24 @@ func ctxRun(t Tmux, ws, kind, target, id string) error {
 		id, arg = id[:i], id[i+1:]
 	}
 	switch id {
+	case "handoff-codex", "handoff-claude":
+		source, err := paneSlot(t, arg)
+		if err != nil {
+			return err
+		}
+		cfg, err := loadConfig()
+		if err != nil {
+			return err
+		}
+		s, err := handoffSlot(source, strings.TrimPrefix(id, "handoff-"), cfg)
+		if err != nil {
+			return err
+		}
+		session, err := t.Run("display", "-p", "-t", arg, "#{session_name}")
+		if err != nil {
+			return err
+		}
+		return openInTab(ws, session, s, false)
 	case "tab-left", "tab-right":
 		name, err := t.Run("display", "-p", "-t", target, "#{session_name}")
 		if err != nil {

@@ -35,7 +35,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	bq := "'" + bin + "'" // sh-quoted binary, used inside tmux double-quoted strings
 
 	newTabPopup := fmt.Sprintf(`display-popup -E -w 72 -h 18 -T " Nueva pestaña " "%s _ui newtab %s"`, bq, ws)
-	newClaudePopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Nueva sesión de Claude " "%s _ui newclaude %s"`, bq, ws)
+	newClaudePopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Nueva sesión de Claude o Codex " "%s _ui newclaude %s"`, bq, ws)
 	sessionsPopup := fmt.Sprintf(`display-popup -E -w 78 -h 22 -T " Sesiones " "%s _ui sessions %s"`, bq, ws)
 	editCurrentPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Editar sesión " "%s _ui editcurrent %s"`, bq, ws)
 	newShell := fmt.Sprintf(`run-shell "%s _new shell %s '#{session_name}' || true"`, bq, ws)
@@ -63,7 +63,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
 	confirmClose := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar sesión " "%s _ui confirm %s close"`, bq, ws)
 
-	slotMenu := fmt.Sprintf(`display-menu -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude" c { %s } "↻ Claude por ID…" i { %s } "❯ Terminal" s { %s }`,
+	slotMenu := fmt.Sprintf(`display-menu -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude / Codex" c { %s } "↻ Claude por ID…" i { %s } "❯ Terminal" s { %s }`,
 		newClaudePopup, resumeIDPopup, newShell)
 
 	// Items whose name starts with "-" are disabled: they serve as group headings.
@@ -71,7 +71,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		// "--" ends the options: otherwise the first heading ("-CREAR") parses as a flag.
 		fmt.Sprintf(`display-menu -T "#[align=centre] cw %s · #{@cw_ws_title} " -x C -y C --`, version),
 		`"-CREAR" "" ""`,
-		fmt.Sprintf(`"  ✦ Sesión de Claude" c { %s }`, newClaudePopup),
+		fmt.Sprintf(`"  ✦ Sesión de Claude / Codex" c { %s }`, newClaudePopup),
 		fmt.Sprintf(`"  ↻ Retomar sesión por ID…" i { %s }`, resumeIDPopup),
 		fmt.Sprintf(`"  ❯ Terminal" s { %s }`, newShell),
 		fmt.Sprintf(`"  ▤ Pestaña" t { %s }`, newTabPopup),
@@ -141,7 +141,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		multi := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] ⧉ #[norange]#{P:%s,%s}#[%s] #[default] `, style, item, item, style)
 		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#{?#{e|>:#{window_panes},1},%s,%s}}`, multi, single)
 	}
-	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[bg=colour237 fg=%s bold] + Claude #[norange default]  `+
+	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[bg=colour237 fg=%s bold] + Agente #[norange default]  `+
 		`#[range=user|newshell]#[bg=colour237 fg=%s bold] + Terminal #[norange default]`+
 		`#[align=right]#[fg=%s]#{@cw_dir} `,
 		pill(`bg=`+colPill+` fg=`+colText), pill(`bg=`+colPillOn+` fg=colour255 bold`), colButton, colButton, colMuted)

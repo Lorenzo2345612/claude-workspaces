@@ -41,6 +41,9 @@ var shellAliasCache map[string]ClaudeAlias
 
 // resolve fills an alias registered with only its name from the shell alias of that name.
 func (a ClaudeAlias) resolve() ClaudeAlias {
+	if a.Name == "codex" && a.Command == "" {
+		a.Command = "codex"
+	}
 	if len(a.Env) > 0 || len(a.Args) > 0 || a.Command != "" || a.Name == builtinAlias {
 		if a.Name == "claude-codex" && a.Command == "" {
 			a.Command = "claude-codex"
@@ -82,12 +85,24 @@ func (c Config) claudeAliases() []ClaudeAlias {
 	if !hasBuiltin && (!c.HideClaudeAlias || len(out) == 0) {
 		out = append([]ClaudeAlias{{Name: builtinAlias}}, out...)
 	}
+	hasCodex := false
+	for _, a := range out {
+		if a.Name == "codex" {
+			hasCodex = true
+		}
+	}
+	if !hasCodex {
+		out = append(out, ClaudeAlias{Name: "codex", Command: "codex"})
+	}
 	return out
 }
 
 // deleteAlias removes an alias from the configuration; the plain "claude" can go too, as long
 // as another alias is left.
 func deleteAlias(cfg *Config, name string) error {
+	if name == "codex" {
+		return fmt.Errorf("Codex es un agente integrado; puedes editar su configuración")
+	}
 	var kept []ClaudeAlias
 	for _, a := range cfg.ClaudeAliases {
 		if a.Name != name {
@@ -332,10 +347,10 @@ func parseClaudeAlias(name, body string) (ClaudeAlias, bool) {
 		return a, false
 	}
 	command := filepath.Base(words[i])
-	if command != "claude" && command != "claude-codex" {
+	if command != "claude" && command != "claude-codex" && command != "codex" {
 		return a, false
 	}
-	if command == "claude-codex" {
+	if command == "claude-codex" || command == "codex" {
 		a.Command = words[i]
 	}
 	a.Args = append(a.Args, words[i+1:]...)

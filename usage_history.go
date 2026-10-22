@@ -174,6 +174,9 @@ func collectUsageHistory(cfg Config) error {
 	}
 	folders := map[string][]string{}
 	for _, a := range cfg.claudeAliases() {
+		if a.isCodex() {
+			continue
+		}
 		dir, err := filepath.EvalSymlinks(filepath.Join(cfg.accountDir(a), "projects"))
 		if err == nil {
 			folders[dir] = append(folders[dir], a.Name)

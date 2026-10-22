@@ -267,6 +267,34 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			l.removeSlot(s)
 		}
 		return nil, save()
+	case "slot.handoff":
+		at, _ := l.findSlot(q.Slot)
+		if at == nil {
+			return nil, errors.New("esa sesión ya no existe")
+		}
+		pane, err := paneOf(q.Slot)
+		if err != nil {
+			return nil, err
+		}
+		source, err := paneSlot(t, pane)
+		if err != nil {
+			return nil, err
+		}
+		s, err := handoffSlot(source, q.Alias, cfg)
+		if err != nil {
+			return nil, err
+		}
+		ln, err := launcher(false)
+		if err != nil {
+			return nil, err
+		}
+		if err := appOpenSlot(t, ln, &s, false); err != nil {
+			return nil, err
+		}
+		v := &appView{ID: shortID(), Layout: layoutCols, Slots: []string{s.ID}, Focus: s.ID}
+		at.Views = append(at.Views, v)
+		at.Active, l.Active = v.ID, at.ID
+		return map[string]any{"slot": s.ID}, save()
 	case "slot.new":
 		at, err := tabOf(q.Tab)
 		if err != nil {
@@ -300,6 +328,15 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 				s.SessionID, resuming = found[0].conv.ID, true
 				if q.Dir == "" && isDir(found[0].cwd) {
 					s.Cwd = found[0].cwd // a conversation reopens where it was started
+				}
+				if cfg.claudeAlias(s.ClaudeAlias).isCodex() {
+					source := s
+					source.ClaudeAlias = found[0].conv.Alias
+					next, err := handoffSlot(source, "codex", cfg)
+					if err != nil {
+						return nil, err
+					}
+					s, resuming = next, false
 				}
 			}
 			recordAlias(s.Alias, at.Title)
@@ -362,6 +399,11 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		kind, _ := t.Run("display", "-p", "-t", pane, "#{@cw_kind}")
 		oldAlias, _ := t.Run("display", "-p", "-t", pane, "#{@cw_claude_alias}")
 		oldAlias = cfg.claudeAlias(oldAlias).Name
+		if kind == kindClaude {
+			if err := checkAgentAlias(cfg, oldAlias, q.Alias); err != nil {
+				return nil, err
+			}
+		}
 		if err := setSlotName(t, pane, name); err != nil {
 			return nil, err
 		}
@@ -369,6 +411,9 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			return nil, nil
 		}
 		newAlias := cfg.claudeAlias(q.Alias).Name
+		if err := checkAgentAlias(cfg, oldAlias, newAlias); err != nil {
+			return nil, err
+		}
 		if _, err := t.Run("set", "-p", "-t", pane, "@cw_args", argsToOption(splitArgs(q.Args)), ";",
 			"set", "-p", "-t", pane, "@cw_claude_alias", newAlias); err != nil {
 			return nil, err
@@ -490,6 +535,18 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		}
 		name := cfg.claudeAlias(q.Alias).Name
 		changed := 0
+		for _, id := range targets {
+			pane, err := paneOf(id)
+			if err != nil {
+				continue
+			}
+			source, err := paneSlot(t, pane)
+			if err == nil && source.Kind == kindClaude {
+				if err := checkAgentAlias(cfg, source.ClaudeAlias, name); err != nil {
+					return nil, err
+				}
+			}
+		}
 		for _, id := range targets {
 			pane, err := paneOf(id)
 			if err != nil {

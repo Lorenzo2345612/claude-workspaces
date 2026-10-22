@@ -50,12 +50,14 @@ type Tab struct {
 // ID is stable for the life of the window; SessionID is Claude's current conversation and can
 // change under /clear or /resume — the hooks keep it up to date.
 type Slot struct {
-	ID        string `json:"id"`
-	Kind      string `json:"kind"`
-	Alias     string `json:"alias"`
-	Cwd       string `json:"cwd"`
-	SessionID string `json:"session_id,omitempty"`
-	Status    string `json:"status,omitempty"`
+	// InitialMessage is consumed by the launch command, never replayed on restore.
+	InitialMessage string `json:"-"`
+	ID             string `json:"id"`
+	Kind           string `json:"kind"`
+	Alias          string `json:"alias"`
+	Cwd            string `json:"cwd"`
+	SessionID      string `json:"session_id,omitempty"`
+	Status         string `json:"status,omitempty"`
 	// Args are this session's own extra claude arguments, added after the global claude_args.
 	Args []string `json:"args,omitempty"`
 	// ClaudeAlias is the configured claude alias (env + args) the session runs with.

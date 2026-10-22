@@ -570,7 +570,7 @@ function emptyTab(tab) {
   const card = h('div', { class: 'ec' },
     h('h3', {}, tab.title), h('p', {}, tab.short),
     h('div', { class: 'big3' },
-      big('✦', 'Claude', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
+      big('✦', 'Claude / Codex', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
       big('❯', 'Terminal', 'en esta carpeta', () => dlgNewSession(tab.id, 'shell')),
       big('↻', 'Retomar', 'por su ID', () => dlgNewSession(tab.id, 'resume'))),
     h('div', { class: 'grp' }, h('span', {}, 'Recientes en esta carpeta')), list);
@@ -743,7 +743,7 @@ function tabItems(id) {
     { label: 'Cambiar carpeta…', k: t.short, run: () => dlgDir('Carpeta de la pestaña ' + t.title, 'Las sesiones nuevas de la pestaña empiezan aquí.', t.short, v => act('tab.dir', { tab: id, dir: v })) },
     running ? { label: 'Suspender la pestaña', k: running + ' de Claude', run: () => act('tab.suspend', { tab: id }) }
       : claude.length ? { label: 'Reanudar la pestaña', run: () => act('tab.wake', { tab: id }) } : null,
-    claude.length ? { label: 'Alias de Claude de la pestaña…', run: () => dlgBulkAlias('tab', id) } : null,
+    claude.length ? { label: 'Alias de agente de la pestaña…', run: () => dlgBulkAlias('tab', id) } : null,
     { label: 'Mover', sub: () => [i > 0 && { label: 'Arriba', run: () => act('tab.move', { tab: id, to: i - 1 }) },
       i < st.tabs.length - 1 && { label: 'Abajo', run: () => act('tab.move', { tab: id, to: i + 1 }) }].filter(Boolean) },
     '-',
@@ -759,6 +759,8 @@ function slotItems(id) {
     { label: 'Renombrar', run: () => dlgPrompt('Renombrar sesión', 'Nombre', s.name, v => act('slot.rename', { slot: id, name: v })) }];
   if (s.kind === 'claude') {
     items.push({ label: 'Editar sesión…', run: () => dlgEditSession(id) });
+    items.push({ label: 'Retomar con Codex', run: () => act('slot.handoff', { slot: id, alias: 'codex' }) });
+    items.push({ label: 'Retomar con Claude', run: () => act('slot.handoff', { slot: id, alias: 'claude' }) });
     items.push({ label: 'Cambiar alias', sub: () => S.aliases.map(a => ({ label: a.name, k: a.name === s.alias ? '✓' : '', run: () => a.name === s.alias ? null : act('alias.bulk', { scope: 'slot', slot: id, alias: a.name, sendContinue: true }) })) });
     if (s.status === 'sleeping') items.push({ label: 'Reanudar', run: () => act('slot.wake', { slot: id }) });
     else if (!s.dead) items.push({ label: 'Suspender', k: 'deja de correr', run: () => act('slot.suspend', { slot: id }) });
@@ -769,7 +771,7 @@ function slotItems(id) {
   if (multi) {
     items.push({ label: 'Distribución', sub: () => [['cols', 'Columnas'], ['rows', 'Filas'], ['grid', 'Cuadrícula']].map(([l, n]) => ({ label: n, k: view.layout === l ? '✓' : '', run: () => act('view.layout', { view: view.id, layout: l }) })) });
     items.push({ label: 'Separar de la vista', run: () => act('slot.split', { slot: id }) });
-    if (view.slots.some(x => slotOf(x)?.kind === 'claude')) items.push({ label: 'Alias de Claude de la vista…', run: () => dlgBulkAlias('view', view.id) });
+    if (view.slots.some(x => slotOf(x)?.kind === 'claude')) items.push({ label: 'Alias de agente de la vista…', run: () => dlgBulkAlias('view', view.id) });
   }
   items.push({ label: 'Mover', sub: () => [
     vi > 0 && { label: 'Arriba en la pestaña', run: () => act('view.move', { view: view.id, to: vi - 1 }) },
@@ -796,7 +798,7 @@ function wsMenu(x, y) {
     { label: 'Carpeta por defecto…', k: S.state.dirShort, run: () => dlgDir('Carpeta por defecto del workspace', 'Las pestañas nuevas empiezan aquí.', S.state.dirShort, v => act('ws.dir', { dir: v })) },
     { label: 'Guardar ahora', run: () => act('ws.save').then(() => toast('Estado guardado')) },
     { label: 'Reabrir sesión cerrada', k: 'Ctrl ⇧ T', run: () => act('slot.reopen', { tab: curTab()?.id, ...stageSize() }) },
-    { label: 'Alias de Claude de todo…', run: () => dlgBulkAlias('all', '') },
+    { label: 'Alias de agente de todo…', run: () => dlgBulkAlias('all', '') },
     { label: 'Uso de Claude…', run: () => dlgUsage() },
     { label: 'Recursos…', run: () => dlgResources() },
     { label: '✦ ' + skyName(), k: skyOn() ? 'Alt K' : 'apagado', run: () => skyToggle() },
@@ -924,13 +926,13 @@ function dlgNewSession(tabId, mode, conv) {
   };
   idInput.addEventListener('input', () => { clearTimeout(idInput._t); idInput._t = setTimeout(search, 180); });
   name.addEventListener('input', upd); args.addEventListener('input', upd);
-  const kinds = seg([{ value: 'claude', label: '✦ Claude' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar por ID' }], mode, v => { mode = v; draw(); });
+  const kinds = seg([{ value: 'claude', label: '✦ Claude / Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar por ID' }], mode, v => { mode = v; draw(); });
   const draw = () => {
     body.replaceChildren(kinds);
     if (mode === 'resume') body.append(field('Conversación', idInput), results);
     body.append(field('Nombre', name));
-    if (mode !== 'shell') body.append(field('Alias de Claude', aSeg), field('Argumentos extra', args), field('Se ejecutará', preview));
-    m.scrim.querySelector('header').textContent = mode === 'shell' ? 'Nueva terminal' : mode === 'resume' ? 'Retomar conversación de Claude' : 'Nueva sesión de Claude';
+    if (mode !== 'shell') body.append(field('Agente / alias', aSeg), h('div', { class: 'hint' }, 'Codex: autoriza los hooks de cw con /hooks para registrar y restaurar la conversación.'), field('Argumentos extra', args), field('Se ejecutará', preview));
+    m.scrim.querySelector('header').textContent = mode === 'shell' ? 'Nueva terminal' : mode === 'resume' ? 'Retomar conversación de Claude' : 'Nueva sesión de Claude o Codex';
     primary.textContent = mode === 'shell' ? 'Abrir terminal' : mode === 'resume' ? 'Retomar' : 'Crear sesión';
     upd();
     setTimeout(() => (mode === 'resume' && !resume ? idInput : name).focus(), 10);
@@ -986,11 +988,11 @@ function dlgNewTab() {
   const dir = dirInput(S.state.dirShort || (tab ? tab.short : '~'));
   const sess = h('input', { class: 'input', placeholder: 'igual que la pestaña' });
   const extra = h('div', { style: { display: 'grid', gap: '14px' } });
-  const drawExtra = () => extra.replaceChildren(...(start === 'claude' ? [field('Nombre de la sesión', sess), field('Alias de Claude', aliasSeg(alias, v => alias = v))] : []));
+  const drawExtra = () => extra.replaceChildren(...(start === 'claude' ? [field('Nombre de la sesión', sess), field('Agente / alias', aliasSeg(alias, v => alias = v))] : []));
   drawExtra();
   modal({ title: 'Nueva pestaña', sub: 'Una pestaña agrupa las sesiones de una tarea, en su carpeta.', body: [
     field('Nombre', name), field('Carpeta', dir),
-    field('Empezar con', seg([{ value: 'claude', label: '✦ Claude' }, { value: 'shell', label: '❯ Terminal' }, { value: 'empty', label: 'Vacía' }], start, v => { start = v; drawExtra(); })),
+    field('Empezar con', seg([{ value: 'claude', label: '✦ Claude / Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'empty', label: 'Vacía' }], start, v => { start = v; drawExtra(); })),
     extra], buttons: [{ label: 'Cancelar' }, { label: 'Crear pestaña', primary: true, run: async () => {
       const d = dir.input.value.trim();
       const title = name.value.trim() || d.replace(/\/+$/, '').split('/').pop();
@@ -1012,7 +1014,7 @@ function dlgEditSession(id) {
   };
   name.addEventListener('input', upd); args.addEventListener('input', upd);
   const body = s.kind === 'claude'
-    ? [field('Nombre', name), field('Alias de Claude', aliasSeg(alias, v => { alias = v; upd(); })), field('Argumentos extra', args), note, field('Al reiniciar se ejecutará', preview)]
+    ? [field('Nombre', name), field('Agente / alias', aliasSeg(alias, v => { alias = v; upd(); })), field('Argumentos extra', args), note, field('Al reiniciar se ejecutará', preview)]
     : [field('Nombre', name)];
   const save = restart => async () => api.do('slot.edit', { ws: S.ws, slot: id, name: name.value, alias, args: args.value, restart, sendContinue });
   modal({ title: 'Editar ' + s.name, sub: s.kind === 'claude' ? 'Los argumentos nuevos se aplican al reiniciar la sesión.' : s.short, body,
@@ -1091,7 +1093,7 @@ async function dlgSettings(section) {
   scrim._close = close;
   scrim.addEventListener('mousedown', ev => { if (ev.target === scrim) close(); });
   const nav = h('nav'), sec = h('section');
-  const sections = [['general', 'General'], ['aliases', 'Alias de Claude'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
+  const sections = [['general', 'General'], ['aliases', 'Agentes y aliases'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
   const set = async patch => {
     try { await api.do('config.set', { config: patch }); await loadConfig(); } catch (e) { toast(e.message, true); }
     if ('skynet_enabled' in patch || 'skynet_voice' in patch) { skyConnect(); window.skyVoice?.sync(); render(); }
@@ -1105,6 +1107,9 @@ async function dlgSettings(section) {
       const cargs = h('input', { class: 'input', style: { width: '240px' }, value: (c.claude_args || []).join(' '), placeholder: 'p. ej. --permission-mode auto',
         onchange: ev => set({ claude_args: ev.target.value.trim() ? ev.target.value.trim().split(/\s+/) : [] }) });
       sec.replaceChildren(h('h3', {}, 'General'),
+        ...['claude', 'codex'].map(agent => h('div', { class: 'setrow' }, h('div', {}, 'Skill: retomar con ' + agent, h('small', {}, 'Skill del proyecto enviada como primer mensaje con el ID de origen.')),
+          h('input', { class: 'input', value: c['resume_' + agent + '_skill'] || '', onchange: ev => set({ ['resume_' + agent + '_skill']: ev.target.value }) }))),
+        h('div', { class: 'setrow' }, h('div', {}, 'Comando de Codex'), h('input', { class: 'input', value: c.codex_command || 'codex', onchange: ev => set({ codex_command: ev.target.value }) })),
         h('div', { class: 'setrow' }, h('div', {}, 'Mensaje de continuación', h('small', {}, 'Lo reciben las sesiones que estaban trabajando al apagar o reiniciar.')), msg),
         h('div', { class: 'setrow' }, h('div', {}, 'Arranque diferido', h('small', {}, 'Al retomar un workspace, las sesiones ociosas esperan a que pulses Enter en ellas.')),
           h('button', { class: 'toggle' + (c.lazy_start ? ' on' : ''), onclick: () => set({ lazy_start: !c.lazy_start }).then(draw) }, h('i'))),
@@ -1119,7 +1124,7 @@ async function dlgSettings(section) {
         h('div', { class: 'setrow' }, h('div', {}, 'Argumentos para todas las sesiones', h('small', {}, 'Se agregan a cada sesión de Claude que se abra.')), cargs),
         h('div', { class: 'setrow' }, h('div', {}, 'Archivo de configuración', h('small', {}, S.configFile)), ''));
     } else if (section === 'aliases') {
-      sec.replaceChildren(h('h3', {}, 'Alias de Claude'),
+      sec.replaceChildren(h('h3', {}, 'Agentes y aliases'),
         h('p', { class: 'hint', style: { marginTop: 0, marginBottom: '14px' } }, 'Formas de lanzar Claude: variables de entorno y argumentos, como tus alias de la shell. La estrella marca el que se propone para las sesiones nuevas.'),
         ...S.aliases.map(a => h('div', { class: 'acard' },
           h('div', { class: 'tx' }, h('b', {}, a.name), a.name === S.defaultAlias ? h('span', { class: 'star' }, '★ por defecto') : null, h('div', {}, a.summary)),

@@ -396,6 +396,19 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		sl := Slot{Kind: kindClaude, Alias: q.Get("name"), Args: splitArgs(q.Get("args")), ClaudeAlias: q.Get("alias"), SessionID: q.Get("resume")}
+		if sl.SessionID != "" && cfg.claudeAlias(sl.ClaudeAlias).isCodex() {
+			found := findConversations(sl.SessionID, cfg)
+			if len(found) > 0 {
+				source := sl
+				source.ClaudeAlias = found[0].conv.Alias
+				next, err := handoffSlot(source, "codex", cfg)
+				if err != nil {
+					writeErr(w, err)
+					return
+				}
+				sl = next
+			}
+		}
 		writeJSON(w, map[string]string{"command": l.commandPreview(sl, sl.SessionID != "")})
 	default:
 		http.NotFound(w, r)
@@ -440,6 +453,10 @@ type doReq struct {
 	Env          []string  `json:"env"`
 	ArgList      []string  `json:"argList"`
 	Config       *struct {
+		ResumeClaudeSkill    *string   `json:"resume_claude_skill"`
+		ResumeCodexSkill     *string   `json:"resume_codex_skill"`
+		CodexCommand         *string   `json:"codex_command"`
+		CodexArgs            *[]string `json:"codex_args"`
 		ContinueMessage      *string   `json:"continue_message"`
 		LazyStart            *bool     `json:"lazy_start"`
 		UsageIntervalSeconds *int      `json:"usage_interval_seconds"`
@@ -666,6 +683,18 @@ func applyConfigPatch(q *doReq) error {
 				return errors.New("el intervalo debe ser 0 o entre 60 y 86400 segundos")
 			}
 			cfg.UsageIntervalSeconds = *c.UsageIntervalSeconds
+		}
+		if c.ResumeClaudeSkill != nil {
+			cfg.ResumeClaudeSkill = strings.TrimSpace(*c.ResumeClaudeSkill)
+		}
+		if c.ResumeCodexSkill != nil {
+			cfg.ResumeCodexSkill = strings.TrimSpace(*c.ResumeCodexSkill)
+		}
+		if c.CodexCommand != nil && strings.TrimSpace(*c.CodexCommand) != "" {
+			cfg.CodexCommand = strings.TrimSpace(*c.CodexCommand)
+		}
+		if c.CodexArgs != nil {
+			cfg.CodexArgs = *c.CodexArgs
 		}
 		if c.ContinueMessage != nil {
 			cfg.ContinueMessage = *c.ContinueMessage

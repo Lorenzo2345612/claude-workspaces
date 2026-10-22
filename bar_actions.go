@@ -81,6 +81,8 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, "-SESIONES", "", "")
 	menu = append(menu, item("Mensaje de continuación", "«"+shorten(cfg.ContinueMessage, 20)+"»", "m",
 		popup("Mensaje de continuación", 13, "_ui", "setconf", ws, "msg"))...)
+	menu = append(menu, item("Skill: retomar con Claude", cfg.ResumeClaudeSkill, "r", popup("Skill para Claude", 13, "_ui", "setconf", ws, "resume-claude"))...)
+	menu = append(menu, item("Skill: retomar con Codex", cfg.ResumeCodexSkill, "x", popup("Skill para Codex", 13, "_ui", "setconf", ws, "resume-codex"))...)
 	menu = append(menu, item("Arranque diferido", yesNo(cfg.LazyStart), "l", toggle("lazy"))...)
 	menu = append(menu, item("Argumentos para todo claude", args2, "g",
 		popup("Argumentos para claude", 13, "_ui", "setconf", ws, "args"))...)
@@ -168,6 +170,18 @@ func uiSetConf(what string) error {
 		return err
 	}
 	switch what {
+	case "resume-claude", "resume-codex":
+		value := cfg.ResumeClaudeSkill
+		if what == "resume-codex" {
+			value = cfg.ResumeCodexSkill
+		}
+		if v, ok := askText("Nombre de la skill del proyecto para retomar", "Skill", value, "Se enviará como primer mensaje junto con el ID de origen"); ok {
+			if what == "resume-codex" {
+				cfg.ResumeCodexSkill = v
+			} else {
+				cfg.ResumeClaudeSkill = v
+			}
+		}
 	case "msg":
 		if v, ok := askText("Mensaje que reciben las sesiones que estaban trabajando", "Mensaje", cfg.ContinueMessage, "vacío = no mandar nada"); ok {
 			cfg.ContinueMessage = v
@@ -298,6 +312,11 @@ func uiBulkAlias(ws, scope string) error {
 			case id == "ok" || k.kind == keyEnter:
 				setRaw(false)
 				name := aliases[idx].Name
+				for _, r := range targets {
+					if err := checkAgentAlias(cfg, r.slot.ClaudeAlias, name); err != nil {
+						return err
+					}
+				}
 				for _, r := range targets {
 					if cfg.claudeAlias(r.slot.ClaudeAlias).Name == name {
 						continue

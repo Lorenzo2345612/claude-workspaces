@@ -11,6 +11,10 @@ import (
 
 // Config holds the user-editable settings, stored in ~/.config/cw/config.json.
 type Config struct {
+	CodexCommand      string   `json:"codex_command"`
+	CodexArgs         []string `json:"codex_args,omitempty"`
+	ResumeClaudeSkill string   `json:"resume_claude_skill"`
+	ResumeCodexSkill  string   `json:"resume_codex_skill"`
 	// UsageIntervalSeconds controla la lectura incremental del historial; 0 equivale a una hora.
 	UsageIntervalSeconds int `json:"usage_interval_seconds,omitempty"`
 	// ContinueMessage is sent to every Claude session that was working when the workspace was stopped.
@@ -73,13 +77,16 @@ const (
 
 func defaultConfig() Config {
 	return Config{
-		ContinueMessage: "continue",
-		LazyStart:       false,
-		ClaudeCommand:   "claude",
-		ClaudeArgs:      []string{},
-		AutosaveSeconds: 120,
-		Window:          windowCurrent,
-		BarPosition:     barTop,
+		ContinueMessage:   "continue",
+		CodexCommand:      "codex",
+		ResumeClaudeSkill: "retomar-con-claude",
+		ResumeCodexSkill:  "retomar-con-codex",
+		LazyStart:         false,
+		ClaudeCommand:     "claude",
+		ClaudeArgs:        []string{},
+		AutosaveSeconds:   120,
+		Window:            windowCurrent,
+		BarPosition:       barTop,
 	}
 }
 

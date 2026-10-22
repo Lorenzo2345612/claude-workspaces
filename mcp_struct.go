@@ -83,6 +83,17 @@ func (m mcpTarget) viewID(a map[string]any, key string) (string, error) {
 func switchAlias(ws, pane, alias string) error {
 	t := Tmux{WS: ws}
 	cur, _ := t.Run("display", "-p", "-t", pane, "#{@cw_status}")
+	cfg, err := loadConfig()
+	if err != nil {
+		return err
+	}
+	source, err := paneSlot(t, pane)
+	if err != nil {
+		return err
+	}
+	if err := checkAgentAlias(cfg, source.ClaudeAlias, alias); err != nil {
+		return err
+	}
 	if _, err := t.Run("set", "-p", "-t", pane, "@cw_claude_alias", alias); err != nil {
 		return err
 	}

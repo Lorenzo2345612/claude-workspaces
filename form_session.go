@@ -120,7 +120,7 @@ func (f *sessionForm) draw() {
 		if f.focus == 4 {
 			style = sgrSel
 		}
-		s.at(row, 4, "Claude")
+		s.at(row, 4, "Agente")
 		s.at(row, 17, style+" ‹ "+fit(a.Name, fieldWidth-14)+" › "+sgrReset+sgrDim+
 			"  "+itoa(f.aliasIdx+1)+"/"+itoa(len(f.claudeAliases))+sgrReset)
 		s.zone(row, 17, 3, "aprev")

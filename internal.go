@@ -314,8 +314,17 @@ func newClaudeDialog(ws, session string, resume *recentConv) error {
 	if resume != nil && resume.Cwd != "" && isDir(resume.Cwd) {
 		cwd = resume.Cwd // a conversation brought in by ID reopens where it was started
 	}
-	return openInTab(ws, session, Slot{Kind: kindClaude, Alias: cleanLabel(string(f.alias)), Cwd: cwd,
-		Args: splitArgs(string(f.args)), ClaudeAlias: f.selectedAlias(), SessionID: sid}, resuming)
+	s := Slot{Kind: kindClaude, Alias: cleanLabel(string(f.alias)), Cwd: cwd,
+		Args: splitArgs(string(f.args)), ClaudeAlias: f.selectedAlias(), SessionID: sid}
+	if resume != nil && cfg.claudeAlias(s.ClaudeAlias).isCodex() {
+		source := Slot{Kind: kindClaude, Alias: s.Alias, Cwd: cwd, SessionID: sid, ClaudeAlias: resume.Alias}
+		next, err := handoffSlot(source, "codex", cfg)
+		if err != nil {
+			return err
+		}
+		s, resuming = next, false
+	}
+	return openInTab(ws, session, s, resuming)
 }
 
 var errCancelled = errors.New("cancelado")
@@ -341,7 +350,23 @@ type hookInput struct {
 func cmdHook() error {
 	ws, pane := os.Getenv("CW_WS"), os.Getenv("TMUX_PANE")
 	data, _ := io.ReadAll(io.LimitReader(os.Stdin, 1<<20))
-	if ws == "" || pane == "" || validWorkspaceName(ws) != nil {
+	if ws == "" || validWorkspaceName(ws) != nil {
+		return nil
+	}
+	if slot := os.Getenv("CW_SLOT"); slot != "" {
+		rows, err := (Tmux{WS: ws}).Lines("list-panes", "-a", "-F", "#{pane_id}"+sep+"#{@cw_slot}")
+		if err != nil {
+			return nil
+		}
+		pane = ""
+		for _, r := range rows {
+			if len(r) == 2 && r[1] == slot {
+				pane = r[0]
+				break
+			}
+		}
+	}
+	if pane == "" {
 		return nil
 	}
 	var in hookInput
@@ -368,14 +393,16 @@ func cmdHook() error {
 		return nil
 	}
 	args := []string{"set", "-p", "-t", pane, "@cw_status", status}
-	if in.HookEventName == "SessionStart" && in.SessionID != "" {
+	if in.SessionID != "" {
 		args = append(args, ";", "set", "-p", "-t", pane, "@cw_sid", in.SessionID)
 	}
 	t := Tmux{WS: ws}
 	if in.HookEventName == "SessionStart" && in.SessionID != "" {
 		if alias, err := t.Run("display", "-p", "-t", pane, "#{@cw_claude_alias}"); err == nil {
 			cfg, _ := loadConfig()
-			recordUsageOwner(in.SessionID, cfg.claudeAlias(alias).Name)
+			if !cfg.claudeAlias(alias).isCodex() {
+				recordUsageOwner(in.SessionID, cfg.claudeAlias(alias).Name)
+			}
 		}
 	}
 	_, _ = t.Run(args...)

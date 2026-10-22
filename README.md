@@ -217,8 +217,10 @@ que existe en tu proyecto para cada destino:
 El primer mensaje será, por ejemplo:
 
 ```text
-retomar-con-codex retoma la sesión de claude con id 01234567-89ab-cdef-0123-456789abcdef
+$retomar-con-codex retoma la sesión de claude con id 01234567-89ab-cdef-0123-456789abcdef
 ```
+
+El prefijo se añade según el agente de destino: `/nombre-skill` para Claude y `$nombre-skill` para Codex. Puedes configurar solo el nombre o incluir el prefijo; cw lo normaliza sin duplicarlo.
 
 La skill del proyecto debe saber recuperar el contexto del agente de origen usando ese ID;
 cw envía la instrucción y no convierte los historiales. No se copian los argumentos del

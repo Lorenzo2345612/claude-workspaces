@@ -58,10 +58,15 @@ func handoffSlot(source Slot, target string, cfg Config, selected ...string) (Sl
 	if alias == "" {
 		return Slot{}, errors.New("configura un alias de Claude para retomar")
 	}
-	skill = strings.TrimSpace(skill)
+	skill = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(skill), "/$"))
 	if skill == "" {
 		return Slot{}, fmt.Errorf("configura la skill para retomar con %s en Configuración", target)
 	}
+	prefix := "/"
+	if target == "codex" {
+		prefix = "$"
+	}
+	skill = prefix + skill
 	return Slot{Kind: kindClaude, Alias: source.Alias + " · " + target, Cwd: source.Cwd,
 		ClaudeAlias: alias, Status: statusIdle,
 		InitialMessage: fmt.Sprintf("%s retoma la sesión de %s con id %s", skill, origin, source.SessionID)}, nil

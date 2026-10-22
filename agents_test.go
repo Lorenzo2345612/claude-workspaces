@@ -59,7 +59,11 @@ func TestHandoffUsesTargetSkillAndSourceID(t *testing.T) {
 			t.Fatal("handoff reused source identity or flags", next)
 		}
 		argv, _ := l.claudeArgv(&next, false)
-		expected := "mi-skill-" + pair[1] + " retoma la sesión de " + pair[0] + " con id source-conversation"
+		prefix := "/"
+		if pair[1] == "codex" {
+			prefix = "$"
+		}
+		expected := prefix + "mi-skill-" + pair[1] + " retoma la sesión de " + pair[0] + " con id source-conversation"
 		if argv[len(argv)-1] != expected {
 			t.Fatal(argv)
 		}
@@ -329,5 +333,62 @@ func TestTerminalHandoffPreservesCombinedPaneAndRejectsMissingExecutable(t *test
 	afterSiblingPID, _ := mux.Run("display", "-p", "-t", other, "#{pane_pid}")
 	if siblingPID != afterSiblingPID {
 		t.Fatal("restarted sibling pane")
+	}
+}
+
+func TestHandoffSkillInvocationPrefix(t *testing.T) {
+	t.Setenv("SHELL", "")
+	cases := []struct{ agent, skill, want string }{
+		{"claude", "mi-skill", "/mi-skill retoma la sesión de claude con id source-id"},
+		{"claude", " /mi-skill ", "/mi-skill retoma la sesión de claude con id source-id"},
+		{"claude", "$mi-skill", "/mi-skill retoma la sesión de claude con id source-id"},
+		{"codex", "mi-skill", "$mi-skill retoma la sesión de claude con id source-id"},
+		{"codex", " $mi-skill ", "$mi-skill retoma la sesión de claude con id source-id"},
+		{"codex", "/mi-skill", "$mi-skill retoma la sesión de claude con id source-id"},
+	}
+	for _, c := range cases {
+		t.Run(c.agent+":"+c.skill, func(t *testing.T) {
+			cfg := defaultConfig()
+			cfg.ResumeClaudeSkill, cfg.ResumeCodexSkill = c.skill, c.skill
+			next, err := handoffSlot(Slot{Kind: kindClaude, SessionID: "source-id", ClaudeAlias: "claude"}, c.agent, cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			launcher := Launcher{WS: "not-running", Bin: "/cw", ClaudeBin: "claude", Cfg: cfg}
+			argv, _ := launcher.claudeArgv(&next, false)
+			if argv[len(argv)-1] != c.want {
+				t.Fatalf("want %q, got %q", c.want, argv[len(argv)-1])
+			}
+		})
+	}
+	for _, agent := range []string{"claude", "codex"} {
+		cfg := defaultConfig()
+		cfg.ResumeClaudeSkill, cfg.ResumeCodexSkill = " /$ ", " /$ "
+		if _, err := handoffSlot(Slot{Kind: kindClaude, SessionID: "source-id"}, agent, cfg); err == nil {
+			t.Fatal("empty skill after prefix accepted", agent)
+		}
+	}
+}
+
+func TestCodexSkillPrefixRemainsLiteralThroughShellAlias(t *testing.T) {
+	t.Setenv("SHELL", "/bin/sh")
+	cfg := defaultConfig()
+	cfg.ResumeCodexSkill = "$my-skill"
+	cfg.ClaudeAliases = []ClaudeAlias{{Name: "codex_shell", Command: "codex", ViaShell: true}}
+	next, err := handoffSlot(Slot{Kind: kindClaude, SessionID: "source-id", ClaudeAlias: "claude"}, "codex", cfg, "codex_shell")
+	if err != nil {
+		t.Fatal(err)
+	}
+	launcher := Launcher{WS: "not-running", Bin: "/cw", Cfg: cfg}
+	argv, _ := launcher.claudeArgv(&next, false)
+	if len(argv) != 3 || argv[1] != "-ic" {
+		t.Fatal("expected shell launcher", argv)
+	}
+	out, err := exec.Command("/bin/sh", "-c", `codex_shell() { for arg do printf '%s\n' "$arg"; done; }; `+argv[2]).Output()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(strings.TrimSpace(string(out)), "$my-skill retoma la sesión de claude con id source-id") {
+		t.Fatalf("shell expanded the skill prefix: %q", out)
 	}
 }

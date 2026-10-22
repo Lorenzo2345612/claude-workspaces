@@ -175,7 +175,7 @@ func uiSetConf(what string) error {
 		if what == "resume-codex" {
 			value = cfg.ResumeCodexSkill
 		}
-		if v, ok := askText("Nombre de la skill del proyecto para retomar", "Skill", value, "Se enviará como primer mensaje junto con el ID de origen"); ok {
+		if v, ok := askText("Nombre de la skill del proyecto para retomar", "Skill", value, "Solo el nombre: se agrega / para Claude y $ para Codex"); ok {
 			if what == "resume-codex" {
 				cfg.ResumeCodexSkill = v
 			} else {

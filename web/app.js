@@ -1138,7 +1138,7 @@ async function dlgSettings(section) {
       const cargs = h('input', { class: 'input', style: { width: '240px' }, value: (c.claude_args || []).join(' '), placeholder: 'p. ej. --permission-mode auto',
         onchange: ev => set({ claude_args: ev.target.value.trim() ? ev.target.value.trim().split(/\s+/) : [] }) });
       sec.replaceChildren(h('h3', {}, 'General'),
-        ...['claude', 'codex'].map(agent => h('div', { class: 'setrow' }, h('div', {}, 'Skill: retomar con ' + agent, h('small', {}, 'Skill del proyecto enviada como primer mensaje con el ID de origen.')),
+        ...['claude', 'codex'].map(agent => h('div', { class: 'setrow' }, h('div', {}, 'Skill: retomar con ' + agent, h('small', {}, 'Escribe el nombre; el prefijo ' + (agent === 'codex' ? '$' : '/') + ' se agrega automáticamente al primer mensaje.')),
           h('input', { class: 'input', value: c['resume_' + agent + '_skill'] || '', onchange: ev => set({ ['resume_' + agent + '_skill']: ev.target.value }) }))),
         h('div', { class: 'setrow' }, h('div', {}, 'Comando de Codex'), h('input', { class: 'input', value: c.codex_command || 'codex', onchange: ev => set({ codex_command: ev.target.value }) })),
         h('div', { class: 'setrow' }, h('div', {}, 'Mensaje de continuación', h('small', {}, 'Lo reciben las sesiones que estaban trabajando al apagar o reiniciar.')), msg),

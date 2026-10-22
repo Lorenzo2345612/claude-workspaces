@@ -79,7 +79,7 @@ func TestAppHandoffReplacesSameSlotWithSelectedAlias(t *testing.T) {
 		}
 		t.Fatalf("missing message %q in %q", message, output)
 	}
-	for _, step := range []struct{ agent, alias, message, model string }{{"codex", "codex-work", "transfer-to-codex retoma la sesión de claude con id original-claude-id", "selected-codex"}, {"claude", "claude-work", "transfer-to-claude retoma la sesión de codex con id actual-codex-id", "selected-claude"}} {
+	for _, step := range []struct{ agent, alias, message, model string }{{"codex", "codex-work", "$transfer-to-codex retoma la sesión de claude con id original-claude-id", "selected-codex"}, {"claude", "claude-work", "/transfer-to-claude retoma la sesión de codex con id actual-codex-id", "selected-claude"}} {
 		result, err := wsAction(mux, &doReq{Action: "slot.handoff", Slot: source.ID, Agent: step.agent, Alias: step.alias})
 		if err != nil {
 			t.Fatal(err)

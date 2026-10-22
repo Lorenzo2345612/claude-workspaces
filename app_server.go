@@ -284,18 +284,18 @@ func adoptShellPath() {
 // reportLaunchError records why the app did not open and shows it: a dialog on macOS, a desktop
 // notification on Linux when available.
 func reportLaunchError(err error) {
-	msg := "Claude Workspaces no pudo abrirse: " + err.Error()
+	msg := "Agent Workspaces no pudo abrirse: " + err.Error()
 	if f, e := os.OpenFile(filepath.Join(runDir(), "app-launch.log"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600); e == nil {
 		fmt.Fprintf(f, "%s %s\n", time.Now().Format(time.RFC3339), msg)
 		f.Close()
 	}
 	switch {
 	case runtime.GOOS == "darwin":
-		script := `display alert "Claude Workspaces" message ` + strconv.Quote(msg) + ` as critical`
+		script := `display alert "Agent Workspaces" message ` + strconv.Quote(msg) + ` as critical`
 		_ = exec.Command("osascript", "-e", script).Run()
 	default:
 		if p, e := exec.LookPath("notify-send"); e == nil {
-			_ = exec.Command(p, "Claude Workspaces", msg).Run()
+			_ = exec.Command(p, "Agent Workspaces", msg).Run()
 		}
 	}
 }

@@ -88,8 +88,8 @@ func mcpHandle(req rpcRequest, tools []mcpTool, byName map[string]mcpTool) (any,
 			"protocolVersion": v,
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "cw", "version": version},
-			"instructions": "Herramientas de cw (Claude Workspaces): ver y manejar los workspaces, sus pestañas, " +
-				"vistas y sesiones de Claude o de terminal. Una sesión se nombra por su id o por su nombre; " +
+			"instructions": "Herramientas de cw (Agent Workspaces): ver y manejar los workspaces, sus pestañas, " +
+				"vistas y sesiones de Claude, Codex o de terminal. Una sesión se nombra por su id o por su nombre; " +
 				"si el nombre se repite, indica también el workspace o la pestaña.",
 		}, nil
 	case "ping":

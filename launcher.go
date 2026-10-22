@@ -221,7 +221,7 @@ func (l *launcher) draw() {
 	var lines []lineItem
 	add := func(li lineItem) { lines = append(lines, li) }
 
-	add(plainLine(sgrAccent + sgrBold + "≡ cw" + sgrReset + " " + sgrDim + version + sgrReset + "   " + sgrMuted + "workspaces de Claude Code" + sgrReset))
+	add(plainLine(sgrAccent + sgrBold + "≡ Agent Workspaces" + sgrReset + " " + sgrDim + version + sgrReset + "   " + sgrMuted + "Claude · Codex · terminal" + sgrReset))
 	add(plainLine(""))
 	if l.update != "" {
 		launcherOfferedUpdate = true
@@ -250,7 +250,7 @@ func (l *launcher) draw() {
 	switch {
 	case l.deleting:
 		add(plainLine(sgrRed + "¿Borrar el estado guardado de " + l.entries[l.sel-1].name + "?" + sgrReset +
-			sgrDim + "  Las conversaciones de Claude no se borran." + sgrReset))
+			sgrDim + "  Las conversaciones no se borran." + sgrReset))
 		add(buttonLine(0, btnDef{label: "Borrar", id: "delyes", style: sgrDanger}, btnDef{label: "Cancelar", id: "delno"}))
 	default:
 		if l.msg != "" {

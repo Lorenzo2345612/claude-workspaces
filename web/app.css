@@ -1,4 +1,4 @@
-/* Claude Workspaces — sober theme: warm grays, one muted accent, colour only for session states. */
+/* Agent Workspaces — sober theme: warm grays, one muted accent, colour only for session states. */
 :root {
   --bg: #141414; --side: #111111; --raise: #1b1b1b; --raise2: #202020; --hover: rgba(255,255,255,.045); --sel: rgba(255,255,255,.075);
   --line: rgba(255,255,255,.075); --line2: rgba(255,255,255,.12);
@@ -136,7 +136,7 @@ kbd { font: 10.5px var(--mono); border: 1px solid var(--line2); border-radius: 4
 .ec { width: min(560px, 100%); }
 .ec h3 { margin: 0 0 2px; font-size: 18px; font-weight: 600; letter-spacing: -.01em; }
 .ec p { margin: 0 0 20px; color: var(--muted); font: 12px var(--mono); }
-.big3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+.big3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(125px, 1fr)); gap: 10px; margin-bottom: 8px; }
 .big { border: 1px solid var(--line); border-radius: 10px; padding: 18px 10px 14px; text-align: center; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; gap: 2px; background: var(--raise); transition: border-color .12s; }
 .big:hover { border-color: var(--accent); color: var(--text); }
 .big b { font-size: 20px; color: var(--text); font-weight: 400; margin-bottom: 4px; }

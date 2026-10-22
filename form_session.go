@@ -93,6 +93,12 @@ func (f *sessionForm) draw() {
 		s.at(row, 17, style+" "+fit(shown, fieldWidth-1)+sgrReset)
 	}
 	s.at(1, 4, sgrMuted+f.heading+sgrReset)
+	if !f.editing && !f.isShell {
+		for i, agent := range []string{"Claude", "Codex"} {
+			selected := len(f.claudeAliases) > 0 && f.claudeAliases[f.aliasIdx].isCodex() == (i == 1)
+			s.btn(2, 17+i*13, button(agent, selected, false), "agent:"+strings.ToLower(agent))
+		}
+	}
 	field(3, "Nombre", f.alias, f.focus == 0)
 	s.zone(3, 4, fieldWidth+13, "f0")
 	row := 4
@@ -213,6 +219,8 @@ func (f *sessionForm) run() int {
 						return actSaveRestart
 					}
 					return actSave
+				case strings.HasPrefix(id, "agent:"):
+					f.selectAgent(strings.TrimPrefix(id, "agent:"))
 				case id == "f0":
 					f.focus = 0
 				case id == "f1":
@@ -381,4 +389,14 @@ func (f *sessionForm) selectAlias(name string) {
 			f.aliasIdx = i
 		}
 	}
+}
+
+func (f *sessionForm) selectAgent(agent string) {
+	for i, a := range f.claudeAliases {
+		if a.isCodex() == (agent == "codex") {
+			f.aliasIdx = i
+			return
+		}
+	}
+	f.errMsg = "Configura un alias de " + agent
 }

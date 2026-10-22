@@ -100,3 +100,30 @@ func checkAgentAlias(cfg Config, old, next string) error {
 	}
 	return nil
 }
+
+func (c Config) aliasForAgent(agent, preferred string) string {
+	for _, a := range c.claudeAliases() {
+		if a.Name == preferred && a.isCodex() == (agent == "codex") {
+			return a.Name
+		}
+	}
+	for _, a := range c.claudeAliases() {
+		if a.isCodex() == (agent == "codex") {
+			return a.Name
+		}
+	}
+	return ""
+}
+
+func (c Config) newAgentSlot(kind, alias string) (string, string, error) {
+	if kind == "codex" {
+		if alias == "" {
+			alias = c.aliasForAgent("codex", c.defaultAlias())
+		}
+		if alias == "" || !c.claudeAlias(alias).isCodex() {
+			return "", "", errors.New("elige un alias de Codex")
+		}
+		return kindClaude, alias, nil
+	}
+	return kind, alias, nil
+}

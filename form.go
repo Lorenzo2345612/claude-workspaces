@@ -8,6 +8,7 @@ const (
 	startClaude = iota
 	startShell
 	startEmpty
+	startCodex
 )
 
 // newTabForm is the "Nueva pestaña" dialog: name, directory with suggestions, how to start, alias.
@@ -27,7 +28,7 @@ type newTabForm struct {
 const fieldWidth = 46
 
 func (f *newTabForm) fields() []int {
-	if f.start == startClaude {
+	if f.start == startClaude || f.start == startCodex {
 		return []int{0, 1, 2, 5, 3, 4}
 	}
 	return []int{0, 1, 2, 4}
@@ -106,7 +107,11 @@ func (f *newTabForm) draw() {
 	row = max(row, 5) + 1
 	s.at(row, 4, "Empezar con")
 	col := 17
-	for i, opt := range []string{" ✦ Agente ", " ❯ Terminal ", " ○ Vacía "} {
+	for _, choice := range []struct {
+		value int
+		label string
+	}{{startClaude, " ✦ Claude "}, {startCodex, " ✦ Codex "}, {startShell, " ❯ Terminal "}, {startEmpty, " ○ Vacía "}} {
+		i, opt := choice.value, choice.label
 		style := sgrField
 		if i == f.start {
 			style = sgrSel
@@ -118,7 +123,7 @@ func (f *newTabForm) draw() {
 		col += len([]rune(opt)) + 2
 	}
 	row++
-	if f.start == startClaude && len(f.claudeAliases) > 0 {
+	if (f.start == startClaude || f.start == startCodex) && len(f.claudeAliases) > 0 {
 		style := sgrField
 		if f.focus == 5 {
 			style = sgrSel
@@ -132,7 +137,7 @@ func (f *newTabForm) draw() {
 		row++
 	}
 	aliasRow := row
-	if f.start == startClaude {
+	if f.start == startClaude || f.start == startCodex {
 		field(row, "Nombre", f.alias, f.focus == 3)
 		s.zone(row, 4, fieldWidth+13, "f3")
 		if len(f.alias) == 0 && f.focus != 3 {
@@ -197,14 +202,15 @@ func (f *newTabForm) run() bool {
 					f.dir = []rune(shortPath(f.suggestions[i].path))
 					f.move(1)
 				case strings.HasPrefix(id, "start:"):
-					f.start, f.focus = int(id[6]-'0'), 2
+					f.chooseStart(int(id[6] - '0'))
+					f.focus = 2
 				case id == "aprev" || id == "anext":
 					d := 1
 					if id == "aprev" {
 						d = -1
 					}
 					f.focus = 5
-					f.aliasIdx = (f.aliasIdx + d + len(f.claudeAliases)) % len(f.claudeAliases)
+					f.cycleAlias(d)
 				}
 				continue
 			}
@@ -232,15 +238,21 @@ func (f *newTabForm) run() bool {
 				if k.kind == keyLeft {
 					d = -1
 				}
-				f.aliasIdx = (f.aliasIdx + d + len(f.claudeAliases)) % len(f.claudeAliases)
+				f.cycleAlias(d)
 			case f.focus == 2 && (k.kind == keyLeft || k.kind == keyRight):
 				d := 1
 				if k.kind == keyLeft {
 					d = -1
 				}
-				f.start = (f.start + d + 3) % 3
-			case f.focus == 2 && k.kind == keyRune && strings.ContainsRune("ctvCTV", k.r):
-				f.start = map[rune]int{'c': startClaude, 't': startShell, 'v': startEmpty}[k.r|0x20]
+				choices := []int{startClaude, startCodex, startShell, startEmpty}
+				for i, choice := range choices {
+					if choice == f.start {
+						f.chooseStart(choices[(i+d+len(choices))%len(choices)])
+						break
+					}
+				}
+			case f.focus == 2 && k.kind == keyRune && strings.ContainsRune("cdtvCDTV", k.r):
+				f.chooseStart(map[rune]int{'c': startClaude, 'd': startCodex, 't': startShell, 'v': startEmpty}[k.r|0x20])
 			case k.kind == keyTab || k.kind == keyDown:
 				f.move(1)
 			case k.kind == keyBackTab || k.kind == keyUp:
@@ -279,6 +291,12 @@ func (f *newTabForm) run() bool {
 }
 
 func (f *newTabForm) validate() bool {
+	if f.start == startClaude || f.start == startCodex {
+		if len(f.claudeAliases) == 0 || f.claudeAliases[f.aliasIdx].isCodex() != (f.start == startCodex) {
+			f.errMsg, f.focus = "Configura un alias para el agente elegido.", 2
+			return false
+		}
+	}
 	if cleanLabel(string(f.name)) == "" {
 		f.errMsg, f.focus = "Falta el nombre de la pestaña.", 0
 		return false
@@ -293,3 +311,26 @@ func (f *newTabForm) validate() bool {
 }
 
 func stdoutWrite(s string) { var sc screen; sc.b.WriteString(s); sc.flush(false) }
+
+func (f *newTabForm) chooseStart(start int) {
+	f.start = start
+	if start != startClaude && start != startCodex {
+		return
+	}
+	if len(f.claudeAliases) == 0 {
+		return
+	}
+	if f.claudeAliases[f.aliasIdx].isCodex() == (start == startCodex) {
+		return
+	}
+	f.cycleAlias(1)
+}
+
+func (f *newTabForm) cycleAlias(d int) {
+	for n := 0; n < len(f.claudeAliases); n++ {
+		f.aliasIdx = (f.aliasIdx + d + len(f.claudeAliases)) % len(f.claudeAliases)
+		if f.claudeAliases[f.aliasIdx].isCodex() == (f.start == startCodex) {
+			return
+		}
+	}
+}

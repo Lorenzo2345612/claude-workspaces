@@ -1,4 +1,4 @@
-# cw — Claude Code and Codex workspaces
+# Agent Workspaces (cw)
 
 A terminal app that keeps your Claude Code and Codex sessions organised in **tabs**, each tab rooted in a
 directory, and saves / restores the whole set with one command. Built on tmux; runs on **macOS**,
@@ -7,7 +7,7 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 ```
  ≡ kyc    bug-185 ●2    front    infra ?1   +                                  ? ayuda
           ──────────    ━━━━━    ────────
-   fix-matriz ○   review-arb ● yolo   shell     + Claude    + Terminal      ~/work/frontend
+   fix-matriz ○   review-arb ● yolo   shell     + Claude  + Codex  + Terminal      ~/work/frontend
 ```
 
 - **Desktop app** (`cw app`, new in 0.8) — the same workspaces in a window of their own: a sidebar
@@ -15,7 +15,7 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   floating right-click panels, dialogs and a settings screen. One session per view by default;
   combine views in columns, rows or a grid. The window is the system's Edge/Chrome engine in app
   mode, served by a small local cw server; sessions keep running in tmux when the window closes
-  and reappear when it opens again. On Windows the installer adds a «Claude Workspaces» shortcut
+  and reappear when it opens again. On Windows the installer adds a «Agent Workspaces» shortcut
   (Start menu and desktop) that runs it inside WSL.
 - **Browser shortcuts for the sessions of a tab** (0.9, both versions): Ctrl+T new Claude session,
   Ctrl+W close it, Ctrl+Shift+T reopen the last closed, Ctrl+Tab / Ctrl+PgDn and Ctrl+Shift+Tab /
@@ -78,13 +78,15 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
 - **Reorder** tabs and sessions by dragging them in the bar, from the right-click menu, or with
   `Alt+<` / `Alt+>` (tabs) and `Alt+Shift+←/→` (sessions).
 
+El producto se llama **Agent Workspaces**; conserva el comando `cw`, los workspaces guardados y los accesos de instalación anteriores. Los releases mantienen paquetes con los nombres antiguos para que los actualizadores existentes sigan funcionando.
+
 ## Packages
 
 Each release ships two packages with the same engine and the same saved format:
 
 | Package | Contents |
 |---|---|
-| `claude-workspaces-<v>-{windows,macos,linux}` | desktop app (`cw app`) **and** the terminal version, with shortcuts (Start menu, `~/Applications`, Linux menu) |
+| `agent-workspaces-<v>-{windows,macos,linux}` | desktop app (`cw app`) **and** the terminal version, with shortcuts (Start menu, `~/Applications`, Linux menu) |
 | `cw-terminal-<v>-{windows,macos,linux}` | terminal version only (built with `-tags terminal`: no web UI, no server) |
 
 `cw update` keeps each install on its own package. (`cw-<v>-{linux,macos}` are kept for the updater of 0.9 and older.)
@@ -93,7 +95,7 @@ Each release ships two packages with the same engine and the same saved format:
 
 Download your package from the
 [latest release](https://github.com/Lorenzo2345612/claude-workspaces/releases/latest):
-`claude-workspaces-<v>-<os>` for the desktop app (it includes the terminal version too), or
+`agent-workspaces-<v>-<os>` for the desktop app (it includes the terminal version too), or
 `cw-terminal-<v>-<os>` for the terminal version only. A step-by-step guide in Spanish is in
 [`packaging/INSTALAR.md`](packaging/INSTALAR.md).
 
@@ -106,13 +108,13 @@ zypper / apk, or builds it from source when the distro ships an older one), copi
 
 ```sh
 cd ~/Downloads
-tar xzf claude-workspaces-<v>-macos.tar.gz      # or cw-terminal-<v>-macos.tar.gz
-cd claude-workspaces-<v>-macos
+tar xzf agent-workspaces-<v>-macos.tar.gz      # or cw-terminal-<v>-macos.tar.gz
+cd agent-workspaces-<v>-macos
 sh install.sh
 ```
 
 - Homebrew is offered when missing (it asks for your Mac password).
-- The desktop package adds **Claude Workspaces.app** to `~/Applications` (Finder → your home
+- The desktop package adds **Agent Workspaces.app** to `~/Applications` (Finder → your home
   folder → Applications; drag it to the Dock). `cw app` in a terminal opens it too.
 - The app window is Chrome, Edge, Chromium or Brave in app mode; without any of them it opens as
   a tab of your default browser.
@@ -123,21 +125,21 @@ sh install.sh
 
 ### Windows (through WSL)
 
-1. Unzip `claude-workspaces-<v>-windows.zip` (or `cw-terminal-<v>-windows.zip`).
+1. Unzip `agent-workspaces-<v>-windows.zip` (or `cw-terminal-<v>-windows.zip`).
 2. Double-click **`install.cmd`**. Without WSL it offers to install Ubuntu (admin permission and
    a restart); run `install.cmd` again afterwards.
-3. Open **Claude Workspaces** from the Start menu or the desktop (desktop package). The terminal
+3. Open **Agent Workspaces** from the Start menu or the desktop (desktop package). The terminal
    version is the **cw** profile of Windows Terminal, or `cw` in any Ubuntu terminal.
 
 ### Linux
 
 ```sh
-tar xzf claude-workspaces-<v>-linux.tar.gz      # or cw-terminal-<v>-linux.tar.gz
-cd claude-workspaces-<v>-linux
+tar xzf agent-workspaces-<v>-linux.tar.gz      # or cw-terminal-<v>-linux.tar.gz
+cd agent-workspaces-<v>-linux
 sh install.sh
 ```
 
-The desktop package adds **Claude Workspaces** to the applications menu; `cw app` opens it from a
+The desktop package adds **Agent Workspaces** to the applications menu; `cw app` opens it from a
 terminal.
 
 ### Updates
@@ -197,7 +199,7 @@ HTML ni carga recursos remotos. Requiere un workspace abierto en la app.
 
 ## Claude y Codex: retomar entre agentes
 
-Al crear una sesión, selecciona `claude`, uno de tus aliases o `codex` en **Agente / alias**.
+Todos los accesos para crear sesiones ofrecen **Claude** y **Codex** por separado: botones de la barra lateral, pantalla de pestaña vacía, menús, diálogos de sesión y creación de pestañas. Elige el agente y después uno de sus aliases.
 Codex se ejecuta con su CLI nativa; sus argumentos se configuran por separado con
 `codex_args` y su ejecutable con `codex_command` (por defecto `codex`). No necesita
 que Claude esté instalado. Los aliases del shell que ejecutan `codex` también se pueden importar.

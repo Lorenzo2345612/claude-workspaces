@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const usage = `cw — workspaces de sesiones de Claude Code en pestañas
+const usage = `Agent Workspaces (cw) — sesiones de Claude Code, Codex y terminal en pestañas
 
 Uso:
   cw                       inicio: crear un workspace en este directorio o retomar uno

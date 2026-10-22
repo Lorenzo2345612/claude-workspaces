@@ -65,6 +65,10 @@ func openInTab(ws, session string, s Slot, resuming bool) error {
 	if err != nil {
 		return err
 	}
+	s.Kind, s.ClaudeAlias, err = cfg.newAgentSlot(s.Kind, s.ClaudeAlias)
+	if err != nil {
+		return err
+	}
 	cfg.LazyStart = false
 	l, err := newLauncher(ws, cfg)
 	if err != nil {
@@ -122,8 +126,9 @@ func cmdUI(args []string) error {
 	switch args[0] {
 	case "newtab":
 		err = uiNewTab(args[1])
-	case "newclaude":
-		if err = uiNewClaude(args[1]); err == errCancelled {
+	case "newclaude", "newcodex":
+		agent := strings.TrimPrefix(args[0], "new")
+		if err = uiNewAgent(args[1], agent); err == errCancelled {
 			err = nil
 		}
 	case "help":
@@ -236,6 +241,9 @@ func uiNewTab(ws string) error {
 	for i, a := range f.claudeAliases {
 		if a.Name == cfg.defaultAlias() {
 			f.aliasIdx = i
+			if a.isCodex() {
+				f.start = startCodex
+			}
 		}
 	}
 	if !f.run() {
@@ -245,7 +253,7 @@ func uiNewTab(ws string) error {
 	dir, _ := expandPath(string(f.dir))
 	var slots []Slot
 	switch f.start {
-	case startClaude:
+	case startClaude, startCodex:
 		alias := cleanLabel(string(f.alias))
 		if alias == "" {
 			alias = title
@@ -269,17 +277,23 @@ func uiNewTab(ws string) error {
 	return err
 }
 
-func uiNewClaude(ws string) error {
+func uiNewClaude(ws string) error { return uiNewAgent(ws, "claude") }
+
+func uiNewAgent(ws, agent string) error {
 	_, session, err := currentClient(Tmux{WS: ws})
 	if err != nil {
 		return err
 	}
-	return newClaudeDialog(ws, session, nil)
+	return newAgentDialog(ws, session, nil, agent)
 }
 
 // newClaudeDialog asks for a new Claude session in a tab (name, claude alias, arguments) and
 // opens it. With resume set, it reopens that conversation instead of starting a new one.
 func newClaudeDialog(ws, session string, resume *recentConv) error {
+	return newAgentDialog(ws, session, resume, "")
+}
+
+func newAgentDialog(ws, session string, resume *recentConv, agent string) error {
 	t := Tmux{WS: ws}
 	cfg, err := loadConfig()
 	if err != nil {
@@ -294,6 +308,13 @@ func newClaudeDialog(ws, session string, resume *recentConv) error {
 	sid, resuming := "", false
 	f := &sessionForm{history: aliasHistory(), globalArgs: cfg.ClaudeArgs, claudeAliases: cfg.claudeAliases()}
 	f.selectAlias(cfg.defaultAlias())
+	if agent != "" {
+		alias := cfg.aliasForAgent(agent, cfg.defaultAlias())
+		if alias == "" {
+			return fmt.Errorf("configura un alias de %s", agent)
+		}
+		f.selectAlias(alias)
+	}
 	if resume != nil {
 		sid, resuming = resume.ID, true
 		heading = "Retomar «" + fit(resume.First, 30) + "» en " + title

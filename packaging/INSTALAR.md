@@ -1,6 +1,6 @@
 # Cómo instalar cw
 
-> **Dos paquetes.** «Claude Workspaces» (`claude-workspaces-<versión>-…`) trae la app de escritorio
+> **Dos paquetes.** «Agent Workspaces» (`agent-workspaces-<versión>-…`) trae la app de escritorio
 > y también la versión de terminal. «cw» solo terminal (`cw-terminal-<versión>-…`) es más chico y no
 > trae la app ni crea accesos directos. Los dos se instalan igual y guardan los workspaces en el
 > mismo formato.
@@ -10,7 +10,7 @@
 > modo aplicación, así que no instala ningún navegador extra. Si cierras la ventana, las sesiones
 > siguen corriendo y vuelven a aparecer al abrirla.
 
-`cw` organiza tus sesiones de Claude Code en pestañas dentro de la terminal y guarda y restaura
+`cw` organiza tus sesiones de Claude Code, Codex y terminal en pestañas dentro de la terminal y guarda y restaura
 todo con un comando. Funciona en **macOS**, **Linux** y **Windows (a través de WSL)**.
 
 ## Qué necesitas antes
@@ -33,7 +33,7 @@ El instalador se encarga de lo demás y **pregunta antes de instalar cada cosa**
 
 ## Windows
 
-1. Descomprime `claude-workspaces-0.13.1-windows.zip` (clic derecho → *Extraer todo…*).
+1. Descomprime `agent-workspaces-0.16.1-windows.zip` (clic derecho → *Extraer todo…*).
 2. Entra a la carpeta y haz **doble clic en `install.cmd`**.
 3. Si Windows avisa que el archivo viene de internet, elige *Más información → Ejecutar de todas formas*.
 
@@ -45,7 +45,7 @@ Según cómo esté tu equipo:
 - **Si ya tienes WSL**: instala todo dentro de tu distribución por defecto. Te puede pedir tu
   contraseña de Linux (la de `sudo`) para instalar tmux.
 
-Al terminar, abre **Claude Workspaces** desde el menú Inicio o el escritorio: es la app, con su
+Al terminar, abre **Agent Workspaces** desde el menú Inicio o el escritorio: es la app, con su
 propia ventana. La versión de terminal sigue disponible: abre **Windows Terminal**, haz clic en
 la flecha **˅** junto a la pestaña nueva y elige el perfil **cw**, o escribe `cw` en cualquier
 terminal de Ubuntu.
@@ -58,8 +58,8 @@ terminal de Ubuntu.
 
    ```sh
    cd ~/Downloads
-   tar xzf claude-workspaces-0.13.1-macos.tar.gz
-   cd claude-workspaces-0.13.1-macos
+   tar xzf agent-workspaces-0.16.1-macos.tar.gz
+   cd agent-workspaces-0.16.1-macos
    sh install.sh
    ```
 
@@ -88,8 +88,8 @@ terminal de Ubuntu.
 ## Linux
 
 ```sh
-tar xzf claude-workspaces-0.13.1-linux.tar.gz
-cd claude-workspaces-0.13.1-linux
+tar xzf agent-workspaces-0.16.1-linux.tar.gz
+cd agent-workspaces-0.16.1-linux
 sh install.sh
 ```
 

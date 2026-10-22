@@ -1,6 +1,6 @@
 #!/bin/sh
 # Builds the cw binaries (in a golang container) and the install packages into dist/:
-#   claude-workspaces-<v>-{windows,macos,linux}  desktop app + terminal version, with shortcuts
+#   agent-workspaces-<v>-{windows,macos,linux}  desktop app + terminal version, with shortcuts
 #   cw-terminal-<v>-{windows,macos,linux}        terminal version only (built with -tags terminal)
 #   cw-<v>-{linux,macos}                         same as the desktop ones, for `cw update` of <= 0.9
 #   sh packaging/build.sh 0.10.0 [output-dir]
@@ -42,7 +42,7 @@ win_extra() { # name, flavor
 }
 
 for flavor in full term; do
-  prefix=claude-workspaces
+  prefix=agent-workspaces
   [ "$flavor" = term ] && prefix=cw-terminal
   pack_dir "$prefix-$VERSION-linux" $flavor cw-linux-amd64 cw-linux-arm64
   pack_dir "$prefix-$VERSION-macos" $flavor cw-darwin-amd64 cw-darwin-arm64
@@ -64,8 +64,11 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
 PY
 done
 # Compatibility for `cw update` of 0.9 and older, which look for cw-<v>-<os>.tar.gz.
-cp "$OUT/claude-workspaces-$VERSION-linux.tar.gz" "$OUT/cw-$VERSION-linux.tar.gz"
-cp "$OUT/claude-workspaces-$VERSION-macos.tar.gz" "$OUT/cw-$VERSION-macos.tar.gz"
-(cd "$OUT" && sha256sum *-"$VERSION"-* > "cw-$VERSION-SHA256SUMS.txt")
+for platform in linux macos; do
+  cp "$OUT/agent-workspaces-$VERSION-$platform.tar.gz" "$OUT/claude-workspaces-$VERSION-$platform.tar.gz"
+  cp "$OUT/agent-workspaces-$VERSION-$platform.tar.gz" "$OUT/cw-$VERSION-$platform.tar.gz"
+done
+cp "$OUT/agent-workspaces-$VERSION-windows.zip" "$OUT/claude-workspaces-$VERSION-windows.zip"
+(cd "$OUT" && sha256sum *-"$VERSION"-*.tar.gz *-"$VERSION"-*.zip > "cw-$VERSION-SHA256SUMS.txt")
 rm -rf "$STAGE"
 ls -la "$OUT"

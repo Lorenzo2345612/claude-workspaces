@@ -243,6 +243,7 @@ func listUIWorkspaces() []uiWorkspace {
 
 type uiAlias struct {
 	Name    string   `json:"name"`
+	Agent   string   `json:"agent"`
 	Summary string   `json:"summary"`
 	Env     []string `json:"env"`
 	Args    []string `json:"args"`
@@ -253,7 +254,11 @@ type uiAlias struct {
 func uiAliases(cfg Config) []uiAlias {
 	var out []uiAlias
 	for _, a := range cfg.claudeAliases() {
-		u := uiAlias{Name: a.Name, Summary: a.summary(), Env: a.Env, Args: a.Args, Shell: a.ViaShell, Builtin: a.Name == builtinAlias}
+		agent := "claude"
+		if a.isCodex() {
+			agent = "codex"
+		}
+		u := uiAlias{Name: a.Name, Agent: agent, Summary: a.summary(), Env: a.Env, Args: a.Args, Shell: a.ViaShell, Builtin: a.Name == builtinAlias}
 		if a.Name == builtinAlias && len(a.Env) == 0 && len(a.Args) == 0 {
 			u.Summary = "claude"
 		}

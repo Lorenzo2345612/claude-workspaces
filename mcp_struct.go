@@ -198,7 +198,14 @@ func newSession(a map[string]any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	cfg, err := loadConfig()
+	if err != nil {
+		return nil, err
+	}
 	kind := kindClaude
+	if argStr(a, "tipo") == "codex" {
+		kind = "codex"
+	}
 	if k := argStr(a, "tipo"); k == "terminal" || k == kindShell {
 		kind = kindShell
 	}
@@ -211,10 +218,14 @@ func newSession(a map[string]any) (any, error) {
 		}
 	}
 	alias := ""
-	if kind == kindClaude && argStr(a, "alias") != "" {
+	if kind != kindShell && argStr(a, "alias") != "" {
 		if alias, err = checkAlias(argStr(a, "alias")); err != nil {
 			return nil, err
 		}
+	}
+	kind, alias, err = cfg.newAgentSlot(kind, alias)
+	if err != nil {
+		return nil, err
 	}
 	dir := argStr(a, "carpeta")
 	if m.ws.App {
@@ -245,6 +256,15 @@ func newSession(a map[string]any) (any, error) {
 		s.SessionID, resuming = found[0].conv.ID, true
 		if dir == "" && isDir(found[0].cwd) {
 			s.Cwd = found[0].cwd
+		}
+		if cfg.claudeAlias(s.ClaudeAlias).isCodex() {
+			source := s
+			source.ClaudeAlias = found[0].conv.Alias
+			s, err = handoffSlot(source, "codex", cfg)
+			if err != nil {
+				return nil, err
+			}
+			resuming = false
 		}
 	}
 	if err := openInTab(m.ws.Name, m.tab.session, s, resuming); err != nil {
@@ -281,13 +301,13 @@ func tabAction(a map[string]any) (any, error) {
 		}
 		start := ""
 		switch argStr(a, "iniciar") {
-		case "claude":
-			start = kindClaude
+		case "claude", "codex":
+			start = argStr(a, "iniciar")
 		case "terminal", kindShell:
 			start = kindShell
 		}
 		alias := ""
-		if start == kindClaude && argStr(a, "alias") != "" {
+		if (start == kindClaude || start == "codex") && argStr(a, "alias") != "" {
 			if alias, err = checkAlias(argStr(a, "alias")); err != nil {
 				return nil, err
 			}
@@ -300,6 +320,10 @@ func tabAction(a map[string]any) (any, error) {
 			return nil, err
 		}
 		l, err := newLauncher(m.ws.Name, cfg)
+		if err != nil {
+			return nil, err
+		}
+		start, alias, err = cfg.newAgentSlot(start, alias)
 		if err != nil {
 			return nil, err
 		}
@@ -514,25 +538,25 @@ func mcpStructTools() []mcpTool {
 	}
 	ws, tab, ses := str("Workspace (nombre o título)."), str("Pestaña: su número o su título."), str("Sesión: id o nombre.")
 	return []mcpTool{
-		{Name: "sesion", Description: "Maneja una sesión. nueva: abre una sesión de Claude (o una terminal con tipo=terminal) en una pestaña, " +
+		{Name: "sesion", Description: "Maneja una sesión. nueva: abre una sesión con tipo=claude, tipo=codex o tipo=terminal en una pestaña, " +
 			"opcionalmente reanudando una conversación o dentro de una vista. cerrar, renombrar, alias (la reinicia con otro alias de Claude " +
 			"en su misma conversación), reiniciar, suspender, reanudar, enfocar, separar (la saca a una vista propia), reabrir (la última cerrada).",
 			InputSchema: obj([]string{"accion"}, map[string]any{
 				"accion": enumProp("Qué hacer.", "nueva", "cerrar", "renombrar", "alias", "reiniciar", "suspender", "reanudar", "enfocar", "separar", "reabrir"),
 				"sesion": ses, "workspace": ws, "pestana": tab,
-				"nombre": str("Nombre de la sesión (nueva, renombrar)."), "tipo": enumProp("Tipo de sesión nueva.", "claude", "terminal"),
-				"alias": str("Alias de Claude (nueva, alias)."), "args": str("Argumentos extra de claude (nueva)."),
+				"nombre": str("Nombre de la sesión (nueva, renombrar)."), "tipo": enumProp("Tipo de sesión nueva.", "claude", "codex", "terminal"),
+				"alias": str("Alias del agente (nueva, alias)."), "args": str("Argumentos extra del agente (nueva)."),
 				"carpeta":      str("Carpeta donde empieza (nueva); por defecto la de la pestaña."),
 				"conversacion": str("Id de una conversación a reanudar (nueva)."), "vista": num("Vista (número) donde abrirla (nueva, solo app)."),
 			}), run: sessionAction},
-		{Name: "pestana", Description: "Maneja una pestaña. nueva (con titulo, carpeta e iniciar=claude|terminal para abrirla con una sesión), " +
+		{Name: "pestana", Description: "Maneja una pestaña. nueva (con titulo, carpeta e iniciar=claude|codex|terminal para abrirla con una sesión), " +
 			"renombrar, carpeta (donde empiezan sus sesiones nuevas), cerrar (cierra todas sus sesiones), suspender o reanudar todas sus sesiones, " +
 			"alias (todas sus sesiones de Claude a otro alias), seleccionar y mover (solo app).",
 			InputSchema: obj([]string{"accion"}, map[string]any{
 				"accion":    enumProp("Qué hacer.", "nueva", "renombrar", "carpeta", "cerrar", "suspender", "reanudar", "alias", "seleccionar", "mover"),
 				"workspace": ws, "pestana": tab, "titulo": str("Título (nueva, renombrar)."), "carpeta": str("Carpeta (nueva, carpeta)."),
-				"iniciar": enumProp("Sesión con la que abre una pestaña nueva.", "claude", "terminal", "ninguna"),
-				"nombre":  str("Nombre de la sesión de Claude con la que abre (nueva)."), "alias": str("Alias de Claude (nueva, alias)."),
+				"iniciar": enumProp("Sesión con la que abre una pestaña nueva.", "claude", "codex", "terminal", "ninguna"),
+				"nombre":  str("Nombre de la sesión con la que abre (nueva)."), "alias": str("Alias del agente (nueva, alias)."),
 				"posicion": num("Posición nueva, desde 1 (mover)."),
 			}), run: tabAction},
 		{Name: "vista", Description: "Maneja una vista de una pestaña (solo workspaces de la app): seleccionar, cerrar (cierra sus sesiones), " +

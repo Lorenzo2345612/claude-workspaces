@@ -97,8 +97,10 @@ func (h *homeScreen) handle(k key) (bool, error) {
 		action = hitAt(h.hits, k.x, k.y)
 	}
 	switch {
+	case action == "codex" || (k.kind == keyRune && (k.r == 'd' || k.r == 'D')):
+		return h.dialog(nil, "codex")
 	case action == "claude" || (k.kind == keyRune && (k.r == 'c' || k.r == 'C')):
-		return h.dialog(nil)
+		return h.dialog(nil, "claude")
 	case action == "byid" || (k.kind == keyRune && (k.r == 'i' || k.r == 'I')):
 		h.inDialog = true
 		setRaw(false)
@@ -132,10 +134,14 @@ func (h *homeScreen) handle(k key) (bool, error) {
 }
 
 // dialog runs the new-session form in this pane; cancelling it comes back to the start screen.
-func (h *homeScreen) dialog(resume *recentConv) (bool, error) {
+func (h *homeScreen) dialog(resume *recentConv, agent ...string) (bool, error) {
 	h.inDialog = true
 	setRaw(false)
-	err := newClaudeDialog(h.ws, h.session, resume)
+	preferred := ""
+	if len(agent) > 0 {
+		preferred = agent[0]
+	}
+	err := newAgentDialog(h.ws, h.session, resume, preferred)
 	h.inDialog = false
 	if err == errCancelled {
 		setRaw(true)
@@ -165,18 +171,8 @@ func (h *homeScreen) draw() {
 	head := sgrAccent + sgrBold + h.title + sgrReset + "   " + sgrMuted + shortPath(h.dir) + sgrReset
 	add(plainLine(strings.Repeat(" ", max((blockW-visibleLen(head))/2, 0)) + head))
 	add(plainLine(""))
-	ca, ta := sgrAccent, sgrDim
-	cards := []string{
-		"   " + ca + "╭──────────────────────────╮" + sgrReset + "   " + ta + "╭──────────────────────────╮" + sgrReset,
-		"   " + ca + "│" + sgrReset + "  " + sgrAccent + sgrBold + "✦  Claude" + sgrReset + "               " + ca + "│" + sgrReset +
-			"   " + ta + "│" + sgrReset + "  " + sgrBold + "❯  Terminal" + sgrReset + "             " + ta + "│" + sgrReset,
-		"   " + ca + "│" + sgrReset + "  " + sgrMuted + fit("sesión nueva", 24) + sgrReset + ca + "│" + sgrReset +
-			"   " + ta + "│" + sgrReset + "  " + sgrMuted + fit("shell normal", 24) + sgrReset + ta + "│" + sgrReset,
-		"   " + ca + "╰──────────────────────────╯" + sgrReset + "   " + ta + "╰──────────────────────────╯" + sgrReset,
-	}
-	for _, c := range cards { // each card is its own click target
-		add(lineItem{text: c, zones: []hit{{col: 3, width: 28, id: "claude"}, {col: 34, width: 28, id: "shell"}}})
-	}
+	add(buttonLine(3, btnDef{label: "✦ Claude", id: "claude"}, btnDef{label: "✦ Codex", id: "codex"}, btnDef{label: "❯ Terminal", id: "shell"}))
+	add(plainLine("   " + sgrMuted + "C: Claude · D: Codex · T: terminal" + sgrReset))
 	add(plainLine(""))
 	if len(h.recents) > 0 {
 		add(plainLine("   " + sgrMuted + "RETOMAR UNA CONVERSACIÓN" + sgrReset + "   " + sgrDim + "clic para retomarla" + sgrReset))

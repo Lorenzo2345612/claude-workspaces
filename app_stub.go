@@ -8,5 +8,5 @@ import "errors"
 const appBuild = false
 
 func cmdApp([]string) error {
-	return errors.New("esta instalación de cw es solo de terminal; para la app de escritorio instala «Claude Workspaces»")
+	return errors.New("esta instalación de cw es solo de terminal; para la app de escritorio instala «Agent Workspaces»")
 }

@@ -94,6 +94,10 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		}
 		return nil, errors.New("ese documento ya no existe")
 	case "tab.new":
+		q.Start, q.Alias, err = cfg.newAgentSlot(q.Start, q.Alias)
+		if err != nil {
+			return nil, err
+		}
 		dir, err := expandPath(q.Dir)
 		if err != nil || !isDir(dir) {
 			return nil, fmt.Errorf("la carpeta %q no existe", q.Dir)
@@ -296,6 +300,10 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		at.Active, l.Active = v.ID, at.ID
 		return map[string]any{"slot": s.ID}, save()
 	case "slot.new":
+		q.Kind, q.Alias, err = cfg.newAgentSlot(q.Kind, q.Alias)
+		if err != nil {
+			return nil, err
+		}
 		at, err := tabOf(q.Tab)
 		if err != nil {
 			return nil, err

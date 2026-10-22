@@ -49,7 +49,7 @@ async function act(action, body) {
   try { return await api.do(action, { ws: S.ws, ...body }); }
   catch (e) { toast(e.message, true); throw e; }
 }
-const statusText = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida · no corre Claude' };
+const statusText = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida · no corre el agente' };
 const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
 const THEMES = { azul: ['#8c95cf', '#a5aee0'], morado: ['#a594d6', '#bcaee3'], verde: ['#79ad8a', '#9cc4a8'],
   naranja: ['#d39a6a', '#e2b58c'], rosa: ['#c98bab', '#dba8c2'], gris: ['#a8a59e', '#c2bfb8'] };
@@ -313,7 +313,7 @@ function render() {
   // An open menu is left alone (rebuilding it on every status change made it flicker and closed
   // its submenus); it only closes when what it acts on is gone.
   if (ctx && ctx.kind !== 'menu' && !(ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id))) closeCtx();
-  document.title = S.state.title + ' — Claude Workspaces';
+  document.title = S.state.title + ' — Agent Workspaces';
 }
 
 // The sidebar is a tree: each tab, and under the open ones their sessions (one row per view).
@@ -359,6 +359,7 @@ function renderSide(side) {
     if (t.id === st.active) {
       tree.append(h('div', { class: 'trow sub newrow' },
         h('span', { onclick: () => dlgNewSession(t.id, 'claude') }, '+ Claude'),
+        h('span', { onclick: () => dlgNewSession(t.id, 'codex') }, '+ Codex'),
         h('span', { onclick: () => dlgNewSession(t.id, 'shell') }, '+ Terminal')));
     }
   });
@@ -570,7 +571,8 @@ function emptyTab(tab) {
   const card = h('div', { class: 'ec' },
     h('h3', {}, tab.title), h('p', {}, tab.short),
     h('div', { class: 'big3' },
-      big('✦', 'Claude / Codex', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
+      big('✦', 'Claude', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
+      big('✦', 'Codex', 'sesión nueva', () => dlgNewSession(tab.id, 'codex')),
       big('❯', 'Terminal', 'en esta carpeta', () => dlgNewSession(tab.id, 'shell')),
       big('↻', 'Retomar', 'por su ID', () => dlgNewSession(tab.id, 'resume'))),
     h('div', { class: 'grp' }, h('span', {}, 'Recientes en esta carpeta')), list);
@@ -598,11 +600,11 @@ function renderNotOpen(root) {
 
 // ---------- home ----------
 function renderHome(root) {
-  document.title = 'Claude Workspaces';
+  document.title = 'Agent Workspaces';
   stageKey = '';
   const launch = S.launchDir || S.info?.launchDir || '';
   root.replaceChildren(h('div', { class: 'home' },
-    h('div', { class: 'top' }, h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('span', { class: 'brand' }, 'Claude Workspaces'), h('span', { class: 'sp' }),
+    h('div', { class: 'top' }, h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('span', { class: 'brand' }, 'Agent Workspaces'), h('span', { class: 'sp' }),
       h('span', { class: 'ib', onclick: () => dlgUsage() }, '◔ Uso de Claude'),
       h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes')),
     h('h3', {}, 'Workspaces'),
@@ -738,7 +740,8 @@ function tabItems(id) {
   const claude = t.views.flatMap(v => v.slots).map(slotOf).filter(s => s && s.kind === 'claude' && !s.dead);
   const running = claude.filter(s => s.status !== 'sleeping').length;
   return [{ head: t.title },
-    { label: 'Nueva sesión aquí', k: 'Ctrl T', run: () => dlgNewSession(id, 'claude') },
+    { label: 'Nueva sesión de Claude', k: 'Ctrl T', run: () => dlgNewSession(id, 'claude') },
+    { label: 'Nueva sesión de Codex', run: () => dlgNewSession(id, 'codex') },
     { label: 'Renombrar', run: () => dlgPrompt('Renombrar pestaña', 'Nombre', t.title, v => act('tab.rename', { tab: id, title: v })) },
     { label: 'Cambiar carpeta…', k: t.short, run: () => dlgDir('Carpeta de la pestaña ' + t.title, 'Las sesiones nuevas de la pestaña empiezan aquí.', t.short, v => act('tab.dir', { tab: id, dir: v })) },
     running ? { label: 'Suspender la pestaña', k: running + ' de Claude', run: () => act('tab.suspend', { tab: id }) }
@@ -787,7 +790,7 @@ function cardMenu(w, x, y) {
   const items = [{ head: w.title }, { label: w.state === 'terminal' ? 'Abrir aquí' : 'Abrir', run: () => openWorkspace(w.name, false, w.state) },
     { label: 'Renombrar', run: () => dlgPrompt('Renombrar workspace', 'Nombre', w.title, v => api.do('ws.rename', { ws: w.name, title: v }).then(refreshHome)) }, '-'];
   if (w.state !== 'stopped') items.push({ label: 'Apagar y guardar', danger: true, run: () => dlgConfirm('¿Apagar ' + w.title + '?', 'Se guarda el estado y se cierran todas sus sesiones. Lo retomas desde aquí cuando quieras.', 'Apagar y guardar', () => api.do('ws.stop', { ws: w.name }).then(refreshHome)) });
-  else items.push({ label: 'Borrar', danger: true, run: () => dlgConfirm('¿Borrar ' + w.title + '?', 'Se borra su estado guardado. Las conversaciones de Claude quedan en disco.', 'Borrar', () => api.do('ws.delete', { ws: w.name }).then(refreshHome)) });
+  else items.push({ label: 'Borrar', danger: true, run: () => dlgConfirm('¿Borrar ' + w.title + '?', 'Se borra su estado guardado. Las conversaciones quedan en disco.', 'Borrar', () => api.do('ws.delete', { ws: w.name }).then(refreshHome)) });
   popMenu(items, x, y);
 }
 function wsMenu(x, y) {
@@ -867,12 +870,12 @@ function confirmCloseSlot(id) {
 function confirmCloseView(id) {
   const { view } = (() => { for (const t of S.state.tabs) for (const v of t.views) if (v.id === id) return { view: v }; return {}; })();
   if (!view) return;
-  dlgConfirm('¿Cerrar la vista con sus ' + view.slots.length + ' sesiones?', 'Se cierran ' + viewNames(view) + '. Las conversaciones de Claude quedan en disco.', 'Cerrar vista', () => act('view.close', { view: id }));
+  dlgConfirm('¿Cerrar la vista con sus ' + view.slots.length + ' sesiones?', 'Se cierran ' + viewNames(view) + '. Las conversaciones quedan en disco.', 'Cerrar vista', () => act('view.close', { view: id }));
 }
 function confirmCloseTab(id) {
   const t = S.state.tabs.find(t => t.id === id); if (!t) return;
   const n = t.views.reduce((a, v) => a + v.slots.length, 0);
-  dlgConfirm('¿Cerrar la pestaña ' + t.title + '?', n ? 'Se cierran sus ' + plural(n, 'sesión', 'sesiones') + '. Las conversaciones de Claude quedan en disco y puedes retomarlas después.' : 'La pestaña está vacía.', 'Cerrar pestaña', () => act('tab.close', { tab: id }));
+  dlgConfirm('¿Cerrar la pestaña ' + t.title + '?', n ? 'Se cierran sus ' + plural(n, 'sesión', 'sesiones') + '. Las conversaciones quedan en disco y puedes retomarlas después.' : 'La pestaña está vacía.', 'Cerrar pestaña', () => act('tab.close', { tab: id }));
 }
 function confirmStop() {
   dlgConfirm('¿Apagar ' + S.state.title + '?', 'Se guarda el estado y se cierran todas las sesiones. Lo retomas desde el inicio; las que estaban trabajando reciben el mensaje de continuación.', 'Apagar y guardar',
@@ -885,19 +888,23 @@ async function loadConfig() {
   applyTheme(S.config.theme, S.config.app_mode);
   return c;
 }
-function aliasSeg(value, onchange) {
-  return seg(S.aliases.map(a => ({ value: a.name, label: a.name, title: a.summary })), value, onchange);
+function agentAlias(agent, preferred = S.defaultAlias) {
+  const choices = S.aliases.filter(a => a.agent === agent);
+  return choices.find(a => a.name === preferred)?.name || choices[0]?.name || '';
+}
+function aliasSeg(value, onchange, agent) {
+  return seg(S.aliases.filter(a => !agent || a.agent === agent).map(a => ({ value: a.name, label: a.name, title: a.summary })), value, onchange);
 }
 
 function dlgNewSession(tabId, mode, conv) {
   const tab = S.state.tabs.find(t => t.id === tabId); if (!tab) return;
-  let alias = conv?.alias || S.defaultAlias, resume = conv || null;
+  let alias = conv?.alias || (mode === 'codex' ? agentAlias('codex') : agentAlias('claude')), resume = conv || null;
   const name = h('input', { class: 'input', placeholder: mode === 'shell' ? 'terminal' : 'p. ej. fix-matriz', value: conv ? (conv.title || '') : '' });
   const args = h('input', { class: 'input', placeholder: '--model opus' });
   const preview = h('div', { class: 'code' }, '…');
   const idInput = h('input', { class: 'input', placeholder: 'ID de la conversación (completo o sus primeros caracteres)', value: conv ? conv.id : '' });
   const results = h('div', { class: 'list' });
-  const aSeg = aliasSeg(alias, v => { alias = v; upd(); });
+  let aSeg;
   const body = h('div', { style: { display: 'grid', gap: '14px' } });
   let timer;
   const upd = () => {
@@ -926,13 +933,19 @@ function dlgNewSession(tabId, mode, conv) {
   };
   idInput.addEventListener('input', () => { clearTimeout(idInput._t); idInput._t = setTimeout(search, 180); });
   name.addEventListener('input', upd); args.addEventListener('input', upd);
-  const kinds = seg([{ value: 'claude', label: '✦ Claude / Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar por ID' }], mode, v => { mode = v; draw(); });
+  const kinds = seg([{ value: 'claude', label: '✦ Claude' }, { value: 'codex', label: '✦ Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar por ID' }], mode, v => { mode = v; if (v === 'claude' || v === 'codex') { alias = agentAlias(v); args.value = ''; } draw(); });
   const draw = () => {
     body.replaceChildren(kinds);
+    aSeg = aliasSeg(alias, v => { alias = v; upd(); }, mode === 'resume' ? undefined : mode);
+    args.placeholder = mode === 'codex' ? '--model nombre-del-modelo' : '--model opus';
     if (mode === 'resume') body.append(field('Conversación', idInput), results);
     body.append(field('Nombre', name));
-    if (mode !== 'shell') body.append(field('Agente / alias', aSeg), h('div', { class: 'hint' }, 'Codex: autoriza los hooks de cw con /hooks para registrar y restaurar la conversación.'), field('Argumentos extra', args), field('Se ejecutará', preview));
-    m.scrim.querySelector('header').textContent = mode === 'shell' ? 'Nueva terminal' : mode === 'resume' ? 'Retomar conversación de Claude' : 'Nueva sesión de Claude o Codex';
+    if (mode !== 'shell') {
+      body.append(field('Alias', aSeg));
+      if (mode === 'codex') body.append(h('div', { class: 'hint' }, 'Autoriza los hooks de cw con /hooks para registrar y restaurar la conversación.'));
+      body.append(field('Argumentos extra', args), field('Se ejecutará', preview));
+    }
+    m.scrim.querySelector('header').textContent = mode === 'shell' ? 'Nueva terminal' : mode === 'resume' ? 'Retomar conversación de Claude' : mode === 'codex' ? 'Nueva sesión de Codex' : 'Nueva sesión de Claude';
     primary.textContent = mode === 'shell' ? 'Abrir terminal' : mode === 'resume' ? 'Retomar' : 'Crear sesión';
     upd();
     setTimeout(() => (mode === 'resume' && !resume ? idInput : name).focus(), 10);
@@ -941,7 +954,8 @@ function dlgNewSession(tabId, mode, conv) {
     if (mode === 'resume' && !resume) throw new Error('Primero elige una conversación.');
     const n = name.value.trim();
     if (mode !== 'shell' && !n) throw new Error('Ponle un nombre a la sesión.');
-    await api.do('slot.new', { ws: S.ws, tab: tabId, kind: mode === 'shell' ? 'shell' : 'claude', name: n, alias, args: args.value,
+    if (mode !== 'shell' && !alias) throw new Error('Configura un alias para este agente.');
+    await api.do('slot.new', { ws: S.ws, tab: tabId, kind: mode === 'shell' ? 'shell' : mode === 'codex' ? 'codex' : 'claude', name: n, alias, args: args.value,
       resume: mode === 'resume' ? resume.id : '', ...stageSize() });
   } }] });
   const primary = m.scrim.querySelector('.btn.primary');
@@ -983,19 +997,20 @@ function dlgDir(title, sub, value, run) {
 
 function dlgNewTab() {
   const tab = curTab();
-  let start = 'claude', alias = S.defaultAlias;
+  let start = S.aliases.find(a => a.name === S.defaultAlias)?.agent || 'claude', alias = agentAlias(start);
   const name = h('input', { class: 'input', placeholder: 'p. ej. bug-185' });
   const dir = dirInput(S.state.dirShort || (tab ? tab.short : '~'));
   const sess = h('input', { class: 'input', placeholder: 'igual que la pestaña' });
   const extra = h('div', { style: { display: 'grid', gap: '14px' } });
-  const drawExtra = () => extra.replaceChildren(...(start === 'claude' ? [field('Nombre de la sesión', sess), field('Agente / alias', aliasSeg(alias, v => alias = v))] : []));
+  const drawExtra = () => extra.replaceChildren(...(['claude', 'codex'].includes(start) ? [field('Nombre de la sesión', sess), field('Alias', aliasSeg(alias, v => alias = v, start))] : []));
   drawExtra();
   modal({ title: 'Nueva pestaña', sub: 'Una pestaña agrupa las sesiones de una tarea, en su carpeta.', body: [
     field('Nombre', name), field('Carpeta', dir),
-    field('Empezar con', seg([{ value: 'claude', label: '✦ Claude / Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'empty', label: 'Vacía' }], start, v => { start = v; drawExtra(); })),
+    field('Empezar con', seg([{ value: 'claude', label: '✦ Claude' }, { value: 'codex', label: '✦ Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'empty', label: 'Vacía' }], start, v => { start = v; if (v === 'claude' || v === 'codex') alias = agentAlias(v); drawExtra(); })),
     extra], buttons: [{ label: 'Cancelar' }, { label: 'Crear pestaña', primary: true, run: async () => {
       const d = dir.input.value.trim();
       const title = name.value.trim() || d.replace(/\/+$/, '').split('/').pop();
+      if (['claude', 'codex'].includes(start) && !alias) throw new Error('Configura un alias para este agente.');
       await api.do('tab.new', { ws: S.ws, title, dir: d, start, name: sess.value.trim() || title, alias, ...stageSize() });
     } }] });
 }

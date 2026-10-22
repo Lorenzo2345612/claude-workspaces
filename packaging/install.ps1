@@ -3,7 +3,7 @@
 #      de administrador y luego hay que reiniciar y volver a correr el instalador);
 #   2. corre install.sh dentro de WSL (instala tmux, cw y, si quieres, Claude Code);
 #   3. agrega a Windows Terminal un perfil «cw» que abre cw directamente;
-#   4. crea los accesos directos «Claude Workspaces» (menú Inicio y escritorio) que abren la app.
+#   4. crea los accesos directos «Agent Workspaces» (menú Inicio y escritorio) que abren la app.
 #
 # Uso: doble clic en install.cmd, o en PowerShell:  powershell -ExecutionPolicy Bypass -File install.ps1
 param([switch]$Yes, [switch]$NoClaude)
@@ -57,7 +57,7 @@ $json = $wtProfile | ConvertTo-Json -Depth 5
 [System.IO.File]::WriteAllText((Join-Path $fragmentDir 'cw.json'), $json, (New-Object System.Text.UTF8Encoding $false))
 Say 'Perfil «cw» agregado a Windows Terminal (menú ˅ de pestañas nuevas).'
 
-# Solo el paquete de escritorio («Claude Workspaces») trae cw.ico: el de terminal no crea accesos.
+# Solo el paquete de escritorio («Agent Workspaces») trae cw.ico: el de terminal no crea accesos.
 $desktop = Test-Path (Join-Path $PSScriptRoot 'cw.ico')
 if ($desktop) {
     # Accesos directos de la app: un .vbs abre wsl.exe sin ventana de consola, y cw app --mantener
@@ -76,19 +76,24 @@ if ($desktop) {
     [System.IO.File]::WriteAllText($vbs, $vbsText, (New-Object System.Text.UTF8Encoding $false))
     $shell = New-Object -ComObject WScript.Shell
     foreach ($dir in @([Environment]::GetFolderPath('Programs'), [Environment]::GetFolderPath('Desktop'))) {
-        $lnk = $shell.CreateShortcut((Join-Path $dir 'Claude Workspaces.lnk'))
+        $oldShortcut = Join-Path $dir 'Claude Workspaces.lnk'
+        $newShortcut = Join-Path $dir 'Agent Workspaces.lnk'
+        if ((Test-Path $oldShortcut) -and -not (Test-Path $newShortcut)) {
+            Move-Item -LiteralPath $oldShortcut -Destination $newShortcut
+        }
+        $lnk = $shell.CreateShortcut($newShortcut)
         $lnk.TargetPath = Join-Path $env:WINDIR 'System32\wscript.exe'
         $lnk.Arguments = '"' + $vbs + '"'
         $lnk.IconLocation = $ico
-        $lnk.Description = 'Sesiones de Claude Code en pestañas'
+        $lnk.Description = 'Sesiones de Claude Code, Codex y terminal en pestañas'
         $lnk.Save()
     }
     & (Join-Path $env:WINDIR 'System32\ie4uinit.exe') -show 2>$null # refresh Explorer's icon cache
-    Say 'Accesos directos «Claude Workspaces» creados en el menú Inicio y el escritorio.'
+    Say 'Accesos directos «Agent Workspaces» creados en el menú Inicio y el escritorio.'
 }
 
 if ($desktop) {
-    Say 'Listo. Abre «Claude Workspaces» desde el menú Inicio, o el perfil «cw» de Windows Terminal para la versión de terminal.'
+    Say 'Listo. Abre «Agent Workspaces» desde el menú Inicio, o el perfil «cw» de Windows Terminal para la versión de terminal.'
 } else {
     Say 'Listo. Abre Windows Terminal y elige el perfil «cw», o escribe cw en tu terminal de Ubuntu.'
 }

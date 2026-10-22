@@ -16,7 +16,7 @@ Opciones: --yes (aceptar todo), --no-claude (no instalar Claude Code).
 USAR
 
   cw app          la app de escritorio: una ventana propia con pestañas, sesiones y
-                  terminales (en Windows: «Claude Workspaces» en el menú Inicio)
+                  terminales (en Windows: «Agent Workspaces» en el menú Inicio)
   cw              versión de terminal: crear un workspace aquí o retomar uno
   cw new          crear un workspace en el directorio actual
   cw ls           listar workspaces
@@ -28,5 +28,5 @@ Alt+p alias de claude · Alt+h ayuda.
 En Mac, Alt es la tecla Option (⌥): activa «Usar Opción como tecla Meta» en tu terminal
 (detalles en INSTALAR.md).
 
-En Windows: abre «Claude Workspaces» desde el menú Inicio o el escritorio (la app), o el
+En Windows: abre «Agent Workspaces» desde el menú Inicio o el escritorio (la app), o el
 perfil «cw» de Windows Terminal (la versión de terminal).

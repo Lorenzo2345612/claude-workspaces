@@ -94,3 +94,69 @@ func TestAppHandoffBothDirectionsPreservesSource(t *testing.T) {
 		t.Fatal("handoff views not saved", got)
 	}
 }
+
+func TestAppCreatesCodexSessionAndTabExplicitly(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux unavailable")
+	}
+	t.Setenv("CW_CONFIG_DIR", t.TempDir())
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	t.Setenv("SHELL", "")
+	cfg := defaultConfig()
+	fake := filepath.Join(t.TempDir(), "codex")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexec sleep 300\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cfg.CodexCommand = fake
+	if err := saveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	mux := Tmux{WS: "explicit-codex-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	ln, err := newLauncher(mux.WS, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	seed := Slot{Kind: kindShell, Alias: "shell", Cwd: dir}
+	if err := appOpenSlot(mux, ln, &seed, false); err != nil {
+		t.Fatal(err)
+	}
+	layout := &appLayout{Active: "tab", Tabs: []*appTab{{ID: "tab", Title: "Test", Dir: dir, Views: []*appView{{ID: "view", Slots: []string{seed.ID}}}}}}
+	if err := mux.storeLayout(layout); err != nil {
+		t.Fatal(err)
+	}
+	result, err := wsAction(mux, &doReq{Action: "slot.new", Tab: "tab", Kind: "codex", Name: "Codex session"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := func(id string) {
+		t.Helper()
+		pane, err := mux.Run("display", "-p", "-t", "="+slotSession(id)+":", "#{pane_id}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		s, err := paneSlot(mux, pane)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s.ClaudeAlias != "codex" || s.Kind != kindClaude {
+			t.Fatal("Codex request launched another agent", s)
+		}
+	}
+	check(result["slot"].(string))
+	result, err = wsAction(mux, &doReq{Action: "tab.new", Title: "Codex tab", Dir: dir, Start: "codex"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tab := mux.loadLayout().tab(result["tab"].(string))
+	if tab == nil || len(tab.Views) != 1 || len(tab.Views[0].Slots) != 1 {
+		t.Fatal("Codex tab has no session", tab)
+	}
+	check(tab.Views[0].Slots[0])
+	for _, alias := range uiAliases(cfg) {
+		if alias.Name == "codex" && alias.Agent != "codex" {
+			t.Fatal("UI cannot distinguish Codex", alias)
+		}
+	}
+}

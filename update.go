@@ -88,7 +88,7 @@ func installRelease(rel *githubRelease, progress func(string)) (string, error) {
 	// terminal-only one. Releases before the split only had cw-<v>-<os> (with the app).
 	names := []string{fmt.Sprintf("cw-terminal-%s-%s.tar.gz", latest, pkgOS)}
 	if appBuild {
-		names = []string{fmt.Sprintf("claude-workspaces-%s-%s.tar.gz", latest, pkgOS), fmt.Sprintf("cw-%s-%s.tar.gz", latest, pkgOS)}
+		names = []string{fmt.Sprintf("agent-workspaces-%s-%s.tar.gz", latest, pkgOS), fmt.Sprintf("claude-workspaces-%s-%s.tar.gz", latest, pkgOS), fmt.Sprintf("cw-%s-%s.tar.gz", latest, pkgOS)}
 	}
 	pkgName, pkgURL, sumsURL := names[0], "", ""
 	for _, n := range names {

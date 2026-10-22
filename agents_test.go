@@ -192,3 +192,50 @@ func TestCodexHookTracksCorrectPaneAndRestoresID(t *testing.T) {
 		t.Fatal("Codex attributed to Claude usage", err)
 	}
 }
+
+func TestExplicitAgentSelectionAndTerminalMenus(t *testing.T) {
+	t.Setenv("SHELL", "")
+	cfg := defaultConfig()
+	cfg.DefaultClaudeAlias = "codex"
+	if got := cfg.aliasForAgent("claude", cfg.defaultAlias()); got != "claude" {
+		t.Fatal("Claude choice inherited Codex default", got)
+	}
+	kind, alias, err := cfg.newAgentSlot("codex", "")
+	if err != nil || kind != kindClaude || alias != "codex" {
+		t.Fatal(kind, alias, err)
+	}
+	if _, _, err := cfg.newAgentSlot("codex", "claude"); err == nil {
+		t.Fatal("explicit Codex accepted a Claude launcher")
+	}
+	form := newTabForm{claudeAliases: cfg.claudeAliases()}
+	form.chooseStart(startCodex)
+	if !form.claudeAliases[form.aliasIdx].isCodex() {
+		t.Fatal("Codex tab chose Claude")
+	}
+	form.cycleAlias(1)
+	if !form.claudeAliases[form.aliasIdx].isCodex() {
+		t.Fatal("Codex tab cycled into Claude")
+	}
+	form.chooseStart(startClaude)
+	if form.claudeAliases[form.aliasIdx].isCodex() {
+		t.Fatal("Claude tab chose Codex")
+	}
+	session := sessionForm{claudeAliases: cfg.claudeAliases()}
+	session.selectAgent("codex")
+	if !cfg.claudeAlias(session.selectedAlias()).isCodex() {
+		t.Fatal("session agent selector did not choose Codex")
+	}
+	session.selectAgent("claude")
+	if cfg.claudeAlias(session.selectedAlias()).isCodex() {
+		t.Fatal("session agent selector did not choose Claude")
+	}
+	conf := tmuxConf("test", "/cw", true, true)
+	if strings.Contains(conf, "%!") {
+		t.Fatal("invalid menu format", conf)
+	}
+	for _, text := range []string{"_ui newcodex", "+ Codex", "Sesión de Codex\" D", "newcodex]"} {
+		if !strings.Contains(conf, text) {
+			t.Fatalf("Codex missing in terminal entry point %q", text)
+		}
+	}
+}

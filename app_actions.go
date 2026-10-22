@@ -280,24 +280,10 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		source, err := paneSlot(t, pane)
+		s, err := replaceAgentPane(t, pane, q.Agent, q.Alias, cfg)
 		if err != nil {
 			return nil, err
 		}
-		s, err := handoffSlot(source, q.Alias, cfg)
-		if err != nil {
-			return nil, err
-		}
-		ln, err := launcher(false)
-		if err != nil {
-			return nil, err
-		}
-		if err := appOpenSlot(t, ln, &s, false); err != nil {
-			return nil, err
-		}
-		v := &appView{ID: shortID(), Layout: layoutCols, Slots: []string{s.ID}, Focus: s.ID}
-		at.Views = append(at.Views, v)
-		at.Active, l.Active = v.ID, at.ID
 		return map[string]any{"slot": s.ID}, save()
 	case "slot.new":
 		q.Kind, q.Alias, err = cfg.newAgentSlot(q.Kind, q.Alias)

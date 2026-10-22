@@ -442,6 +442,7 @@ type doReq struct {
 	Name         string    `json:"name"`
 	Kind         string    `json:"kind"`
 	Alias        string    `json:"alias"`
+	Agent        string    `json:"agent"`
 	Args         string    `json:"args"`
 	Resume       string    `json:"resume"`
 	Start        string    `json:"start"`

@@ -239,3 +239,95 @@ func TestExplicitAgentSelectionAndTerminalMenus(t *testing.T) {
 		}
 	}
 }
+
+func TestHandoffRejectsUnselectedAndWrongAgentAliases(t *testing.T) {
+	t.Setenv("SHELL", "")
+	cfg := defaultConfig()
+	cfg.ClaudeAliases = []ClaudeAlias{{Name: "codex-custom", Command: "codex"}, {Name: "claude-custom", Args: []string{"--model", "test"}}}
+	source := Slot{Kind: kindClaude, Alias: "source", SessionID: "source-id", ClaudeAlias: "claude"}
+	for _, alias := range []string{"", "unknown", "claude-custom"} {
+		if _, err := handoffSlot(source, "codex", cfg, alias); err == nil {
+			t.Fatal("invalid alias accepted", alias)
+		}
+	}
+	next, err := handoffSlot(source, "codex", cfg, "codex-custom")
+	if err != nil || next.ClaudeAlias != "codex-custom" {
+		t.Fatal("explicit alias ignored", next, err)
+	}
+	for _, agent := range []string{"claude", "codex"} {
+		if ctxDialogs["handoff-"+agent].w == 0 {
+			t.Fatal("terminal handoff skips alias dialog", agent)
+		}
+	}
+}
+
+func TestTerminalHandoffPreservesCombinedPaneAndRejectsMissingExecutable(t *testing.T) {
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux unavailable")
+	}
+	t.Setenv("CW_CONFIG_DIR", t.TempDir())
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	t.Setenv("SHELL", "")
+	root := t.TempDir()
+	fake := filepath.Join(root, "codex")
+	if err := os.WriteFile(fake, []byte("#!/bin/sh\nexec sleep 300\n"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := defaultConfig()
+	cfg.ClaudeCommand = fake
+	cfg.CodexCommand = fake
+	if err := saveConfig(cfg); err != nil {
+		t.Fatal(err)
+	}
+	mux := Tmux{WS: "terminal-handoff-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	launcher, err := newLauncher(mux.WS, cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := Slot{ID: newUUID(), Kind: kindClaude, Alias: "source", Cwd: root, SessionID: "original-id", ClaudeAlias: "claude"}
+	win, err := launcher.openSlot(mux, "test", true, &source, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pane, err := mux.Run("display", "-p", "-t", win, "#{pane_id}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sibling := Slot{ID: newUUID(), Kind: kindShell, Alias: "shell", Cwd: root}
+	other, err := mux.createPane(launcher.slotSpec("test", false, &sibling, false), win)
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldPID, _ := mux.Run("display", "-p", "-t", pane, "#{pane_pid}")
+	siblingPID, _ := mux.Run("display", "-p", "-t", other, "#{pane_pid}")
+	before, _ := mux.Run("list-panes", "-t", win, "-F", "#{pane_id}|#{@cw_slot}")
+	cfg.CodexCommand = "/missing/codex"
+	if _, err := replaceAgentPane(mux, pane, "codex", "codex", cfg); err == nil {
+		t.Fatal("missing executable accepted")
+	}
+	afterPID, _ := mux.Run("display", "-p", "-t", pane, "#{pane_pid}")
+	if afterPID != oldPID {
+		t.Fatal("failed replacement killed source")
+	}
+	cfg.CodexCommand = fake
+	next, err := replaceAgentPane(mux, pane, "codex", "codex", cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	after, _ := mux.Run("list-panes", "-t", win, "-F", "#{pane_id}|#{@cw_slot}")
+	if before != after || next.ID != source.ID {
+		t.Fatal("replacement added or moved a pane", before, after, next)
+	}
+	recorded, err := paneSlot(mux, pane)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if recorded.ClaudeAlias != "codex" || recorded.Alias != source.Alias || recorded.SessionID != "" {
+		t.Fatal("invalid destination metadata", recorded)
+	}
+	afterSiblingPID, _ := mux.Run("display", "-p", "-t", other, "#{pane_pid}")
+	if siblingPID != afterSiblingPID {
+		t.Fatal("restarted sibling pane")
+	}
+}

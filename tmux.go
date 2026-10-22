@@ -121,7 +121,12 @@ func (t Tmux) processArgs(w windowSpec) []string {
 // setSlotOptions records a slot on its pane: every session of a view is a pane, and pane options
 // are what the bar, the hooks and the save read.
 func (t Tmux) setSlotOptions(pane string, w windowSpec) error {
-	_, err := t.Run(
+	_, err := t.Run(t.slotOptionsArgs(pane, w)...)
+	return err
+}
+
+func (t Tmux) slotOptionsArgs(pane string, w windowSpec) []string {
+	return []string{
 		"set", "-p", "-t", pane, "@cw_slot", w.slot.ID, ";",
 		"set", "-p", "-t", pane, "@cw_kind", w.slot.Kind, ";",
 		"set", "-p", "-t", pane, "@cw_alias", w.name, ";",
@@ -131,8 +136,7 @@ func (t Tmux) setSlotOptions(pane string, w windowSpec) error {
 		"set", "-p", "-t", pane, "@cw_args", argsToOption(w.slot.Args), ";",
 		"set", "-p", "-t", pane, "@cw_claude_alias", w.slot.ClaudeAlias, ";",
 		"set", "-p", "-t", pane, "@cw_suspended", boolOpt(w.slot.Suspended),
-	)
-	return err
+	}
 }
 
 func (t Tmux) setTabOptions(session string, tab Tab) error {

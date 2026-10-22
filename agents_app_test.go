@@ -3,6 +3,7 @@
 package main
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 	"time"
 )
 
-func TestAppHandoffBothDirectionsPreservesSource(t *testing.T) {
+func TestAppHandoffReplacesSameSlotWithSelectedAlias(t *testing.T) {
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux unavailable")
 	}
@@ -30,38 +31,44 @@ func TestAppHandoffBothDirectionsPreservesSource(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.ClaudeCommand, cfg.CodexCommand = program("claude"), program("codex")
 	cfg.ResumeCodexSkill, cfg.ResumeClaudeSkill = "transfer-to-codex", "transfer-to-claude"
+	cfg.ClaudeAliases = []ClaudeAlias{{Name: "codex-work", Command: "codex", Args: []string{"--model", "selected-codex"}}, {Name: "claude-work", Args: []string{"--model", "selected-claude"}}}
 	if err := saveConfig(cfg); err != nil {
 		t.Fatal(err)
 	}
-	mux := Tmux{WS: "app-handoff-" + shortID()}
+	mux := Tmux{WS: "app-replace-" + shortID()}
 	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
 	launcher, err := newLauncher(mux.WS, cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	source := Slot{ID: newUUID(), Kind: kindClaude, Alias: "source", Cwd: root, SessionID: "original-claude-id", ClaudeAlias: "claude"}
-	if err := appOpenSlot(mux, launcher, &source, false); err != nil {
-		t.Fatal(err)
+	sibling := Slot{ID: newUUID(), Kind: kindShell, Alias: "sibling", Cwd: root}
+	for _, s := range []*Slot{&source, &sibling} {
+		if err := appOpenSlot(mux, launcher, s, false); err != nil {
+			t.Fatal(err)
+		}
 	}
-	layout := &appLayout{Active: "tab", Tabs: []*appTab{{ID: "tab", Title: "test", Dir: root, Views: []*appView{{ID: "view", Slots: []string{source.ID}, Focus: source.ID}}}}}
+	layout := &appLayout{Active: "tab", Tabs: []*appTab{{ID: "tab", Title: "test", Dir: root, Active: "view", Views: []*appView{{ID: "view", Slots: []string{source.ID, sibling.ID}, Focus: source.ID, Layout: layoutCols, Weights: []float64{0.3, 0.7}}}}}}
 	if err := mux.storeLayout(layout); err != nil {
 		t.Fatal(err)
 	}
+	beforeLayout, _ := json.Marshal(mux.loadLayout())
 	pane, err := mux.Run("display", "-p", "-t", "="+slotSession(source.ID)+":", "#{pane_id}")
 	if err != nil {
 		t.Fatal(err)
 	}
+	siblingPID, _ := mux.Run("display", "-p", "-t", "="+slotSession(sibling.ID)+":", "#{pane_pid}")
 	before, _ := mux.Run("display", "-p", "-t", pane, "#{pane_pid}|#{@cw_sid}|#{@cw_claude_alias}")
-	result, err := wsAction(mux, &doReq{Action: "slot.handoff", Slot: source.ID, Alias: "codex"})
-	if err != nil {
-		t.Fatal(err)
+	for _, alias := range []string{"", "unknown", "claude-work"} {
+		if _, err := wsAction(mux, &doReq{Action: "slot.handoff", Slot: source.ID, Agent: "codex", Alias: alias}); err == nil {
+			t.Fatal("invalid selection accepted", alias)
+		}
+		after, _ := mux.Run("display", "-p", "-t", pane, "#{pane_pid}|#{@cw_sid}|#{@cw_claude_alias}")
+		if before != after {
+			t.Fatal("failed selection changed live session", before, after)
+		}
 	}
-	codexID := result["slot"].(string)
-	codexPane, err := mux.Run("display", "-p", "-t", "="+slotSession(codexID)+":", "#{pane_id}")
-	if err != nil {
-		t.Fatal(err)
-	}
-	waitFor := func(pane, message string) {
+	waitFor := func(message string) {
 		t.Helper()
 		var output string
 		for deadline := time.Now().Add(3 * time.Second); time.Now().Before(deadline); time.Sleep(20 * time.Millisecond) {
@@ -70,28 +77,41 @@ func TestAppHandoffBothDirectionsPreservesSource(t *testing.T) {
 				return
 			}
 		}
-		t.Fatalf("missing initial message %q in %q", message, output)
+		t.Fatalf("missing message %q in %q", message, output)
 	}
-	waitFor(codexPane, "transfer-to-codex retoma la sesión de claude con id original-claude-id")
-	after, _ := mux.Run("display", "-p", "-t", pane, "#{pane_pid}|#{@cw_sid}|#{@cw_claude_alias}")
-	if before != after {
-		t.Fatal("handoff changed original session", before, after)
-	}
-	// Emulate the real Codex SessionStart hook's allocated conversation ID.
-	if _, err := mux.Run("set", "-p", "-t", codexPane, "@cw_sid", "actual-codex-id"); err != nil {
-		t.Fatal(err)
-	}
-	result, err = wsAction(mux, &doReq{Action: "slot.handoff", Slot: codexID, Alias: "claude"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	targetPane, err := mux.Run("display", "-p", "-t", "="+slotSession(result["slot"].(string))+":", "#{pane_id}")
-	if err != nil {
-		t.Fatal(err)
-	}
-	waitFor(targetPane, "transfer-to-claude retoma la sesión de codex con id actual-codex-id")
-	if got := len(mux.loadLayout().Tabs[0].Views); got != 3 {
-		t.Fatal("handoff views not saved", got)
+	for _, step := range []struct{ agent, alias, message, model string }{{"codex", "codex-work", "transfer-to-codex retoma la sesión de claude con id original-claude-id", "selected-codex"}, {"claude", "claude-work", "transfer-to-claude retoma la sesión de codex con id actual-codex-id", "selected-claude"}} {
+		result, err := wsAction(mux, &doReq{Action: "slot.handoff", Slot: source.ID, Agent: step.agent, Alias: step.alias})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if result["slot"] != source.ID {
+			t.Fatal("handoff allocated a new slot", result)
+		}
+		waitFor(step.message)
+		waitFor(step.model)
+		recorded, err := paneSlot(mux, pane)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if recorded.ID != source.ID || recorded.Alias != source.Alias || recorded.Cwd != root || recorded.ClaudeAlias != step.alias {
+			t.Fatal("replacement changed slot identity or selected alias", recorded)
+		}
+		if recorded.SessionID == "original-claude-id" {
+			t.Fatal("source conversation ID was reused")
+		}
+		afterLayout, _ := json.Marshal(mux.loadLayout())
+		if string(beforeLayout) != string(afterLayout) {
+			t.Fatal("handoff changed view, order, focus or pane weights", string(afterLayout))
+		}
+		afterPID, _ := mux.Run("display", "-p", "-t", "="+slotSession(sibling.ID)+":", "#{pane_pid}")
+		if siblingPID != afterPID {
+			t.Fatal("handoff restarted another session")
+		}
+		if step.agent == "codex" {
+			if _, err := mux.Run("set", "-p", "-t", pane, "@cw_sid", "actual-codex-id"); err != nil {
+				t.Fatal(err)
+			}
+		}
 	}
 }
 

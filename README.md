@@ -205,7 +205,9 @@ Codex se ejecuta con su CLI nativa; sus argumentos se configuran por separado co
 que Claude esté instalado. Los aliases del shell que ejecutan `codex` también se pueden importar.
 
 En el menú contextual de una sesión, **Retomar con Codex** y **Retomar con Claude**
-abren una sesión nueva en la misma carpeta y conservan la original. En **Configuración → General**
+piden elegir el alias de destino y reemplazan el agente en la misma subpestaña, conservando
+su nombre, carpeta y posición. El proceso anterior se cierra; su conversación permanece en disco.
+En **Configuración → General**
 de la app, o en **Alt+m → Configuración** de la terminal, escribe el nombre de la skill
 que existe en tu proyecto para cada destino:
 

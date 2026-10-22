@@ -67,16 +67,18 @@ var ctxDialogs = map[string]struct {
 	title string
 	w, h  int
 }{
-	"tab-rename": {"Renombrar pestaña", 70, 10},
-	"tab-alias":  {"Alias de claude de la pestaña", 70, 16},
-	"tab-close":  {"Cerrar pestaña", 66, 13},
-	"tab-dir":    {"Carpeta de la pestaña", 76, 10},
-	"combine":    {"Combinar sesiones en esta vista", 78, 24},
-	"view-alias": {"Alias de claude de la vista", 70, 16},
-	"view-close": {"Cerrar vista", 66, 13},
-	"rename":     {"Renombrar sesión", 70, 10},
-	"edit":       {"Editar sesión", 72, 24},
-	"close":      {"Cerrar sesión", 66, 13},
+	"tab-rename":     {"Renombrar pestaña", 70, 10},
+	"tab-alias":      {"Alias de claude de la pestaña", 70, 16},
+	"tab-close":      {"Cerrar pestaña", 66, 13},
+	"tab-dir":        {"Carpeta de la pestaña", 76, 10},
+	"combine":        {"Combinar sesiones en esta vista", 78, 24},
+	"view-alias":     {"Alias de claude de la vista", 70, 16},
+	"view-close":     {"Cerrar vista", 66, 13},
+	"rename":         {"Renombrar sesión", 70, 10},
+	"edit":           {"Editar sesión", 72, 24},
+	"close":          {"Cerrar sesión", 66, 13},
+	"handoff-codex":  {"Retomar con Codex", 76, 22},
+	"handoff-claude": {"Retomar con Claude", 76, 22},
 }
 
 func ctxDialogPopup(req string) (string, int, int) {
@@ -434,23 +436,17 @@ func ctxRun(t Tmux, ws, kind, target, id string) error {
 	}
 	switch id {
 	case "handoff-codex", "handoff-claude":
-		source, err := paneSlot(t, arg)
-		if err != nil {
-			return err
-		}
 		cfg, err := loadConfig()
 		if err != nil {
 			return err
 		}
-		s, err := handoffSlot(source, strings.TrimPrefix(id, "handoff-"), cfg)
-		if err != nil {
-			return err
+		agent := strings.TrimPrefix(id, "handoff-")
+		alias, ok := pickHandoffAlias(cfg, agent)
+		if !ok {
+			return errCancelled
 		}
-		session, err := t.Run("display", "-p", "-t", arg, "#{session_name}")
-		if err != nil {
-			return err
-		}
-		return openInTab(ws, session, s, false)
+		_, err = replaceAgentPane(t, arg, agent, alias, cfg)
+		return err
 	case "tab-left", "tab-right":
 		name, err := t.Run("display", "-p", "-t", target, "#{session_name}")
 		if err != nil {

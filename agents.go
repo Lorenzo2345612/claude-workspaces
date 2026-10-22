@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -14,7 +15,7 @@ func (a ClaudeAlias) isCodex() bool {
 	return filepath.Base(a.Command) == "codex" || (a.Command == "" && a.Name == "codex")
 }
 
-func handoffSlot(source Slot, target string, cfg Config) (Slot, error) {
+func handoffSlot(source Slot, target string, cfg Config, selected ...string) (Slot, error) {
 	if source.Kind != kindClaude || source.SessionID == "" {
 		return Slot{}, errors.New("la sesión aún no tiene un ID de conversación; inicia una conversación antes de retomarla")
 	}
@@ -39,6 +40,19 @@ func handoffSlot(source Slot, target string, cfg Config) (Slot, error) {
 					break
 				}
 			}
+		}
+	}
+	if len(selected) > 0 {
+		alias = selected[0]
+		valid := false
+		for _, a := range cfg.claudeAliases() {
+			if a.Name == alias && a.isCodex() == (target == "codex") {
+				valid = true
+				break
+			}
+		}
+		if !valid {
+			return Slot{}, fmt.Errorf("elige un alias válido de %s", target)
 		}
 	}
 	if alias == "" {
@@ -126,4 +140,51 @@ func (c Config) newAgentSlot(kind, alias string) (string, string, error) {
 		return kindClaude, alias, nil
 	}
 	return kind, alias, nil
+}
+
+// replaceAgentPane changes the process in place. Slot, pane, view and display name stay stable.
+func replaceAgentPane(t Tmux, pane, target, alias string, cfg Config) (Slot, error) {
+	source, err := paneSlot(t, pane)
+	if err != nil {
+		return Slot{}, err
+	}
+	next, err := handoffSlot(source, target, cfg, alias)
+	if err != nil {
+		return Slot{}, err
+	}
+	next.ID, next.Alias, next.View = source.ID, source.Alias, source.View
+	cfg.LazyStart = false
+	launcher, err := newLauncher(t.WS, cfg)
+	if err != nil {
+		return Slot{}, err
+	}
+	selected := cfg.claudeAlias(alias)
+	// Resolve the executable before replacing a live process.
+	command := selected.Command
+	if selected.ViaShell {
+		command = os.Getenv("SHELL")
+	} else if selected.isCodex() {
+		if command == "" || command == "codex" {
+			command = cfg.CodexCommand
+			if command == "" {
+				command = "codex"
+			}
+		}
+	} else if command == "" {
+		command = launcher.ClaudeBin
+	}
+	if strings.ContainsRune(command, os.PathSeparator) && !filepath.IsAbs(command) {
+		command = filepath.Join(next.Cwd, command)
+	}
+	if _, err := exec.LookPath(command); err != nil {
+		return Slot{}, fmt.Errorf("no encuentro %q para retomar: %w", command, err)
+	}
+	spec := launcher.slotSpec("", false, &next, false)
+	cmd := append(t.slotOptionsArgs(pane, spec), ";", "respawn-pane", "-k", "-t", pane)
+	cmd = append(cmd, t.processArgs(spec)...)
+	if _, err := t.Run(cmd...); err != nil {
+		_ = t.setSlotOptions(pane, windowSpec{slot: source, name: source.Alias, display: source.Status})
+		return Slot{}, err
+	}
+	return next, nil
 }

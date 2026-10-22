@@ -762,8 +762,8 @@ function slotItems(id) {
     { label: 'Renombrar', run: () => dlgPrompt('Renombrar sesión', 'Nombre', s.name, v => act('slot.rename', { slot: id, name: v })) }];
   if (s.kind === 'claude') {
     items.push({ label: 'Editar sesión…', run: () => dlgEditSession(id) });
-    items.push({ label: 'Retomar con Codex', run: () => act('slot.handoff', { slot: id, alias: 'codex' }) });
-    items.push({ label: 'Retomar con Claude', run: () => act('slot.handoff', { slot: id, alias: 'claude' }) });
+    items.push({ label: 'Retomar con Codex', run: () => dlgHandoff(id, 'codex') });
+    items.push({ label: 'Retomar con Claude', run: () => dlgHandoff(id, 'claude') });
     items.push({ label: 'Cambiar alias', sub: () => S.aliases.map(a => ({ label: a.name, k: a.name === s.alias ? '✓' : '', run: () => a.name === s.alias ? null : act('alias.bulk', { scope: 'slot', slot: id, alias: a.name, sendContinue: true }) })) });
     if (s.status === 'sleeping') items.push({ label: 'Reanudar', run: () => act('slot.wake', { slot: id }) });
     else if (!s.dead) items.push({ label: 'Suspender', k: 'deja de correr', run: () => act('slot.suspend', { slot: id }) });
@@ -1036,6 +1036,22 @@ function dlgEditSession(id) {
     buttons: s.kind === 'claude' ? [{ label: 'Cancelar' }, { label: 'Guardar y reiniciar', run: save(true) }, { label: 'Guardar', primary: true, run: save(false) }]
       : [{ label: 'Cancelar' }, { label: 'Guardar', primary: true, run: save(false) }] });
   upd();
+}
+
+function dlgHandoff(id, agent) {
+  const source = slotOf(id); if (!source) return;
+  const choices = S.aliases.filter(a => a.agent === agent);
+  let alias = '';
+  const label = agent === 'codex' ? 'Codex' : 'Claude';
+  modal({ title: 'Retomar con ' + label,
+    sub: 'Reemplaza «' + source.name + '» en esta misma subpestaña. Elige el alias de destino.',
+    body: [field('Alias de ' + label, aliasSeg('', value => { alias = value; }, agent)),
+      !choices.length ? h('div', { class: 'hint' }, 'Configura un alias de ' + label + ' en Ajustes.') : null],
+    buttons: [{ label: 'Cancelar' }, { label: 'Retomar', primary: true, run: async () => {
+      if (!alias) throw new Error('Elige el alias de destino.');
+      await api.do('slot.handoff', { ws: S.ws, slot: id, agent, alias });
+    } }]
+  });
 }
 
 function dlgBulkAlias(scope, id) {

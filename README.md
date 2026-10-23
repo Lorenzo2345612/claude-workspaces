@@ -234,6 +234,33 @@ Sin hooks habilitados y autorizados, cw no puede identificar ni restaurar una co
 nueva de Codex. Véase la [documentación oficial de hooks](https://learn.chatgpt.com/docs/hooks).
 El panel de consumo y el cambio automático por cuota siguen usando las cuentas de Claude.
 
+## Sonidos de notificación
+
+La app y la versión de terminal ofrecen los **16 sonidos** del selector de prueba.
+Por defecto, una pregunta o un permiso pendiente usa **10 · Doble toque corto**;
+al terminar un turno de trabajo se usa **11 · Doble toque ascendente**.
+
+Configúralos en **Ajustes → Sonidos** de la app o **Alt+m → Configuración** de la
+terminal. Cada evento tiene su propio selector, la opción **Sin sonido** y un botón
+para escuchar la muestra. El volumen es compartido; **0** silencia los dos avisos.
+Los campos de configuración son `question_sound`, `completion_sound` y `sound_volume`
+(IDs `01`–`16` o `none`; volumen `0`–`100`, inicialmente `40`).
+
+El aviso de pregunta suena una vez al entrar en espera de respuesta. El de finalización
+suena cuando una sesión de Claude/Codex que estaba trabajando termina su turno;
+no se dispara por abrir, restaurar, suspender una sesión ni por un fallo de ejecución.
+Los hooks repetidos no duplican el mismo aviso. Los sonidos no dependen de Skynet.
+
+La reproducción ocurre en el equipo que ejecuta cw, también si la app está en segundo
+plano. En Windows/WSL se usa el audio nativo de Windows; en macOS, `afplay`; en Linux,
+un reproductor disponible entre `paplay`, `pw-play`, `aplay`, `ffplay` o `play`.
+Si falla la reproducción, el diagnóstico queda en `run/sound-error.log` dentro de los
+datos de cw. No se requiere conexión a Internet para generar los sonidos.
+
+En Codex, autoriza los hooks de cw con `/hooks`. Reinicia las sesiones antiguas para
+recibir el hook que detecta solicitudes de respuesta mediante herramientas. Estos
+avisos corresponden a las sesiones de agentes, no a comandos arbitrarios del shell.
+
 ## How it tracks Claude sessions
 
 Each new session gets a UUID from cw and starts with `claude --session-id <uuid> --name <name>`.

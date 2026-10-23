@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Workspaces · Elegir sonidos</title>
+<style>
+:root{color-scheme:dark;--bg:#121314;--panel:#1b1d20;--line:#35383d;--text:#ececee;--muted:#a6a8ae;--question:#d9b66f;--done:#88bea5;--accent:#abaee5;font:15px/1.5 system-ui,sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}main{max-width:1100px;margin:auto;padding:40px 24px 100px}h1{font-size:clamp(27px,5vw,42px);line-height:1.15;letter-spacing:-1.2px;margin:12px 0}h2{font-size:17px;margin:0}.eyebrow{color:var(--accent);font-size:12px;letter-spacing:2px;text-transform:uppercase}p{color:var(--muted);margin:12px 0 24px;max-width:740px}.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;padding:16px 0 24px}.volume{display:flex;align-items:center;gap:12px}input[type=range]{accent-color:var(--accent);width:135px}button{font:inherit;cursor:pointer;color:var(--text);border:1px solid var(--line);border-radius:8px;background:#24262a;padding:9px 14px}button:hover{background:#303339}button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:4px}button:disabled{cursor:default;opacity:.5}.quiet{background:transparent;color:var(--muted)}.filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}.filters button[aria-pressed=true]{background:#34364b;border-color:var(--accent);color:#e0e1ff}.sound[hidden]{display:none}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.sound{position:relative;padding:20px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.sound.playing{border-color:var(--accent)}.sound .description{font-size:13px;min-height:40px;margin:8px 0 18px}.index{color:var(--muted);font-size:11px;margin-bottom:8px}.play{width:100%;display:flex;justify-content:space-between;align-items:center;background:#292b34;border-color:#45485e}.duration{font-size:12px;color:var(--muted)}.choices{display:flex;gap:8px;margin-top:12px}.choices button{flex:1;font-size:12px;padding:9px 5px}.choices .question[aria-pressed=true]{background:#443a27;color:var(--question);border-color:var(--question)}.choices .done[aria-pressed=true]{background:#243b31;color:var(--done);border-color:var(--done)}.selected{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:10px 0 26px}.selection{padding:18px;border:1px solid var(--line);border-radius:12px;background:var(--panel)}.selection strong{display:block;font-size:18px;margin:6px 0 14px}.selection small{color:var(--muted)}.selection.question h2{color:var(--question)}.selection.done h2{color:var(--done)}.actions{display:flex;flex-wrap:wrap;gap:8px}.actions button{font-size:12px}.selection .none{color:var(--muted);font-weight:400}.summary{margin-top:24px;padding:20px;border:1px solid var(--line);border-radius:12px}.summary p{margin:8px 0 16px}#result{display:block;white-space:pre-wrap;user-select:all;padding:14px;background:#1b1d20;border-radius:8px;margin-bottom:14px;color:var(--text)}#status{min-height:24px;color:var(--muted);font-size:13px;margin-top:10px}.toast{position:fixed;bottom:22px;right:22px;max-width:min(430px,calc(100vw - 44px));background:#292c32;border:1px solid var(--line);padding:16px 22px;border-radius:10px;box-shadow:0 10px 40px #0008;z-index:2}.toast strong{display:block}.toast span{color:var(--muted);font-size:13px}.footnote{font-size:12px;margin-top:24px}.download{display:inline-block;color:var(--muted);font-size:12px;margin-top:12px}.download:hover{color:var(--text)}@media(max-width:620px){main{padding:26px 16px 100px}.selected{grid-template-columns:1fr}.toolbar{gap:12px}.volume{flex-wrap:wrap}.choices button{padding:10px 4px}}
+</style>
+</head>
+<body>
+<main>
+<div class="eyebrow">Agent Workspaces · Prueba de audio</div>
+<h1>Dos momentos. Tu sonido para cada uno.</h1>
+<p>Agregué ocho variantes de <b>02 · Doble toque</b> y <b>05 · Marimba</b>. Escucha las opciones y elige un aviso para cuando un chat <b>necesite tu respuesta</b> y otro para cuando <b>termine el trabajo</b>. Pueden ser diferentes o el mismo. Estas elecciones servirán para la app y la terminal.</p>
+<div class="toolbar">
+<label class="volume" for="volume">Volumen <input id="volume" type="range" min="0" max="100" value="40"><output id="volume-label" for="volume">40 %</output></label>
+<button id="stop" class="quiet" type="button">Detener audio</button>
+</div>
+<div class="selected">
+<section class="selection question" aria-labelledby="question-title"><h2 id="question-title">01 · Necesita tu respuesta</h2><small>Una pregunta o una solicitud de permiso.</small><strong id="question-name" class="none">Sin elegir</strong><div class="actions"><button type="button" data-preview="question" disabled>Simular pregunta</button><button type="button" data-export="question" disabled>Descargar WAV</button></div></section>
+<section class="selection done" aria-labelledby="done-title"><h2 id="done-title">02 · Terminó el trabajo</h2><small>El agente termina y queda listo.</small><strong id="done-name" class="none">Sin elegir</strong><div class="actions"><button type="button" data-preview="done" disabled>Simular trabajo terminado</button><button type="button" data-export="done" disabled>Descargar WAV</button></div></section>
+</div>
+<nav class="filters" aria-label="Filtrar sonidos"><button type="button" data-filter="new" aria-pressed="true">Nuevas · 8</button><button type="button" data-filter="double" aria-pressed="false">Estilo 02 · Doble toque</button><button type="button" data-filter="marimba" aria-pressed="false">Estilo 05 · Marimba</button><button type="button" data-filter="all" aria-pressed="false">Todas · 16</button></nav>
+<div id="sounds" class="grid" aria-label="Opciones de sonido"></div>
+<section class="summary"><h2>Tu elección</h2><p>Cuando los hayas comparado, dime los nombres o copia este texto en el chat. Puedes cambiar cualquiera antes de decidir.</p><code id="result">Pregunta: sin elegir.
+Trabajo terminado: sin elegir.</code><button id="copy" type="button" disabled>Copiar elección</button><div id="status" role="status" aria-live="polite"></div></section>
+<p class="footnote">No se reproduce nada automáticamente. El audio se genera en tu navegador, sin conexión ni servicios externos. Los WAV permiten usar exactamente el mismo sonido en la app y en el reproductor de la terminal. Esta página es una prueba: todavía no activa notificaciones en tus sesiones.</p>
+</main>
+<script>
+'use strict';
+// Deterministic PCM synthesis: preview and WAV export use the same samples.
+const RATE = 44100;
+const tones = [
+ {id:'01',name:'Cristal suave',description:'Dos notas claras y delicadas. Breve, sin sobresalto.',duration:.70,notes:[[0,880,.26,'bell',.46],[.18,1174.66,.38,'bell',.38]]},
+ {id:'02',family:'double',name:'Doble toque',description:'Dos pulsos definidos. Fácil de reconocer entre varias sesiones.',duration:.58,notes:[[0,660,.17,'sine',.55],[.25,660,.19,'sine',.55]]},
+ {id:'03',name:'Pregunta digital',description:'Tres notas ascendentes, como una pequeña llamada de atención.',duration:.80,notes:[[0,523.25,.18,'soft',.46],[.18,659.25,.18,'soft',.46],[.36,783.99,.32,'soft',.46]]},
+ {id:'04',name:'Sonar tranquilo',description:'Un pulso grave con una cola suave. Discreto para trabajar.',duration:.95,notes:[[0,440,.78,'bell',.62]]},
+ {id:'05',family:'marimba',name:'Marimba',description:'Un golpe cálido y otro más agudo, con caída rápida.',duration:.68,notes:[[0,587.33,.26,'wood',.63],[.19,880,.33,'wood',.51]]},
+ {id:'06',name:'Gota',description:'Un tono corto que baja. Un aviso compacto y redondo.',duration:.49,notes:[[0,1050,.36,'drop',.60]]},
+ {id:'07',name:'Listo',description:'Un pequeño ascenso de tres notas con una llegada clara.',duration:.98,notes:[[0,523.25,.24,'bell',.43],[.20,659.25,.24,'bell',.43],[.40,1046.5,.47,'bell',.43]]},
+ {id:'08',name:'Acorde sereno',description:'Tres notas juntas. Un cierre más amplio y relajado.',duration:1.14,notes:[[0,523.25,.90,'sine',.22],[.04,659.25,.87,'sine',.22],[.08,783.99,.84,'sine',.22]]},
+ {id:'09',family:'double',fresh:true,name:'Doble toque grave',description:'Como el 02, con dos pulsos más graves y redondos.',duration:.62,notes:[[0,523.25,.18,'sine',.55],[.27,523.25,.20,'sine',.55]]},
+ {id:'10',family:'double',fresh:true,name:'Doble toque corto',description:'Dos pulsos algo más agudos, con menos pausa. Ágil y breve.',duration:.44,notes:[[0,880,.12,'sine',.50],[.19,880,.14,'sine',.50]]},
+ {id:'11',family:'double',fresh:true,name:'Doble toque ascendente',description:'El segundo pulso sube de nota. Un pequeño «¿me respondes?».',duration:.58,notes:[[0,587.33,.17,'sine',.55],[.24,783.99,.20,'sine',.52]]},
+ {id:'12',family:'double',fresh:true,name:'Doble toque pausado',description:'Mismo carácter del 02, con más aire entre los dos avisos.',duration:.88,notes:[[0,659.25,.22,'sine',.53],[.38,659.25,.25,'sine',.53]]},
+ {id:'13',family:'marimba',fresh:true,name:'Marimba grave',description:'Como el 05, un poco más baja y cálida. Dos golpes en ascenso.',duration:.80,notes:[[0,440,.30,'wood',.66],[.23,659.25,.36,'wood',.57]]},
+ {id:'14',family:'marimba',fresh:true,name:'Marimba rápida',description:'Dos golpes de madera más cortos y brillantes. Un aviso ligero.',duration:.46,notes:[[0,783.99,.17,'wood',.60],[.13,1046.50,.22,'wood',.53]]},
+ {id:'15',family:'marimba',fresh:true,name:'Marimba descendente',description:'Las dos notas del 05, en sentido contrario. Sensación de cierre.',duration:.80,notes:[[0,880,.30,'wood',.56],[.23,587.33,.37,'wood',.64]]},
+ {id:'16',family:'marimba',fresh:true,name:'Marimba de tres notas',description:'Tres golpes cálidos que suben. Un cierre con un poco más de presencia.',duration:.84,notes:[[0,523.25,.23,'wood',.60],[.17,659.25,.25,'wood',.57],[.35,783.99,.34,'wood',.55]]}
+];
+const selection = {question:null,done:null};
+let context, activeSource, activeCard, toastTimer;
+let playRequest = 0;
+const sampleCache = new Map();
+const $ = selector => document.querySelector(selector);
+function samples(tone) {
+ if (sampleCache.has(tone.id)) return sampleCache.get(tone.id);
+ const pcm = new Float32Array(Math.ceil(tone.duration * RATE));
+ for (const [start,hz,duration,type,level] of tone.notes) {
+  const offset = Math.round(start * RATE);
+  for (let i=0;i<Math.round(duration*RATE)&&offset+i<pcm.length;i++) {
+   const t=i/RATE, progress=t/duration;
+   const attack=Math.min(1,t/.009),release=Math.min(1,(duration-t)/.055);
+   const decay=Math.exp(-(type==='wood'?7:type==='bell'?4:2)*progress);
+   const phase=2*Math.PI*(type==='drop'?(hz*t-650*t*t):hz*t);
+   let wave=Math.sin(phase);
+   if(type==='bell') wave=(wave+.23*Math.sin(phase*2)+.08*Math.sin(phase*3))/1.31;
+   if(type==='wood') wave=(wave+.32*Math.sin(phase*2.76))/1.32;
+   if(type==='soft') wave=(wave+.12*Math.sin(phase*2))/1.12;
+   pcm[offset+i]+=wave*attack*release*decay*level;
+  }
+ }
+ for(let i=0;i<pcm.length;i++) pcm[i]=Math.max(-.95,Math.min(.95,pcm[i]));
+ sampleCache.set(tone.id,pcm);return pcm;
+}
+function stop() {
+ playRequest++;
+ if(activeSource) {try {activeSource.stop();} catch (_) {} activeSource=null;}
+ if(activeCard) {activeCard.classList.remove('playing');activeCard=null;}
+}
+async function play(tone) {
+ stop();
+ const request = playRequest;
+ try {
+  const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+  if(!AudioContextClass) throw new Error('Este navegador no admite audio. Prueba en Chrome, Edge, Firefox o Safari.');
+  if(!context) context=new AudioContextClass();
+  if(context.state!=='running') await context.resume();
+  if(request !== playRequest) return;
+  const pcm=samples(tone),buffer=context.createBuffer(1,pcm.length,RATE);
+  buffer.copyToChannel(pcm,0);
+  const source=context.createBufferSource(),gain=context.createGain();
+  gain.gain.value=Number($('#volume').value)/100;
+  source.buffer=buffer;source.connect(gain);gain.connect(context.destination);
+  source.onended=()=>{source.disconnect();gain.disconnect();if(activeSource===source){activeSource=null;if(activeCard)activeCard.classList.remove('playing');activeCard=null;}};
+  activeSource=source;activeCard=$('#sound-'+tone.id);activeCard.classList.add('playing');
+  source.start();$('#status').textContent='Escuchando '+tone.id+' · '+tone.name+'.';
+ } catch(error) {$('#status').textContent=error.message;}
+}
+function wav(tone) {
+ const pcm=samples(tone),buffer=new ArrayBuffer(44+pcm.length*2),view=new DataView(buffer);
+ const text=(offset,value)=>{for(let i=0;i<value.length;i++)view.setUint8(offset+i,value.charCodeAt(i));};
+ text(0,'RIFF');view.setUint32(4,36+pcm.length*2,true);text(8,'WAVE');text(12,'fmt ');
+ view.setUint32(16,16,true);view.setUint16(20,1,true);view.setUint16(22,1,true);view.setUint32(24,RATE,true);
+ view.setUint32(28,RATE*2,true);view.setUint16(32,2,true);view.setUint16(34,16,true);text(36,'data');view.setUint32(40,pcm.length*2,true);
+ const volume=Number($('#volume').value)/100;
+ for(let i=0;i<pcm.length;i++){const value=pcm[i]*volume;view.setInt16(44+i*2,Math.round(value*(value<0?32768:32767)),true);}
+ return new Blob([buffer],{type:'audio/wav'});
+}
+function download(tone,event) {
+ const url=URL.createObjectURL(wav(tone)),link=document.createElement('a');
+ link.href=url;link.download='agent-workspaces-'+(event?event+'-':'')+tone.id+'.wav';link.click();setTimeout(()=>URL.revokeObjectURL(url),10000);
+ $('#status').textContent='WAV de '+tone.name+' descargado al '+$('#volume').value+' %.';
+}
+function summary() {
+ const label=kind=>selection[kind]?selection[kind].id+' · '+selection[kind].name:'sin elegir';
+ return 'Pregunta: '+label('question')+'.\nTrabajo terminado: '+label('done')+'.';
+}
+function update() {
+ for(const kind of ['question','done']) {
+  const tone=selection[kind],name=$('#'+kind+'-name');name.textContent=tone?tone.id+' · '+tone.name:'Sin elegir';name.classList.toggle('none',!tone);
+  $('[data-preview="'+kind+'"]').disabled=!tone;$('[data-export="'+kind+'"]').disabled=!tone;
+  for(const button of document.querySelectorAll('[data-select="'+kind+'"]')) button.setAttribute('aria-pressed',String(!!tone&&button.dataset.tone===tone.id));
+ }
+ $('#result').textContent=summary();$('#copy').disabled=!selection.question||!selection.done;
+ try {localStorage.setItem('cw-sound-preview',JSON.stringify({question:selection.question?.id,done:selection.done?.id}));} catch (_) {}
+}
+function simulate(kind) {
+ const tone=selection[kind];if(!tone)return;play(tone);
+ document.querySelector('.toast')?.remove();clearTimeout(toastTimer);
+ const toast=document.createElement('div');toast.className='toast';toast.setAttribute('role','status');
+ const title=document.createElement('strong'),description=document.createElement('span');
+ title.textContent=kind==='question'?'Tu chat necesita una respuesta':'El trabajo ha terminado';
+ description.textContent=kind==='question'?'Proyecto · sesión de ejemplo · esperando tu decisión':'Proyecto · sesión de ejemplo · lista para continuar';
+ toast.append(title,description);document.body.append(toast);toastTimer=setTimeout(()=>toast.remove(),3500);
+}
+for(const tone of tones) {
+ const card=document.createElement('article');card.className='sound';card.id='sound-'+tone.id;
+ card.innerHTML='<div class="index">OPCIÓN '+tone.id+(tone.fresh?' · NUEVA':'')+(tone.family==='double'?' · DOBLE TOQUE':tone.family==='marimba'?' · MARIMBA':'')+'</div><h2>'+tone.name+'</h2><p class="description">'+tone.description+'</p><button type="button" class="play" aria-label="Escuchar '+tone.name+'"><span>▶ Escuchar</span><span class="duration">'+tone.duration.toFixed(2)+' s</span></button><div class="choices"><button type="button" class="question" data-select="question" data-tone="'+tone.id+'" aria-pressed="false">Para preguntas</button><button type="button" class="done" data-select="done" data-tone="'+tone.id+'" aria-pressed="false">Para trabajo terminado</button></div><button type="button" class="quiet download">Descargar WAV</button>';
+ card.querySelector('.play').addEventListener('click',()=>play(tone));
+ card.querySelector('.download').addEventListener('click',()=>download(tone));
+ for(const button of card.querySelectorAll('[data-select]')) button.addEventListener('click',()=>{selection[button.dataset.select]=tone;update();$('#status').textContent='Elegido '+tone.name+' para '+(button.dataset.select==='question'?'preguntas.':'trabajo terminado.');});
+ $('#sounds').append(card);
+}
+function filterSounds(filter) {
+ for(const tone of tones) $('#sound-'+tone.id).hidden=!(filter==='all'||(filter==='new'&&tone.fresh)||filter===tone.family);
+ for(const button of document.querySelectorAll('[data-filter]')) button.setAttribute('aria-pressed',String(button.dataset.filter===filter));
+}
+for(const button of document.querySelectorAll('[data-filter]')) button.addEventListener('click',()=>filterSounds(button.dataset.filter));
+filterSounds('new');
+for(const button of document.querySelectorAll('[data-preview]')) button.addEventListener('click',()=>simulate(button.dataset.preview));
+for(const button of document.querySelectorAll('[data-export]')) button.addEventListener('click',()=>download(selection[button.dataset.export],button.dataset.export));
+$('#volume').addEventListener('input',()=>{$('#volume-label').textContent=$('#volume').value+' %';});
+$('#stop').addEventListener('click',stop);document.addEventListener('keydown',event=>{if(event.key==='Escape')stop();});
+$('#copy').addEventListener('click',async()=>{
+ try {await navigator.clipboard.writeText(summary());$('#status').textContent='Elección copiada. Pégala en el chat.';}
+ catch (_) {const range=document.createRange();range.selectNodeContents($('#result'));const sel=window.getSelection();sel.removeAllRanges();sel.addRange(range);$('#status').textContent='Texto seleccionado. Cópialo con Ctrl+C o Cmd+C.';}
+});
+try {const saved=JSON.parse(localStorage.getItem('cw-sound-preview')||'{}');for(const kind of ['question','done'])selection[kind]=tones.find(tone=>tone.id===saved[kind])||null;} catch (_) {}
+update();
+</script>
+</body>
+</html>

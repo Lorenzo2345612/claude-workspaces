@@ -166,6 +166,8 @@ func run(args []string) error {
 		return cmdSkynet(rest)
 	case "app":
 		return cmdApp(rest)
+	case "_sound":
+		return cmdSound(rest)
 	case "_usage-worker":
 		return runUsageWorker()
 	case "_idle":

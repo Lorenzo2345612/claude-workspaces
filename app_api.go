@@ -341,7 +341,7 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		writeJSON(w, map[string]any{"config": cfg, "aliases": uiAliases(cfg), "default": cfg.defaultAlias(),
-			"shellAliases": shell, "themes": themeOrder, "configFile": configFile()})
+			"shellAliases": shell, "themes": themeOrder, "configFile": configFile(), "sounds": notificationTones})
 	case "recent":
 		ws, tabID := q.Get("ws"), q.Get("tab")
 		t := Tmux{WS: ws}
@@ -432,6 +432,8 @@ type doReq struct {
 	Path         string    `json:"path"`
 	Document     string    `json:"document"`
 	Action       string    `json:"action"`
+	Sound        string    `json:"sound"`
+	Volume       *int      `json:"volume"`
 	WS           string    `json:"ws"`
 	Tab          string    `json:"tab"`
 	View         string    `json:"view"`
@@ -459,6 +461,9 @@ type doReq struct {
 	Env          []string  `json:"env"`
 	ArgList      []string  `json:"argList"`
 	Config       *struct {
+		QuestionSound        *string   `json:"question_sound"`
+		CompletionSound      *string   `json:"completion_sound"`
+		SoundVolume          *int      `json:"sound_volume"`
 		ResumeClaudeSkill    *string   `json:"resume_claude_skill"`
 		ResumeCodexSkill     *string   `json:"resume_codex_skill"`
 		CodexCommand         *string   `json:"codex_command"`
@@ -509,6 +514,19 @@ func (s *appServer) handleDo(w http.ResponseWriter, r *http.Request) {
 // do runs one action of the window.
 func (s *appServer) do(q *doReq) (map[string]any, error) {
 	switch q.Action {
+	case "sound.preview":
+		cfg, err := loadConfig()
+		if err != nil {
+			return nil, err
+		}
+		volume := cfg.SoundVolume
+		if q.Volume != nil {
+			volume = *q.Volume
+		}
+		if !validSound(q.Sound) || volume < 0 || volume > 100 {
+			return nil, errors.New("sonido o volumen inválido")
+		}
+		return nil, playNotification(q.Sound, volume)
 	case "ws.open":
 		t := Tmux{WS: q.WS}
 		if t.Running() && !appMode(t) {
@@ -684,6 +702,24 @@ func applyConfigPatch(q *doReq) error {
 		return err
 	}
 	if c := q.Config; c != nil {
+		if c.QuestionSound != nil {
+			if !validSound(*c.QuestionSound) {
+				return errors.New("sonido de pregunta inválido")
+			}
+			cfg.QuestionSound = *c.QuestionSound
+		}
+		if c.CompletionSound != nil {
+			if !validSound(*c.CompletionSound) {
+				return errors.New("sonido de finalización inválido")
+			}
+			cfg.CompletionSound = *c.CompletionSound
+		}
+		if c.SoundVolume != nil {
+			if *c.SoundVolume < 0 || *c.SoundVolume > 100 {
+				return errors.New("el volumen debe estar entre 0 y 100")
+			}
+			cfg.SoundVolume = *c.SoundVolume
+		}
 		if c.UsageIntervalSeconds != nil {
 			if *c.UsageIntervalSeconds != 0 && (*c.UsageIntervalSeconds < 60 || *c.UsageIntervalSeconds > 86400) {
 				return errors.New("el intervalo debe ser 0 o entre 60 y 86400 segundos")

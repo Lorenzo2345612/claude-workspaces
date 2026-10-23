@@ -11,6 +11,9 @@ import (
 
 // Config holds the user-editable settings, stored in ~/.config/cw/config.json.
 type Config struct {
+	QuestionSound     string   `json:"question_sound"`
+	CompletionSound   string   `json:"completion_sound"`
+	SoundVolume       int      `json:"sound_volume"`
 	CodexCommand      string   `json:"codex_command"`
 	CodexArgs         []string `json:"codex_args,omitempty"`
 	ResumeClaudeSkill string   `json:"resume_claude_skill"`
@@ -77,6 +80,9 @@ const (
 
 func defaultConfig() Config {
 	return Config{
+		QuestionSound:     "10",
+		CompletionSound:   "11",
+		SoundVolume:       40,
 		ContinueMessage:   "continue",
 		CodexCommand:      "codex",
 		ResumeClaudeSkill: "retomar-con-claude",
@@ -103,6 +109,15 @@ func loadConfig() (Config, error) {
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		return cfg, err
+	}
+	if !validSound(cfg.QuestionSound) {
+		cfg.QuestionSound = "10"
+	}
+	if !validSound(cfg.CompletionSound) {
+		cfg.CompletionSound = "11"
+	}
+	if cfg.SoundVolume < 0 || cfg.SoundVolume > 100 {
+		cfg.SoundVolume = 40
 	}
 	if cfg.ClaudeCommand == "" {
 		cfg.ClaudeCommand = "claude"

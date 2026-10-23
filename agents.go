@@ -91,8 +91,12 @@ func (l *Launcher) codexArgv(s *Slot, a ClaudeAlias, resuming bool) ([]string, s
 	rest = append(rest, s.Args...)
 	// Hook commands run inside the CLI and inherit the pane's environment.
 	hook := strconv.Quote(joinArgs([]string{"env", "CW_WS=" + l.WS, "CW_SLOT=" + s.ID, l.Bin, "_hook"}))
-	for _, event := range []string{"SessionStart", "UserPromptSubmit", "PermissionRequest", "PostToolUse", "Stop"} {
-		rest = append(rest, "-c", "hooks."+event+"=[{hooks=[{type=\"command\",command="+hook+",timeout=5}]}]")
+	for _, event := range []string{"SessionStart", "UserPromptSubmit", "PermissionRequest", "PreToolUse", "PostToolUse", "Stop"} {
+		matcher := ""
+		if event == "PreToolUse" {
+			matcher = "matcher=\"AskUserQuestion|request_user_input\","
+		}
+		rest = append(rest, "-c", "hooks."+event+"=[{"+matcher+"hooks=[{type=\"command\",command="+hook+",timeout=5}]}]")
 	}
 	display := statusIdle
 	if s.InitialMessage != "" {

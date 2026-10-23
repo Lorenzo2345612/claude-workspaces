@@ -1,0 +1,386 @@
+[
+  {
+    "id": "01",
+    "name": "Cristal suave",
+    "description": "Dos notas claras y delicadas. Breve, sin sobresalto.",
+    "duration": 0.7,
+    "notes": [
+      [
+        0,
+        880,
+        0.26,
+        "bell",
+        0.46
+      ],
+      [
+        0.18,
+        1174.66,
+        0.38,
+        "bell",
+        0.38
+      ]
+    ]
+  },
+  {
+    "id": "02",
+    "family": "double",
+    "name": "Doble toque",
+    "description": "Dos pulsos definidos. Fácil de reconocer entre varias sesiones.",
+    "duration": 0.58,
+    "notes": [
+      [
+        0,
+        660,
+        0.17,
+        "sine",
+        0.55
+      ],
+      [
+        0.25,
+        660,
+        0.19,
+        "sine",
+        0.55
+      ]
+    ]
+  },
+  {
+    "id": "03",
+    "name": "Pregunta digital",
+    "description": "Tres notas ascendentes, como una pequeña llamada de atención.",
+    "duration": 0.8,
+    "notes": [
+      [
+        0,
+        523.25,
+        0.18,
+        "soft",
+        0.46
+      ],
+      [
+        0.18,
+        659.25,
+        0.18,
+        "soft",
+        0.46
+      ],
+      [
+        0.36,
+        783.99,
+        0.32,
+        "soft",
+        0.46
+      ]
+    ]
+  },
+  {
+    "id": "04",
+    "name": "Sonar tranquilo",
+    "description": "Un pulso grave con una cola suave. Discreto para trabajar.",
+    "duration": 0.95,
+    "notes": [
+      [
+        0,
+        440,
+        0.78,
+        "bell",
+        0.62
+      ]
+    ]
+  },
+  {
+    "id": "05",
+    "family": "marimba",
+    "name": "Marimba",
+    "description": "Un golpe cálido y otro más agudo, con caída rápida.",
+    "duration": 0.68,
+    "notes": [
+      [
+        0,
+        587.33,
+        0.26,
+        "wood",
+        0.63
+      ],
+      [
+        0.19,
+        880,
+        0.33,
+        "wood",
+        0.51
+      ]
+    ]
+  },
+  {
+    "id": "06",
+    "name": "Gota",
+    "description": "Un tono corto que baja. Un aviso compacto y redondo.",
+    "duration": 0.49,
+    "notes": [
+      [
+        0,
+        1050,
+        0.36,
+        "drop",
+        0.6
+      ]
+    ]
+  },
+  {
+    "id": "07",
+    "name": "Listo",
+    "description": "Un pequeño ascenso de tres notas con una llegada clara.",
+    "duration": 0.98,
+    "notes": [
+      [
+        0,
+        523.25,
+        0.24,
+        "bell",
+        0.43
+      ],
+      [
+        0.2,
+        659.25,
+        0.24,
+        "bell",
+        0.43
+      ],
+      [
+        0.4,
+        1046.5,
+        0.47,
+        "bell",
+        0.43
+      ]
+    ]
+  },
+  {
+    "id": "08",
+    "name": "Acorde sereno",
+    "description": "Tres notas juntas. Un cierre más amplio y relajado.",
+    "duration": 1.14,
+    "notes": [
+      [
+        0,
+        523.25,
+        0.9,
+        "sine",
+        0.22
+      ],
+      [
+        0.04,
+        659.25,
+        0.87,
+        "sine",
+        0.22
+      ],
+      [
+        0.08,
+        783.99,
+        0.84,
+        "sine",
+        0.22
+      ]
+    ]
+  },
+  {
+    "id": "09",
+    "family": "double",
+    "fresh": true,
+    "name": "Doble toque grave",
+    "description": "Como el 02, con dos pulsos más graves y redondos.",
+    "duration": 0.62,
+    "notes": [
+      [
+        0,
+        523.25,
+        0.18,
+        "sine",
+        0.55
+      ],
+      [
+        0.27,
+        523.25,
+        0.2,
+        "sine",
+        0.55
+      ]
+    ]
+  },
+  {
+    "id": "10",
+    "family": "double",
+    "fresh": true,
+    "name": "Doble toque corto",
+    "description": "Dos pulsos algo más agudos, con menos pausa. Ágil y breve.",
+    "duration": 0.44,
+    "notes": [
+      [
+        0,
+        880,
+        0.12,
+        "sine",
+        0.5
+      ],
+      [
+        0.19,
+        880,
+        0.14,
+        "sine",
+        0.5
+      ]
+    ]
+  },
+  {
+    "id": "11",
+    "family": "double",
+    "fresh": true,
+    "name": "Doble toque ascendente",
+    "description": "El segundo pulso sube de nota. Un pequeño «¿me respondes?».",
+    "duration": 0.58,
+    "notes": [
+      [
+        0,
+        587.33,
+        0.17,
+        "sine",
+        0.55
+      ],
+      [
+        0.24,
+        783.99,
+        0.2,
+        "sine",
+        0.52
+      ]
+    ]
+  },
+  {
+    "id": "12",
+    "family": "double",
+    "fresh": true,
+    "name": "Doble toque pausado",
+    "description": "Mismo carácter del 02, con más aire entre los dos avisos.",
+    "duration": 0.88,
+    "notes": [
+      [
+        0,
+        659.25,
+        0.22,
+        "sine",
+        0.53
+      ],
+      [
+        0.38,
+        659.25,
+        0.25,
+        "sine",
+        0.53
+      ]
+    ]
+  },
+  {
+    "id": "13",
+    "family": "marimba",
+    "fresh": true,
+    "name": "Marimba grave",
+    "description": "Como el 05, un poco más baja y cálida. Dos golpes en ascenso.",
+    "duration": 0.8,
+    "notes": [
+      [
+        0,
+        440,
+        0.3,
+        "wood",
+        0.66
+      ],
+      [
+        0.23,
+        659.25,
+        0.36,
+        "wood",
+        0.57
+      ]
+    ]
+  },
+  {
+    "id": "14",
+    "family": "marimba",
+    "fresh": true,
+    "name": "Marimba rápida",
+    "description": "Dos golpes de madera más cortos y brillantes. Un aviso ligero.",
+    "duration": 0.46,
+    "notes": [
+      [
+        0,
+        783.99,
+        0.17,
+        "wood",
+        0.6
+      ],
+      [
+        0.13,
+        1046.5,
+        0.22,
+        "wood",
+        0.53
+      ]
+    ]
+  },
+  {
+    "id": "15",
+    "family": "marimba",
+    "fresh": true,
+    "name": "Marimba descendente",
+    "description": "Las dos notas del 05, en sentido contrario. Sensación de cierre.",
+    "duration": 0.8,
+    "notes": [
+      [
+        0,
+        880,
+        0.3,
+        "wood",
+        0.56
+      ],
+      [
+        0.23,
+        587.33,
+        0.37,
+        "wood",
+        0.64
+      ]
+    ]
+  },
+  {
+    "id": "16",
+    "family": "marimba",
+    "fresh": true,
+    "name": "Marimba de tres notas",
+    "description": "Tres golpes cálidos que suben. Un cierre con un poco más de presencia.",
+    "duration": 0.84,
+    "notes": [
+      [
+        0,
+        523.25,
+        0.23,
+        "wood",
+        0.6
+      ],
+      [
+        0.17,
+        659.25,
+        0.25,
+        "wood",
+        0.57
+      ],
+      [
+        0.35,
+        783.99,
+        0.34,
+        "wood",
+        0.55
+      ]
+    ]
+  }
+]

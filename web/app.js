@@ -884,7 +884,7 @@ function confirmStop() {
 
 async function loadConfig() {
   const c = await api.get('config');
-  S.config = c.config; S.aliases = c.aliases; S.defaultAlias = c.default; S.shellAliases = c.shellAliases || []; S.configFile = c.configFile;
+  S.sounds = c.sounds || []; S.config = c.config; S.aliases = c.aliases; S.defaultAlias = c.default; S.shellAliases = c.shellAliases || []; S.configFile = c.configFile;
   applyTheme(S.config.theme, S.config.app_mode);
   return c;
 }
@@ -1124,7 +1124,7 @@ async function dlgSettings(section) {
   scrim._close = close;
   scrim.addEventListener('mousedown', ev => { if (ev.target === scrim) close(); });
   const nav = h('nav'), sec = h('section');
-  const sections = [['general', 'General'], ['aliases', 'Agentes y aliases'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
+  const sections = [['general', 'General'], ['sounds', 'Sonidos'], ['aliases', 'Agentes y aliases'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
   const set = async patch => {
     try { await api.do('config.set', { config: patch }); await loadConfig(); } catch (e) { toast(e.message, true); }
     if ('skynet_enabled' in patch || 'skynet_voice' in patch) { skyConnect(); window.skyVoice?.sync(); render(); }
@@ -1154,6 +1154,27 @@ async function dlgSettings(section) {
           seg([60, 120, 300].map(v => ({ value: v, label: v / 60 + ' min' })), c.autosave_seconds, v => set({ autosave_seconds: v }))),
         h('div', { class: 'setrow' }, h('div', {}, 'Argumentos para todas las sesiones', h('small', {}, 'Se agregan a cada sesión de Claude que se abra.')), cargs),
         h('div', { class: 'setrow' }, h('div', {}, 'Archivo de configuración', h('small', {}, S.configFile)), ''));
+    } else if (section === 'sounds') {
+      const soundRow = (key, title, description, fallback) => {
+        const selected = c[key] || fallback;
+        const picker = h('select', { class: 'input', 'aria-label': title, onchange: ev => set({ [key]: ev.target.value }) },
+          h('option', { value: 'none', selected: selected === 'none' }, 'Sin sonido'),
+          ...S.sounds.map(sound => h('option', { value: sound.id, selected: selected === sound.id }, sound.id + ' · ' + sound.name)));
+        const listen = h('button', { class: 'btn', onclick: async () => {
+          try { await api.do('sound.preview', { sound: picker.value, volume: Number(volume.value) }); }
+          catch (error) { toast(error.message, true); }
+        } }, 'Escuchar');
+        return h('div', { class: 'setrow' }, h('div', {}, title, h('small', {}, description)), h('div', { class: 'btnrow' }, picker, listen));
+      };
+      const volumeLabel = h('span', {}, String(c.sound_volume ?? 40) + ' %');
+      const volume = h('input', { type: 'range', min: '0', max: '100', value: c.sound_volume ?? 40, 'aria-label': 'Volumen de avisos',
+        oninput: ev => { volumeLabel.textContent = ev.target.value + ' %'; }, onchange: ev => set({ sound_volume: Number(ev.target.value) }) });
+      sec.replaceChildren(h('h3', {}, 'Sonidos'),
+        h('p', { class: 'hint' }, 'Las mismas opciones se aplican a la app y a la versión de terminal. Los avisos se reproducen en el equipo donde corre cw, también con la app en segundo plano.'),
+        soundRow('question_sound', 'Pregunta o permiso pendiente', 'Un aviso cuando la sesión necesita tu respuesta.', '10'),
+        soundRow('completion_sound', 'Trabajo terminado', 'Un aviso cuando el agente termina su turno de trabajo.', '11'),
+        h('div', { class: 'setrow' }, h('div', {}, 'Volumen de avisos', h('small', {}, '0 silencia ambos avisos.')), h('div', { class: 'btnrow' }, volume, volumeLabel)),
+        h('p', { class: 'hint' }, 'Puedes silenciar cada evento por separado. En Codex, los hooks de cw deben estar habilitados y autorizados; las sesiones abiertas antes de actualizar deben reiniciarse para recibir los hooks nuevos.'));
     } else if (section === 'aliases') {
       sec.replaceChildren(h('h3', {}, 'Agentes y aliases'),
         h('p', { class: 'hint', style: { marginTop: 0, marginBottom: '14px' } }, 'Formas de lanzar Claude: variables de entorno y argumentos, como tus alias de la shell. La estrella marca el que se propone para las sesiones nuevas.'),

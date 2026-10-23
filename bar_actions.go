@@ -89,6 +89,10 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, item("Cambiar de alias sin cuota", yesNo(cfg.autoSwitchAlias()), "c", toggle("autoswitch"))...)
 	menu = append(menu, item("Alias de claude", itoa(len(cfg.claudeAliases()))+" · por defecto "+cfg.defaultAlias(), "a",
 		fmt.Sprintf(`display-popup -E -w 90 -h 30 -T " Alias de claude " "%s"`, q(joinArgs([]string{bin, "_ui", "aliases", ws}))))...)
+	menu = append(menu, "-SONIDOS", "", "")
+	menu = append(menu, item("Preguntas y permisos", soundLabel(cfg.QuestionSound), "P", popup("Sonido de preguntas", 24, "_ui", "sounds", ws, "question"))...)
+	menu = append(menu, item("Trabajo terminado", soundLabel(cfg.CompletionSound), "T", popup("Sonido de finalización", 24, "_ui", "sounds", ws, "completion"))...)
+	menu = append(menu, item("Volumen de avisos", itoa(cfg.SoundVolume)+" %", "V", popup("Volumen de avisos", 13, "_ui", "setconf", ws, "sound-volume"))...)
 	menu = append(menu, "-SKYNET", "", "")
 	menu = append(menu, item("Skynet (orquestador)", yesNo(cfg.SkynetEnabled)+" · Alt+K abre el chat", "k", toggle("skynet"))...)
 	menu = append(menu, item("Avisar cuando una sesión pregunta", yesNo(cfg.skynetNotify()), "q", toggle("skynetnotify"))...)
@@ -170,6 +174,14 @@ func uiSetConf(what string) error {
 		return err
 	}
 	switch what {
+	case "sound-volume":
+		if v, ok := askText("Volumen de preguntas y trabajo terminado", "Volumen", itoa(cfg.SoundVolume), "0–100; 0 silencia ambos avisos"); ok {
+			n := atoiDefault(v, -1)
+			if n < 0 || n > 100 {
+				return fmt.Errorf("el volumen debe estar entre 0 y 100")
+			}
+			cfg.SoundVolume = n
+		}
 	case "resume-claude", "resume-codex":
 		value := cfg.ResumeClaudeSkill
 		if what == "resume-codex" {

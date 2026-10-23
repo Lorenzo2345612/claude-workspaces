@@ -149,6 +149,11 @@ func cmdUI(args []string) error {
 			return errors.New("uso: _ui bulkalias <ws> tab|view|all")
 		}
 		err = uiBulkAlias(args[1], args[2])
+	case "sounds":
+		if len(args) != 3 {
+			return errors.New("uso: _ui sounds <ws> question|completion")
+		}
+		err = uiNotificationSounds(args[2])
 	case "aliases":
 		err = uiClaudeAliases()
 	case "resumeid":
@@ -413,11 +418,20 @@ func cmdHook() error {
 	if status == "" {
 		return nil
 	}
+	lock, err := soundHookLock(ws, pane)
+	if err != nil {
+		return nil
+	}
+	defer lock.Close()
+	t := Tmux{WS: ws}
+	previous, err := t.Run("display", "-p", "-t", pane, "#{@cw_status}")
+	if err != nil {
+		return nil
+	}
 	args := []string{"set", "-p", "-t", pane, "@cw_status", status}
 	if in.SessionID != "" {
 		args = append(args, ";", "set", "-p", "-t", pane, "@cw_sid", in.SessionID)
 	}
-	t := Tmux{WS: ws}
 	if in.HookEventName == "SessionStart" && in.SessionID != "" {
 		if alias, err := t.Run("display", "-p", "-t", pane, "#{@cw_claude_alias}"); err == nil {
 			cfg, _ := loadConfig()
@@ -426,7 +440,14 @@ func cmdHook() error {
 			}
 		}
 	}
-	_, _ = t.Run(args...)
+	if _, err := t.Run(args...); err != nil {
+		return nil
+	}
+	if cfg, err := loadConfig(); err == nil {
+		if id := soundForHook(cfg, previous, in.HookEventName, status); id != "" {
+			_ = playNotification(id, cfg.SoundVolume)
+		}
+	}
 	if session, err := t.Run("display", "-p", "-t", pane, "#{session_name}"); err == nil {
 		refreshTabLabel(t, session)
 	}

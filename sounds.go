@@ -138,10 +138,10 @@ func soundForHook(cfg Config, previous, event, next string) string {
 		return ""
 	}
 	id := ""
-	if next == statusWaiting && previous != statusWaiting {
+	switch notificationEvent(previous, event, next) {
+	case "question":
 		id = cfg.QuestionSound
-	}
-	if event == "Stop" && previous == statusBusy && next == statusIdle {
+	case "completion":
 		id = cfg.CompletionSound
 	}
 	if id == "none" {

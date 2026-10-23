@@ -58,6 +58,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	tabDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta de la pestaña " "%s _ui tabdir %s"`, bq, ws)
 	wsDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta del workspace " "%s _ui wsdir %s"`, bq, ws)
 	usagePopup := fmt.Sprintf(`display-popup -E -w 110 -h 30 -T " Uso de Claude " "%s _ui uso %s"`, bq, ws)
+	notificationsPopup := fmt.Sprintf(`display-popup -E -w 90%% -h 80%% -T " Avisos pendientes " "%s _ui notifications %s"`, bq, ws)
 	skynetPopup := fmt.Sprintf(`display-popup -E -w 90%% -h 80%% -T " Skynet " "%s skynet"`, bq)
 	resourcesPopup := fmt.Sprintf(`display-popup -E -w 84 -h 26 -T " Recursos " "%s _ui recursos %s"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
@@ -71,6 +72,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	mainMenu := strings.Join([]string{
 		// "--" ends the options: otherwise the first heading ("-CREAR") parses as a flag.
 		fmt.Sprintf(`display-menu -T "#[align=centre] cw %s · #{@cw_ws_title} " -x C -y C --`, version),
+		fmt.Sprintf(`"  ● Avisos pendientes (#{@cw_unread_count})" B { %s }`, notificationsPopup),
 		`"-CREAR" "" ""`,
 		fmt.Sprintf(`"  ✦ Sesión de Claude" c { %s }`, newClaudePopup),
 		fmt.Sprintf(`"  ✦ Sesión de Codex" D { %s }`, newCodexPopup),
@@ -116,7 +118,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	tabsRow := fmt.Sprintf(`#[range=user|menu]#[fg=%s bold]%s#[norange default]`+
 		`#{S:#[range=session|#{session_id}]%s  #{@cw_tab_label}#[norange] #[range=user|xt:#{session_name}]#[fg=%s]✕#[norange default]  }`+
 		`#[range=user|newtab]#[bg=colour237 fg=%s bold] + #[norange default]`+
-		`#[align=right]#[range=user|help]#[bg=colour237 fg=%s] ? Ayuda #[norange default] `+
+		`#[align=right]#[range=user|notifications]#[fg=colour203 bold] ●#{@cw_unread_count} #[norange default] #[range=user|help]#[bg=colour237 fg=%s] ? Ayuda #[norange default] `+
 		`#[range=user|stop]#[bg=colour52 fg=colour217 bold] ⏻ #[norange default] `,
 		colAccent, brand, isCurrent(`#[fg=`+colAccent+` bold]`, `#[fg=`+colMuted+`]`), colDim, colButton, colMuted)
 	// The underline spans the label and its ✕ (refreshTabLabel sizes it to match).
@@ -128,7 +130,8 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		colBusy, colWait, colMuted, colButton)
 	pill := func(style string) string {
 		// The start screen of an empty tab is not a session: it gets no pill.
-		alias := `#{?#{&&:#{@cw_claude_alias},#{!=:#{@cw_claude_alias},claude}}, #[fg=` + colMuted + `]#{@cw_claude_alias},}`
+		alias := `#{?#{&&:#{@cw_claude_alias},#{!=:#{@cw_claude_alias},claude}}, #[fg=` + colMuted + `]#{@cw_claude_alias},}` +
+			`#{?#{>:#{@cw_unread},0}, #[fg=colour203 bold]●#{@cw_unread},}`
 		// A tmux range also claims the cell right after it, so a space outside any range separates
 		// the session's range from its ✕ (otherwise clicking the ✕ would select the session).
 		// A view showing several sessions lists them all: "⧉ api ● · ui ○".
@@ -172,6 +175,9 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`set -g set-clipboard on`)
 	w(`set -g allow-passthrough on`)
 	w(`set -g focus-events on`)
+	w(`set -g set-titles on`)
+	w(`set -g set-titles-string "Agent Workspaces terminal — %s · (#{@cw_unread_count})"`, ws)
+	w(`set -g @cw_unread_count 0`)
 	w(`set -g base-index 1`)
 	w(`set -g renumber-windows on`)
 	w(`set -g detach-on-destroy off`)
@@ -213,6 +219,11 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`bind -n M-p { %s }`, switchAliasPopup)
 	w(`bind -n M-u { %s }`, usagePopup)
 	w(`bind -n M-k { %s }`, skynetPopup)
+	w(`bind -n M-b { %s }`, notificationsPopup)
+	read := fmt.Sprintf(`run-shell -b "%s _notification-read %s '#{pane_id}' || true"`, bq, ws)
+	w(`set-hook -g after-select-pane { %s }`, read)
+	w(`set-hook -g after-select-window { %s }`, read)
+	w(`set-hook -g client-focus-in { %s }`, read)
 	// Closing a session changes its tab's counters.
 	w(`set-hook -g window-unlinked { run-shell -b "%s _labels %s || true" }`, bq, ws)
 	// Enter on a session that exited with an error reopens it; anywhere else it is a plain Enter.
@@ -282,7 +293,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`bind -n WheelUpPane { if -F "#{||:#{pane_in_mode},#{mouse_any_flag}}" { send -M } { if -F "#{history_size}" { copy-mode -e } } }`)
 	clicks := []struct{ rng, cmd string }{
 		{"newtab", newTabPopup}, {"newclaude", newClaudePopup}, {"newcodex", newCodexPopup}, {"newshell", newShell},
-		{"help", helpPopup}, {"stop", confirmStop},
+		{"notifications", notificationsPopup}, {"help", helpPopup}, {"stop", confirmStop},
 	}
 	// A click on a session pill selects that window; a click on a tab switches to that tab.
 	click := `if -F "#{==:#{mouse_status_range},window}" { select-window -t = } { if -F "#{m:sp:*,#{mouse_status_range}}" { run-shell -C "select-window -t #{s/^sp.//:mouse_status_range} ; select-pane -t #{s/^sp.//:mouse_status_range}" } { switch-client -t = } }`

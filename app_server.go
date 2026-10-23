@@ -514,11 +514,20 @@ func (s *appServer) handleEvents(w http.ResponseWriter, r *http.Request) {
 	ws := r.URL.Query().Get("ws")
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-store")
-	lastState, lastList := "", ""
+	_ = requestNativeBadgeForWindow()
+	lastState, lastList, lastNotifications := "", "", ""
 	tick := time.NewTicker(400 * time.Millisecond)
 	defer tick.Stop()
 	n := 0
 	for {
+		if list, err := readNotifications(); err == nil {
+			data, _ := json.Marshal(list)
+			if string(data) != lastNotifications {
+				lastNotifications = string(data)
+				fmt.Fprintf(w, "event: notifications\ndata: %s\n\n", data)
+				fl.Flush()
+			}
+		}
 		if ws != "" {
 			st := appSnapshot(ws)
 			data, _ := json.Marshal(st)
@@ -559,6 +568,7 @@ func (s *appServer) autosaveLoop() {
 			return
 		case <-time.After(20 * time.Second):
 		}
+		_ = updateNotificationIndicators()
 		quotaTick()
 		skynetTick()
 		cfg, _ := loadConfig()

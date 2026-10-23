@@ -445,7 +445,10 @@ func ctxRun(t Tmux, ws, kind, target, id string) error {
 		if !ok {
 			return errCancelled
 		}
-		_, err = replaceAgentPane(t, arg, agent, alias, cfg)
+		next, err := replaceAgentPane(t, arg, agent, alias, cfg)
+		if err == nil {
+			_ = acknowledgeNotifications("", ws, next.ID, false)
+		}
 		return err
 	case "tab-left", "tab-right":
 		name, err := t.Run("display", "-p", "-t", target, "#{session_name}")

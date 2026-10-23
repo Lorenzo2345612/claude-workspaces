@@ -149,6 +149,8 @@ func cmdUI(args []string) error {
 			return errors.New("uso: _ui bulkalias <ws> tab|view|all")
 		}
 		err = uiBulkAlias(args[1], args[2])
+	case "notifications":
+		err = uiPendingNotifications(args[1])
 	case "sounds":
 		if len(args) != 3 {
 			return errors.New("uso: _ui sounds <ws> question|completion")
@@ -443,6 +445,7 @@ func cmdHook() error {
 	if _, err := t.Run(args...); err != nil {
 		return nil
 	}
+	_ = recordHookNotification(t, pane, previous, in.HookEventName, status)
 	if cfg, err := loadConfig(); err == nil {
 		if id := soundForHook(cfg, previous, in.HookEventName, status); id != "" {
 			_ = playNotification(id, cfg.SoundVolume)
@@ -726,6 +729,7 @@ func closeWindow(ws, target string) error {
 		for _, p := range panes {
 			if s, err := paneSlot(t, p[0]); err == nil && len(p) == 2 {
 				pushClosed(t, s, p[1])
+				_ = acknowledgeNotifications("", ws, s.ID, false)
 			}
 		}
 	}
@@ -783,6 +787,13 @@ func closeTab(ws, session, client string) error {
 		}
 		if client != "" {
 			_, _ = t.Run("switch-client", "-c", client, "-t", next)
+		}
+	}
+	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_slot}"); err == nil {
+		for _, row := range rows {
+			if len(row) > 0 && row[0] != "" {
+				_ = acknowledgeNotifications("", ws, row[0], false)
+			}
 		}
 	}
 	_, err := t.Run("kill-session", "-t", session)

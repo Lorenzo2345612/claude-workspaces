@@ -351,3 +351,12 @@ textarea.input { font-family: var(--mono); font-size: 12px; resize: vertical; mi
 .side .skyb.on { background: var(--accentbg); }
 .side .skyb.unread::after { content: attr(data-n); position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 99px;
   background: var(--wait); color: #fff; font-size: 10px; line-height: 15px; text-align: center; }
+
+/* Unread questions and completed work share a persistent inbox. */
+.unread-badge {display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:10px;background:#dc4251;color:white;font-size:11px;font-weight:650;flex:none;line-height:1}
+.notification-bell {display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:7px;background:transparent;color:var(--muted);padding:5px 8px;font:inherit;font-size:12px;cursor:pointer}
+.notification-bell:hover {color:var(--text);background:var(--raise)}
+.notification-inbox {display:grid;gap:10px}.notification-inbox-head {display:flex;justify-content:space-between;align-items:center;gap:12px;color:var(--muted)}
+.notification-item {display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px;border:1px solid var(--line);border-radius:9px;background:var(--raise)}
+.notification-copy {min-width:0}.notification-copy .hint {overflow-wrap:anywhere}.notification-copy small {color:var(--dim);font-size:11px}
+@media(max-width:650px){.notification-item{align-items:flex-start;flex-direction:column}.notification-inbox-head{align-items:flex-start;flex-direction:column}}

@@ -49,8 +49,8 @@ $wtProfile = @{
         name        = 'cw'
         commandline = "wsl.exe -d $distro --cd ~ -- bash -lic cw"
         icon        = "$([char]0x2261)"
-        tabTitle    = 'cw'
-        suppressApplicationTitle = $true
+        tabTitle    = 'Agent Workspaces terminal'
+        suppressApplicationTitle = $false
     })
 }
 $json = $wtProfile | ConvertTo-Json -Depth 5

@@ -42,7 +42,7 @@ func openOwnWindow(ws, dir string, cfg Config) (bool, error) {
 	// the window stays open on the error instead of vanishing. No ';' anywhere: wt.exe splits on it.
 	script := fmt.Sprintf(`%s start --here %s %s || read -r -p 'Enter para cerrar' _`,
 		shQuote(bin), shQuote(ws), shQuote(abs))
-	cmd := exec.Command(wt, "-w", "new", size, "new-tab", "--title", "cw · "+ws, "--suppressApplicationTitle",
+	cmd := exec.Command(wt, "-w", "new", size, "new-tab", "--title", "Agent Workspaces terminal · "+ws, "--useApplicationTitle",
 		"wsl.exe", "-d", os.Getenv("WSL_DISTRO_NAME"), "--", "bash", "-lic", script)
 	if err := cmd.Start(); err != nil {
 		return false, fmt.Errorf("no pude abrir Windows Terminal: %w", err)

@@ -261,6 +261,38 @@ En Codex, autoriza los hooks de cw con `/hooks`. Reinicia las sesiones antiguas 
 recibir el hook que detecta solicitudes de respuesta mediante herramientas. Estos
 avisos corresponden a las sesiones de agentes, no a comandos arbitrarios del shell.
 
+## Avisos pendientes y contador
+
+Las preguntas y los trabajos terminados también quedan en una **bandeja de avisos
+sin leer**, independiente de los sonidos. En la app, abre **🔔 Avisos** en la barra
+superior (también está en la pantalla de inicio); en terminal, pulsa **Alt+B** o
+haz clic en el contador de la barra. La bandeja incluye todos tus workspaces.
+
+Cada aviso identifica el workspace y la sesión. Puedes ir a la sesión, marcar un
+aviso como leído o marcar todos. Al navegar a una sesión se consumen sus avisos;
+una pregunta deja de estar pendiente cuando se responde. Un trabajo terminado
+permanece sin leer hasta que se revisa o comienza un nuevo turno. Se conservan
+el nombre, la posición y la vista al abrir una sesión desde la bandeja.
+
+El contador aparece junto a las sesiones, en la barra de terminal y en el título
+y favicon de la app. Los avisos se guardan en `notifications.json` dentro de los
+datos de cw, por lo que sobreviven al cierre de la ventana y a reinicios.
+Cerrar una sesión elimina sus avisos; apagar un workspace los conserva.
+
+En Windows/WSL se actualiza el distintivo del icono de las ventanas de Agent
+Workspaces en la barra de tareas y se solicita atención al recibir avisos nuevos.
+Las aplicaciones web instaladas también usan la API de badges cuando está
+soportada. La visualización del distintivo depende del navegador, del sistema
+y de las opciones de insignias de la barra de tareas; el contador interno y la
+bandeja siempre permanecen disponibles. El diagnóstico de la integración nativa
+se escribe en `run/notification-badge-error.log` si hay un error.
+
+En la app, un aviso de un workspace abierto en terminal lleva a la pantalla de
+ese workspace; allí puedes decidir abrirlo en la app o revisarlo desde terminal.
+Los avisos de workspaces apagados no se marcan como leídos por intentar abrirlos.
+Vuelve a entrar en los workspaces de terminal que ya estaban abiertos para cargar
+el contador y los atajos nuevos.
+
 ## How it tracks Claude sessions
 
 Each new session gets a UUID from cw and starts with `claude --session-id <uuid> --name <name>`.

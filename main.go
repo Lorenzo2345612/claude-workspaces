@@ -166,6 +166,10 @@ func run(args []string) error {
 		return cmdSkynet(rest)
 	case "app":
 		return cmdApp(rest)
+	case "_notification-read":
+		return cmdNotificationRead(rest)
+	case "_notification-badge":
+		return cmdNotificationBadge(len(rest) > 0 && rest[0] == "force")
 	case "_sound":
 		return cmdSound(rest)
 	case "_usage-worker":
@@ -418,6 +422,7 @@ func cmdStop(ws string) error {
 }
 
 func cmdAutosave(ws string) error {
+	_ = updateNotificationIndicators()
 	quotaTick()
 	skynetTick()
 	settleWaiting(ws)
@@ -438,6 +443,7 @@ func cmdRemove(ws string) error {
 		return err
 	}
 	_ = os.Remove(workspaceFile(ws) + ".bak")
+	_ = dismissWorkspaceNotifications(ws)
 	fmt.Printf("borrado %s\n", ws)
 	return nil
 }

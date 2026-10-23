@@ -138,6 +138,17 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			return nil, err
 		}
 		l.Active = q.Tab
+		if at := l.tab(q.Tab); at != nil {
+			if v := at.activeView(); v != nil {
+				slot := v.Focus
+				if slot == "" && len(v.Slots) > 0 {
+					slot = v.Slots[0]
+				}
+				if slot != "" {
+					_ = acknowledgeNotifications("", t.WS, slot, false)
+				}
+			}
+		}
 		return nil, save()
 	case "tab.rename":
 		at, err := tabOf(q.Tab)
@@ -183,6 +194,13 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			return nil, nil
 		}
 		at.Active, l.Active = v.ID, at.ID
+		slot := v.Focus
+		if slot == "" && len(v.Slots) > 0 {
+			slot = v.Slots[0]
+		}
+		if slot != "" {
+			_ = acknowledgeNotifications("", t.WS, slot, false)
+		}
 		return nil, save()
 	case "view.move":
 		at, v := l.findView(q.View)
@@ -284,6 +302,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
+		_ = acknowledgeNotifications("", t.WS, s.ID, false)
 		return map[string]any{"slot": s.ID}, save()
 	case "slot.new":
 		q.Kind, q.Alias, err = cfg.newAgentSlot(q.Kind, q.Alias)
@@ -362,6 +381,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 			return nil, nil
 		}
 		v.Focus, at.Active, l.Active = q.Slot, v.ID, at.ID
+		_ = acknowledgeNotifications("", t.WS, q.Slot, false)
 		return nil, save()
 	case "slot.close":
 		tabID := ""
@@ -566,6 +586,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 
 // closeAppSlot ends a session of the app, remembering it so it can be reopened.
 func closeAppSlot(t Tmux, id, tabID string) {
+	_ = acknowledgeNotifications("", t.WS, id, false)
 	if pane, err := t.Run("display", "-p", "-t", "="+slotSession(id)+":", "#{pane_id}"); err == nil {
 		if s, err := paneSlot(t, pane); err == nil {
 			pushClosed(t, s, tabID)

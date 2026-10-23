@@ -194,6 +194,7 @@ function pruneTerms() {
 
 // ---------- keyboard ----------
 function shortcut(ev) {
+  if (!$('.scrim') && ev.altKey && !ev.ctrlKey && !ev.metaKey && ev.key.toLowerCase() === 'b') { dlgNotifications(); return true; }
   if (!S.ws || !S.state || $('.scrim')) return false;
   if (browserShortcut(ev)) return true;
   if (!ev.altKey || ev.ctrlKey || ev.metaKey) return false;
@@ -216,6 +217,7 @@ function shortcut(ev) {
     case 'r': if (view?.focus) dlgEditSession(view.focus); return true;
     case 'p': if (view?.focus && slotOf(view.focus)?.kind === 'claude') dlgBulkAlias('slot', view.focus); return true;
     case 'w': if (view?.focus) confirmCloseSlot(view.focus); return true;
+    case 'b': dlgNotifications(); return true;
     case 'k': skyToggle(); return true;
     case 'j': if (skyOn()) { window.skyVoice?.push(); return true; } return false;
     case 'm': { const r = $('.ws').getBoundingClientRect(); wsMenu(r.left + 12, r.bottom + 4); return true; }
@@ -293,9 +295,9 @@ function stageSize() {
 // ---------- rendering ----------
 function render() {
   const root = $('#root');
-  if (!S.ws) { pruneTerms(); renderHome(root); return; }
+  if (!S.ws) { pruneTerms(); renderHome(root); updateNotificationBadge(); return; }
   if (!S.state) return;
-  if (S.state.mode !== 'app') { renderNotOpen(root); return; }
+  if (S.state.mode !== 'app') { renderNotOpen(root); updateNotificationBadge(); return; }
   pruneTerms();
   let app = $('.app', root);
   if (!app) {
@@ -314,6 +316,7 @@ function render() {
   // its submenus); it only closes when what it acts on is gone.
   if (ctx && ctx.kind !== 'menu' && !(ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id))) closeCtx();
   document.title = S.state.title + ' — Agent Workspaces';
+  updateNotificationBadge();
 }
 
 // The sidebar is a tree: each tab, and under the open ones their sessions (one row per view).
@@ -353,6 +356,7 @@ function renderSide(side) {
         ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/view'); if (id && id !== v.id) act('view.move', { view: id, to: vi }); },
       }, multi ? h('span', { class: 'mark2' }, '⧉') : dotFor(first),
         h('span', { class: 'n' }, multi ? v.slots.map(id => slotOf(id)?.name || '…').join(' + ') : (first ? first.name : '…')),
+        unreadBadge(v.slots.reduce((sum,id) => sum + unreadForSlot(S.ws,id),0)),
         !multi && first && first.kind === 'claude' && first.alias && first.alias !== 'claude' ? h('span', { class: 'al' }, first.alias) : null,
         multi ? h('span', { class: 'cnt' }, v.slots.map(id => dotFor(slotOf(id)))) : null));
     });
@@ -402,6 +406,7 @@ function renderBar(bar) {
   bar.replaceChildren(crumb,
     h('span', { class: 'path' }, focus ? focus.short : tab.short),
     h('span', { class: 'acts' },
+      notificationBell(),
       focus && focus.kind === 'claude' && !focus.dead ? (focus.status === 'sleeping'
         ? h('button', { title: 'Reanudar', onclick: () => act('slot.wake', { slot: focus.id }) }, '▶')
         : h('button', { title: 'Suspender: Claude deja de correr; la conversación queda', onclick: () => act('slot.suspend', { slot: focus.id }) }, '⏾')) : null,
@@ -605,6 +610,7 @@ function renderHome(root) {
   const launch = S.launchDir || S.info?.launchDir || '';
   root.replaceChildren(h('div', { class: 'home' },
     h('div', { class: 'top' }, h('img', { class: 'logo', src: 'icon.svg', alt: '' }), h('span', { class: 'brand' }, 'Agent Workspaces'), h('span', { class: 'sp' }),
+      notificationBell(),
       h('span', { class: 'ib', onclick: () => dlgUsage() }, '◔ Uso de Claude'),
       h('span', { class: 'ib', onclick: () => dlgSettings('general') }, '⚙ Ajustes')),
     h('h3', {}, 'Workspaces'),
@@ -617,7 +623,7 @@ function renderHome(root) {
         if (w.state !== 'app' && w.when) meta.push(w.when);
         return h('div', { class: 'card', onclick: () => openWorkspace(w.name, false, w.state),
           oncontextmenu: ev => { ev.preventDefault(); cardMenu(w, ev.clientX, ev.clientY); } },
-          h('div', { class: 'ch' }, h('b', {}, w.title), h('span', { class: 'st ' + w.state }, h('span', { class: 'd ' + dot }), stateTxt)),
+          h('div', { class: 'ch' }, h('b', {}, w.title), unreadBadge(notificationItems().filter(n => n.workspace === w.name).length), h('span', { class: 'st ' + w.state }, h('span', { class: 'd ' + dot }), stateTxt)),
           h('div', { class: 'cm' }, meta.join(' · '),
             w.working ? h('span', { class: 'busyc' }, ' · ' + w.working + (w.state === 'stopped' ? ' trabajaban al apagar' : ' trabajando')) : null),
           h('div', { class: 'ct' }, (w.tabNames || []).slice(0, 5).join(' · ') + ((w.tabNames || []).length > 5 ? ' · +' + (w.tabNames.length - 5) : '')),
@@ -671,8 +677,84 @@ function listen() {
     if (was && was.mode === 'app' && st.mode !== 'app') { go(null); return; }
     render();
   });
+  es.addEventListener('notifications', ev => { S.notifications = JSON.parse(ev.data); updateNotificationBadge(); renderNotificationInbox(); render(); });
   es.addEventListener('workspaces', ev => { S.workspaces = JSON.parse(ev.data); if (!S.ws) render(); });
 }
+
+// ---------- pending notifications ----------
+function notificationItems() { return S.notifications || []; }
+function unreadForSlot(ws,id) { return notificationItems().filter(n => n.workspace === ws && n.slot === id).length; }
+function unreadBadge(count) { return count ? h('span', { class: 'unread-badge', title: count + ' avisos sin leer' }, count > 99 ? '99+' : count) : null; }
+function notificationBell() {
+  const count = notificationItems().length;
+  return h('button', { class: 'notification-bell', 'data-notification-bell': '', title: 'Avisos pendientes (Alt+B)', 'aria-label': 'Avisos pendientes: ' + count,
+    onclick: () => dlgNotifications() }, '🔔', h('span', {}, 'Avisos'), unreadBadge(count));
+}
+let badgeCount = -1;
+function updateNotificationBadge() {
+  const count = notificationItems().length;
+  document.title = (count ? '(' + count + ') ' : '') + (S.ws && S.state ? S.state.title + ' — ' : '') + 'Agent Workspaces';
+  if (count === badgeCount) return;
+  badgeCount = count;
+  try {
+    const result = count ? navigator.setAppBadge?.(count) : navigator.clearAppBadge?.();
+    result?.catch(() => {});
+  } catch (_) {}
+  const icon = document.querySelector('link[rel="icon"]');
+  if (icon) {
+    if (!count) icon.href = 'icon.svg?v=2';
+    else {
+      const label = count > 99 ? '99+' : String(count);
+      // A visible favicon counter is also available in a regular browser tab.
+      const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="15" fill="#22242c"/><path d="M25 9l6 13 13 5-13 5-6 13-5-13-13-5 13-5z" fill="#b3bbe8"/><circle cx="46" cy="45" r="18" fill="#dc4251"/><text x="46" y="46" font-family="sans-serif" font-size="' + (count > 99 ? 16 : 23) + '" font-weight="bold" fill="white" text-anchor="middle" dominant-baseline="central">' + label + '</text></svg>';
+      icon.href = 'data:image/svg+xml,' + encodeURIComponent(svg);
+    }
+  }
+}
+let notificationInbox = null;
+function renderNotificationInbox() {
+  if (!notificationInbox || !notificationInbox.isConnected) return;
+  const list = notificationItems();
+  notificationInbox.replaceChildren(
+    h('div', { class: 'notification-inbox-head' }, h('span', {}, list.length + ' pendientes'),
+      list.length ? h('button', { class: 'btn', onclick: () => markNotificationsRead({ all: true }) }, 'Marcar todos como leídos') : null),
+    ...list.map(n => h('div', { class: 'notification-item' },
+      h('div', { class: 'notification-copy' }, h('b', {}, n.kind === 'question' ? 'Necesita tu respuesta' : 'Trabajo terminado'),
+        h('div', { class: 'hint' }, n.workspace + ' › ' + n.name), h('small', {}, new Date(n.at).toLocaleString())),
+      h('div', { class: 'btnrow' }, h('button', { class: 'btn', onclick: async () => {
+        try {
+          const result = await api.do('notification.open', { notification: n.id });
+          document.querySelector('[data-notification-modal]')?._close?.();
+          await go(result.ws);
+          if (result.terminal) toast('Esta sesión está en la terminal. Puedes revisarla allí con Alt+B o abrir el workspace aquí.');
+          if (result.stopped) toast('Abre este workspace para retomar la sesión pendiente.');
+          await reloadNotifications();
+        } catch (error) { toast(error.message, true); }
+      } }, 'Ir a sesión'), h('button', { class: 'btn', onclick: () => markNotificationsRead({ notification: n.id }) }, 'Marcar leído')))),
+    ...(!list.length ? [h('p', { class: 'hint' }, 'No tienes avisos pendientes.')] : []));
+}
+async function markNotificationsRead(body) {
+  try { await api.do('notification.read', body); await reloadNotifications(); }
+  catch (error) { toast(error.message, true); }
+}
+async function reloadNotifications() {
+  S.notifications = await api.get('notifications');
+  updateNotificationBadge(); renderNotificationInbox(); render();
+}
+async function dlgNotifications() {
+  try {
+    await reloadNotifications();
+    if (document.querySelector('[data-notification-modal]')) return;
+    notificationInbox = h('div', { class: 'notification-inbox' });
+    const m = modal({ title: 'Avisos pendientes', sub: 'Preguntas y trabajos terminados sin revisar, de todos tus workspaces.', body: notificationInbox, width: '760px', buttons: [{ label: 'Cerrar' }], onclose: () => { notificationInbox = null; } });
+    m.scrim.setAttribute('data-notification-modal', '');
+    renderNotificationInbox();
+  } catch (error) { toast(error.message, true); }
+}
+window.addEventListener('focus', () => {
+  const view = curView(), slot = view && (view.focus || view.slots[0]);
+  if (S.ws && slot) api.do('notification.read', { ws: S.ws, slot }).then(reloadNotifications).catch(() => {});
+});
 
 // ---------- context menus ----------
 // A short menu; items with `sub` open a submenu at their side. Choosing an action closes it.
@@ -1422,8 +1504,8 @@ async function checkUpdate() {
 window.addEventListener('resize', () => { for (const t of terms.values()) t.refit(); if (ctx && ctx.kind !== 'menu') renderCtx(); });
 (async function init() {
   try {
-    const [info, , list] = await Promise.all([api.get('info'), loadConfig(), api.get('workspaces')]);
-    S.info = info; S.workspaces = list;
+    const [info, , list, notices] = await Promise.all([api.get('info'), loadConfig(), api.get('workspaces'), api.get('notifications')]);
+    S.info = info; S.workspaces = list; S.notifications = notices;
   } catch (e) { $('#root').textContent = 'No pude conectar con cw: ' + e.message; return; }
   if (S.launchDir) history.replaceState(null, '', location.pathname + location.hash);
   go(routeWS());

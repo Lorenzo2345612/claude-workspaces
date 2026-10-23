@@ -19,6 +19,7 @@ import (
 
 type uiSlot struct {
 	ID         string   `json:"id"`
+	Unread     int      `json:"unread"`
 	Name       string   `json:"name"`
 	Kind       string   `json:"kind"`
 	Status     string   `json:"status"`
@@ -63,6 +64,13 @@ type uiState struct {
 // appSnapshot is the state the window draws, read from tmux (and tidied up) on every call.
 func appSnapshot(ws string) uiState {
 	st := uiState{WS: ws, Title: ws, Version: version, Slots: map[string]uiSlot{}}
+	pending, _ := readNotifications()
+	unread := map[string]int{}
+	for _, n := range pending {
+		if n.Workspace == ws {
+			unread[n.Slot]++
+		}
+	}
 	t := Tmux{WS: ws}
 	// One tmux call for every server option the window needs (it runs every 400 ms per window;
 	// starting processes is what costs, notably on macOS). An error means the server is down.
@@ -158,7 +166,7 @@ func appSnapshot(ws string) uiState {
 		if p.slot.Kind == kindClaude {
 			alias = cfg.claudeAlias(p.slot.ClaudeAlias).Name
 		}
-		st.Slots[id] = uiSlot{ID: id, Name: name, Kind: p.slot.Kind, Status: p.slot.Status, Alias: alias, Cwd: cwd,
+		st.Slots[id] = uiSlot{ID: id, Unread: unread[id], Name: name, Kind: p.slot.Kind, Status: p.slot.Status, Alias: alias, Cwd: cwd,
 			Short: shortPath(cwd), SID: p.slot.SessionID, Args: p.slot.Args, Dead: p.dead, DeadStatus: p.deadStatus,
 			Suspended: p.slot.Suspended}
 	}
@@ -167,6 +175,7 @@ func appSnapshot(ws string) uiState {
 
 type uiWorkspace struct {
 	Name     string   `json:"name"`
+	Unread   int      `json:"unread"`
 	Title    string   `json:"title"`
 	State    string   `json:"state"` // app, terminal, stopped
 	Tabs     int      `json:"tabs"`
@@ -178,9 +187,14 @@ type uiWorkspace struct {
 }
 
 func listUIWorkspaces() []uiWorkspace {
+	pending, _ := readNotifications()
+	counts := map[string]int{}
+	for _, n := range pending {
+		counts[n.Workspace]++
+	}
 	var out []uiWorkspace
 	for _, e := range listEntries() {
-		u := uiWorkspace{Name: e.name, Title: e.name, State: "stopped"}
+		u := uiWorkspace{Name: e.name, Title: e.name, State: "stopped", Unread: counts[e.name]}
 		if e.saved != nil {
 			u.Title = e.saved.displayTitle()
 			u.When = whenES(e.saved.SavedAt)
@@ -323,6 +337,13 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 			}
 			return ""
 		}))
+	case "notifications":
+		list, err := readNotifications()
+		if err != nil {
+			writeErr(w, err)
+			return
+		}
+		writeJSON(w, list)
 	case "state":
 		writeJSON(w, appSnapshot(q.Get("ws")))
 	case "info":
@@ -433,6 +454,8 @@ type doReq struct {
 	Document     string    `json:"document"`
 	Action       string    `json:"action"`
 	Sound        string    `json:"sound"`
+	Notification string    `json:"notification"`
+	All          bool      `json:"all"`
 	Volume       *int      `json:"volume"`
 	WS           string    `json:"ws"`
 	Tab          string    `json:"tab"`
@@ -514,6 +537,42 @@ func (s *appServer) handleDo(w http.ResponseWriter, r *http.Request) {
 // do runs one action of the window.
 func (s *appServer) do(q *doReq) (map[string]any, error) {
 	switch q.Action {
+	case "notification.read":
+		return nil, acknowledgeNotifications(q.Notification, q.WS, q.Slot, q.All)
+	case "notification.open":
+		list, err := readNotifications()
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range list {
+			if n.ID == q.Notification {
+				t := Tmux{WS: n.Workspace}
+				if !t.Running() {
+					return map[string]any{"ws": n.Workspace, "slot": n.Slot, "stopped": true}, nil
+				}
+				if !appMode(t) {
+					return map[string]any{"ws": n.Workspace, "slot": n.Slot, "terminal": true}, nil
+				}
+				a := appWS(n.Workspace)
+				a.mu.Lock()
+				defer a.mu.Unlock()
+				if _, err := notificationPane(t, n.Slot); err != nil {
+					return nil, err
+				}
+				if _, view := t.loadLayout().findSlot(n.Slot); view == nil {
+					return nil, errors.New("esa sesión ya no está en el workspace")
+				}
+				_, err := wsAction(t, &doReq{Action: "slot.focus", Slot: n.Slot})
+				if err != nil {
+					return nil, err
+				}
+				if err := acknowledgeNotifications(n.ID, "", "", false); err != nil {
+					return nil, err
+				}
+				return map[string]any{"ws": n.Workspace, "slot": n.Slot}, nil
+			}
+		}
+		return nil, errors.New("ese aviso ya fue atendido")
 	case "sound.preview":
 		cfg, err := loadConfig()
 		if err != nil {

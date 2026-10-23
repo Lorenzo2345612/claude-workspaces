@@ -114,6 +114,12 @@ func TestSoundTransitionsDoNotDuplicateOrAnnounceStartup(t *testing.T) {
 }
 
 func TestHookNotificationsOnceForTerminalAndApp(t *testing.T) {
+	oldIndicators := updateNotificationIndicators
+	updateNotificationIndicators = func() error { return nil }
+	defer func() { updateNotificationIndicators = oldIndicators }()
+	oldBadge := requestNativeBadge
+	requestNativeBadge = func() error { return nil }
+	defer func() { requestNativeBadge = oldBadge }()
 	if _, err := exec.LookPath("tmux"); err != nil {
 		t.Skip("tmux unavailable")
 	}

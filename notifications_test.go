@@ -158,6 +158,10 @@ func TestUnreadCountersAndAcknowledgementAreScoped(t *testing.T) {
 	if v != "1" {
 		t.Fatal("pane unread wrong", v)
 	}
+	session, _ := a.Run("display", "-p", "-t", pa, "#{session_name}")
+	if v, _ := a.Run("show", "-t", session, "-qv", "@cw_tab_label"); !strings.Contains(v, "●1") {
+		t.Fatal("tab label lacks unread count", v)
+	}
 	if err := acknowledgeNotifications("", "alpha", "same-slot", false); err != nil {
 		t.Fatal(err)
 	}
@@ -168,6 +172,9 @@ func TestUnreadCountersAndAcknowledgementAreScoped(t *testing.T) {
 	v, _ = a.Run("display", "-p", "-t", pa, "#{@cw_unread}")
 	if v != "0" {
 		t.Fatal("read badge did not clear", v)
+	}
+	if v, _ := a.Run("show", "-t", session, "-qv", "@cw_tab_label"); strings.Contains(v, "●") {
+		t.Fatal("tab unread did not clear", v)
 	}
 	if err := acknowledgeNotifications("", "", "", false); err == nil {
 		t.Fatal("ambiguous read cleared all")

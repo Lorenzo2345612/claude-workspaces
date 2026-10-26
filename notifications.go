@@ -171,6 +171,7 @@ func refreshNotificationIndicators() error {
 		}
 		args = append(args, ";", "refresh-client", "-S")
 		_, _ = t.Run(args...)
+		refreshAllLabels(t) // tab labels carry the sum of their sessions' unread counts
 	}
 	return requestNativeBadge()
 }

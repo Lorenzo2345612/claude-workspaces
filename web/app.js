@@ -338,7 +338,7 @@ function renderSide(side) {
       ondragover: ev => { if (ev.dataTransfer.types.includes('cw/tab')) { ev.preventDefault(); ev.currentTarget.classList.add('drop'); } },
       ondragleave: ev => ev.currentTarget.classList.remove('drop'),
       ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/tab'); if (id && id !== t.id) act('tab.move', { tab: id, to: i }); },
-    }, h('span', { class: 'caret' }, open ? '▾' : '▸'), h('span', { class: 'n' }, t.title), open ? null : counts(t),
+    }, h('span', { class: 'caret' }, open ? '▾' : '▸'), h('span', { class: 'n' }, t.title), unreadBadge(t.views.reduce((sum,v) => sum + v.slots.reduce((n,id) => n + unreadForSlot(S.ws,id),0),0)), open ? null : counts(t),
       h('span', { class: 'add', title: 'Nueva sesión en esta pestaña', onclick: ev => { ev.stopPropagation(); dlgNewSession(t.id, 'claude'); } }, '+'));
     tree.append(row);
     if (!open) return;

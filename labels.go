@@ -15,10 +15,14 @@ func refreshTabLabel(t Tmux, session string) {
 	if title == "" {
 		title = session
 	}
-	busy, waiting, idle, asleep := 0, 0, 0, 0
-	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"+sep+"#{pane_dead}"); err == nil {
+	busy, waiting, idle, asleep, unread := 0, 0, 0, 0, 0
+	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"+sep+"#{pane_dead}"+sep+"#{@cw_unread}"); err == nil {
 		for _, r := range rows {
-			if len(r) == 3 && r[0] == kindClaude && r[2] != "1" {
+			if len(r) == 4 {
+				n, _ := strconv.Atoi(r[3])
+				unread += n
+			}
+			if len(r) == 4 && r[0] == kindClaude && r[2] != "1" {
 				switch r[1] {
 				case statusBusy:
 					busy++
@@ -44,6 +48,12 @@ func refreshTabLabel(t Tmux, session string) {
 			label += " #[fg=" + c.colour + "]" + c.sym + n
 			width += 2 + len(n)
 		}
+	}
+	// The tab repeats its sessions' unread notifications, so they show with the tab collapsed.
+	if unread > 0 {
+		n := strconv.Itoa(unread)
+		label += " #[fg=colour203]●" + n
+		width += 2 + len(n)
 	}
 	width += 2 // the underline also spans the tab's " ✕"
 	_, _ = t.Run(

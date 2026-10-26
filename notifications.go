@@ -143,11 +143,31 @@ func acknowledgeNotifications(id, ws, slot string, all bool) error {
 var updateNotificationIndicators = refreshNotificationIndicators
 
 func refreshNotificationIndicators() error {
-	lock, err := usageLock("notification-indicators.lock", false)
+	lock, err := usageLock(indicatorsLockName, false)
 	if err != nil {
 		return err
 	}
 	defer lock.Close()
+	return applyNotificationIndicators()
+}
+
+const indicatorsLockName = "notification-indicators.lock"
+
+// tryUpdateNotificationIndicators is the status-bar variant: when another update holds the lock it
+// returns at once, so tmux jobs never queue behind one another.
+func tryUpdateNotificationIndicators() error {
+	lock, err := usageLock(indicatorsLockName, true)
+	if err != nil {
+		return nil
+	}
+	defer lock.Close()
+	return applyNotificationIndicators()
+}
+
+// applyNotificationIndicators touches tmux only when a value changed: "refresh-client -S" forces
+// tmux to rerun the status-bar jobs (the autosave among them) even while the previous run is alive,
+// so refreshing unconditionally from the autosave feeds itself.
+func applyNotificationIndicators() error {
 	list, err := readNotifications()
 	if err != nil {
 		return err
@@ -156,18 +176,33 @@ func refreshNotificationIndicators() error {
 	for _, n := range list {
 		counts[n.Workspace+":"+n.Slot]++
 	}
+	total := strconv.Itoa(len(list))
 	for _, ws := range runningWorkspaces() {
 		t := Tmux{WS: ws}
-		// Global inbox is accessible from either interface, including other workspaces.
-		args := []string{"set", "-g", "@cw_unread_count", strconv.Itoa(len(list))}
-		panes, err := t.Lines("list-panes", "-a", "-F", "#{pane_id}"+sep+"#{@cw_slot}")
+		panes, err := t.Lines("list-panes", "-a", "-F", "#{pane_id}"+sep+"#{@cw_slot}"+sep+"#{@cw_unread}")
 		if err != nil {
 			continue
 		}
+		var args []string
+		// Global inbox is accessible from either interface, including other workspaces.
+		if current, _ := t.Run("show", "-gqv", "@cw_unread_count"); current != total {
+			args = append(args, "set", "-g", "@cw_unread_count", total)
+		}
 		for _, p := range panes {
-			if len(p) == 2 {
-				args = append(args, ";", "set", "-p", "-t", p[0], "@cw_unread", strconv.Itoa(counts[ws+":"+p[1]]))
+			if len(p) != 3 {
+				continue
 			}
+			want := strconv.Itoa(counts[ws+":"+p[1]])
+			if p[2] == want || p[2] == "" && want == "0" {
+				continue
+			}
+			if len(args) > 0 {
+				args = append(args, ";")
+			}
+			args = append(args, "set", "-p", "-t", p[0], "@cw_unread", want)
+		}
+		if len(args) == 0 {
+			continue
 		}
 		args = append(args, ";", "refresh-client", "-S")
 		_, _ = t.Run(args...)

@@ -422,7 +422,7 @@ func cmdStop(ws string) error {
 }
 
 func cmdAutosave(ws string) error {
-	_ = updateNotificationIndicators()
+	_ = tryUpdateNotificationIndicators()
 	quotaTick()
 	skynetTick()
 	settleWaiting(ws)

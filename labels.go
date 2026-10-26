@@ -56,6 +56,10 @@ func refreshTabLabel(t Tmux, session string) {
 		width += 2 + len(n)
 	}
 	width += 2 // the underline also spans the tab's " ✕"
+	// Unchanged label: skip the refresh, which would force tmux to rerun the status-bar jobs.
+	if current, _ := t.Run("show", "-t", session, "-qv", "@cw_tab_label"); current == label {
+		return
+	}
 	_, _ = t.Run(
 		"set", "-t", session, "@cw_tab_label", label, ";",
 		"set", "-t", session, "@cw_tab_on", strings.Repeat("━", width), ";",

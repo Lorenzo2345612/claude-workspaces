@@ -57,3 +57,23 @@ func TestBadgeStampRoundTrip(t *testing.T) {
 		t.Fatalf("got %+v, want %+v", got, want)
 	}
 }
+
+// The autosave runs from the status bar: it must never wait behind another indicators update.
+func TestAutosaveIndicatorsSkipWhenLockHeld(t *testing.T) {
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	held, err := usageLock(indicatorsLockName, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer held.Close()
+	done := make(chan error, 1)
+	go func() { done <- tryUpdateNotificationIndicators() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("tryUpdateNotificationIndicators waited for the lock")
+	}
+}

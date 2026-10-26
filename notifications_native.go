@@ -19,6 +19,16 @@ func startNativeBadge(force bool) error {
 	if os.Getenv("WSL_DISTRO_NAME") == "" {
 		return nil
 	}
+	// A badge run already in flight covers this request: spawning another one per status-bar
+	// tick only queues processes behind the lock while PowerShell is slow.
+	lock, err := usageLock(badgeLockName, true)
+	if err != nil {
+		return nil
+	}
+	lock.Close()
+	if !force && badgeBackingOff(readBadgeStamp(), time.Now()) {
+		return nil
+	}
 	bin, err := os.Executable()
 	if err != nil {
 		return err
@@ -40,25 +50,19 @@ func cmdNotificationBadge(force bool) error {
 	if os.Getenv("WSL_DISTRO_NAME") == "" {
 		return nil
 	}
-	lock, err := usageLock("notification-badge.lock", false)
+	// Non-blocking: when another run holds the lock this one exits instead of waiting its turn.
+	lock, err := usageLock(badgeLockName, true)
 	if err != nil {
-		return err
+		return nil
 	}
 	defer lock.Close()
 	list, err := readNotifications()
 	if err != nil {
 		return err
 	}
-	var last struct {
-		Count int
-		At    int64
-	}
-	stamp := filepath.Join(runDir(), "notification-badge.json")
-	if data, err := os.ReadFile(stamp); err == nil {
-		_ = json.Unmarshal(data, &last)
-		if !force && last.Count == len(list) && time.Now().Unix()-last.At < 300 {
-			return nil
-		}
+	last := readBadgeStamp()
+	if !force && (badgeBackingOff(last, time.Now()) || last.Count == len(list) && time.Now().Unix()-last.At < 300) {
+		return nil
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -67,14 +71,45 @@ func cmdNotificationBadge(force bool) error {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		_ = writeFileAtomic(filepath.Join(runDir(), "notification-badge-error.log"), append([]byte(err.Error()+"\n"), output...))
+		last.FailedAt = time.Now().Unix()
+		_ = writeBadgeStamp(last)
 		return err
 	}
 	if strings.TrimSpace(string(output)) == "0" {
 		return nil
 	}
-	last.Count, last.At = len(list), time.Now().Unix()
-	data, _ := json.Marshal(last)
-	return writeFileAtomic(stamp, data)
+	last.Count, last.At, last.FailedAt = len(list), time.Now().Unix(), 0
+	return writeBadgeStamp(last)
+}
+
+const badgeLockName = "notification-badge.lock"
+
+// badgeRetryAfter spaces out the retries after a failed PowerShell run (e.g. a timeout).
+const badgeRetryAfter = 60 * time.Second
+
+type badgeStamp struct {
+	Count    int
+	At       int64
+	FailedAt int64 `json:",omitempty"`
+}
+
+func badgeStampFile() string { return filepath.Join(runDir(), "notification-badge.json") }
+
+func readBadgeStamp() badgeStamp {
+	var st badgeStamp
+	if data, err := os.ReadFile(badgeStampFile()); err == nil {
+		_ = json.Unmarshal(data, &st)
+	}
+	return st
+}
+
+func writeBadgeStamp(st badgeStamp) error {
+	data, _ := json.Marshal(st)
+	return writeFileAtomic(badgeStampFile(), data)
+}
+
+func badgeBackingOff(st badgeStamp, now time.Time) bool {
+	return st.FailedAt > 0 && now.Sub(time.Unix(st.FailedAt, 0)) < badgeRetryAfter
 }
 
 func windowsBadgeScript(count int, flash bool) string {

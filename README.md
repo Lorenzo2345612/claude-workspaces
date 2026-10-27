@@ -172,16 +172,17 @@ cw help
 
 ## Abrir Markdown desde Claude
 
-Dentro de una sesión de cw abierta en la app, ejecuta:
+Dentro de una sesión de cw, en la app o en la terminal, ejecuta:
 
 ```sh
 cw open -- docs/plan.md
 ```
 
-No requiere MCP ni Skynet. Al iniciar sus sesiones en la app, cw añade una instrucción
-para que Claude descubra el comando y lo ejecute con Bash cuando le pidas mostrar un
-documento, sin modificar el `CLAUDE.md` del proyecto. Las sesiones ya abiertas deben
-reiniciarse para recibir esa instrucción. Las rutas relativas parten del directorio actual.
+No requiere MCP ni Skynet. Al iniciar cada sesión de Claude, cw añade una instrucción
+al system prompt para que Claude descubra el comando y lo ejecute con Bash cuando le
+pidas mostrar un documento, en lugar de abrir editores externos como VS Code, sin
+modificar el `CLAUDE.md` del proyecto. Las sesiones ya abiertas deben reiniciarse para
+recibir esa instrucción. Las rutas relativas parten del directorio actual.
 
 Desde otra terminal, indica el destino antes de la ruta:
 
@@ -190,12 +191,19 @@ cw open --workspace NOMBRE --session ID -- docs/plan.md
 cw open --workspace NOMBRE --tab 1 --view 1 -- docs/plan.md
 ```
 
-Cada archivo se abre en una subpestaña de la vista, junto a «Sesiones»; abrir el
-mismo archivo selecciona su subpestaña existente. Puedes alternar, cerrar documentos
+En la app, cada archivo se abre en una subpestaña de la vista, junto a «Sesiones»; abrir
+el mismo archivo selecciona su subpestaña existente. Puedes alternar, cerrar documentos
 y actualizar su contenido sin detener las sesiones. Las subpestañas se guardan con
-el workspace. Admite `.md` y `.markdown`, UTF-8, hasta 2 MiB, en modo de solo lectura.
-El visor muestra encabezados, listas, negritas, citas y bloques de código; no ejecuta
-HTML ni carga recursos remotos. Requiere un workspace abierto en la app.
+el workspace.
+
+En la terminal, cada archivo se abre como otra subpestaña de la pestaña, junto a sus
+sesiones, con el visor que trae el propio cw: no hay que instalar nada aparte y llega
+con cada actualización. Desplázate con ↑↓, PgUp/PgDn, Inicio/Fin o la rueda del ratón;
+`q`, Esc o el ✕ de la barra lo cierran. Estos documentos no se guardan con el workspace.
+
+Admite `.md` y `.markdown`, UTF-8, hasta 2 MiB, en modo de solo lectura. El visor muestra
+encabezados, listas, negritas, citas, enlaces y bloques de código; no ejecuta HTML, no
+carga recursos remotos y descarta los caracteres de control del archivo.
 
 ## Claude y Codex: retomar entre agentes
 

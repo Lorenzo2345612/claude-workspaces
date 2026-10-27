@@ -42,7 +42,7 @@ func cmdJoin(args []string) error {
 	if err != nil || srcWin == dstWin {
 		return err
 	}
-	if kind, _ := t.Run("display", "-p", "-t", dst, "#{@cw_kind}"); kind == kindHome {
+	if kind, _ := t.Run("display", "-p", "-t", dst, "#{@cw_kind}"); notSession(kind) {
 		return nil // an empty tab's start screen is not a session to combine with
 	}
 	panes, err := t.Lines("list-panes", "-t", srcWin, "-F", "#{pane_id}"+sep+"#{@cw_kind}")
@@ -50,7 +50,7 @@ func cmdJoin(args []string) error {
 		return err
 	}
 	for _, p := range panes {
-		if p[1] == kindHome {
+		if notSession(p[1]) {
 			continue
 		}
 		if _, err := t.Run("join-pane", "-d", "-h", "-s", p[0], "-t", dst); err != nil {

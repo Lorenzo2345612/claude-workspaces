@@ -196,7 +196,7 @@ func (t Tmux) capture() (*Workspace, error) {
 		}
 		view, lastWindow := -1, ""
 		for _, p := range panes {
-			if p[0] != s[0] || p[6] == kindHome {
+			if p[0] != s[0] || notSession(p[6]) {
 				continue
 			}
 			if p[1] != lastWindow {

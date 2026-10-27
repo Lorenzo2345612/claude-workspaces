@@ -29,7 +29,7 @@ Uso:
   cw stop <nombre>         guarda el estado y apaga el workspace (también: cw apagar)
   cw rm <nombre>           borra el estado guardado de un workspace apagado
   cw uso                   uso de Claude de cada cuenta: sesión de 5 h, semana, reinicios y tokens
-  cw open <archivo.md>     abre Markdown en una subpestaña de la app, sin MCP
+  cw open <archivo.md>     abre Markdown en una subpestaña (app y terminal), sin MCP
   cw mcp                   servidor MCP (stdio) con herramientas para ver y manejar los workspaces
   cw skynet                chat con Skynet, el orquestador (--estado, --detener, --nueva)
   cw config                muestra la ruta y el contenido de la configuración
@@ -160,6 +160,8 @@ func run(args []string) error {
 		return cmdUso()
 	case "open":
 		return cmdOpen(rest)
+	case "_mdview":
+		return cmdMDView(rest)
 	case "mcp":
 		return cmdMCP()
 	case "skynet":

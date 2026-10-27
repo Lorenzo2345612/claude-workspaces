@@ -19,7 +19,7 @@ func listViews(t Tmux) []viewInfo {
 	var out []viewInfo
 	index := map[string]int{}
 	for _, r := range rows {
-		if len(r) != 5 || r[4] == kindHome {
+		if len(r) != 5 || notSession(r[4]) {
 			continue
 		}
 		i, ok := index[r[0]]
@@ -52,6 +52,9 @@ func uiCombine(ws string) error {
 	}
 	if kind, _ := t.Run("display", "-p", "-c", client, "#{@cw_kind}"); kind == kindHome {
 		pause("Esta pestaña todavía no tiene sesiones: crea una primero.")
+		return nil
+	} else if kind == kindDoc {
+		pause("Un documento no se combina con sesiones: vuelve a una sesión primero.")
 		return nil
 	}
 	var here viewInfo

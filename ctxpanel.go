@@ -362,7 +362,7 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 	}
 	var names []string
 	for _, p := range panes {
-		if len(p) == 4 && p[2] != kindHome {
+		if len(p) == 4 && !notSession(p[2]) {
 			n := p[1]
 			if n == "" {
 				n = "shell"
@@ -390,7 +390,7 @@ func ctxItems(t Tmux, kind, target string) (title string, items []ctxItem, ok bo
 		}
 	}
 	for _, p := range panes {
-		if len(p) != 4 || p[2] == kindHome || (onlyPane != "" && p[0] != onlyPane) {
+		if len(p) != 4 || notSession(p[2]) || (onlyPane != "" && p[0] != onlyPane) {
 			continue
 		}
 		name := p[1]

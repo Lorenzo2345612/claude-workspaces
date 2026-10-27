@@ -30,6 +30,10 @@ func cmdBarClick(args []string) error {
 	case strings.HasPrefix(rng, "xt:"):
 		_, err = t.Run(popupCmd(client, "Cerrar pestaña", 66, 13, bin, "_ui", "confirm", ws, "closetab", rng[3:])...)
 	case strings.HasPrefix(rng, "xw:"):
+		if kind, _ := t.Run("display", "-p", "-t", rng[3:], "#{@cw_kind}"); kind == kindDoc {
+			err = closeWindow(ws, rng[3:])
+			break
+		}
 		_, err = t.Run(popupCmd(client, "Cerrar sesión", 66, 13, bin, "_ui", "confirm", ws, "close", rng[3:])...)
 	}
 	return err

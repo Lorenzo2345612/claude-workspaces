@@ -103,7 +103,11 @@ func cmdOpen(args []string) error {
 		return err
 	}
 	if !m.ws.App {
-		return errAppOnly
+		if err := openTerminalDocument(m, path); err != nil {
+			return err
+		}
+		fmt.Println("Markdown abierto:", path)
+		return nil
 	}
 	if _, err := m.do("document.open", map[string]any{"view": id, "path": path}); err != nil {
 		return err
@@ -113,5 +117,5 @@ func cmdOpen(args []string) error {
 }
 
 func markdownInstructions(bin string) string {
-	return fmt.Sprintf("Para mostrar un archivo Markdown al usuario en esta vista de la app, ejecuta con Bash: %s open -- <ruta.md>. Usa la ruta del archivo local (relativa al directorio actual o absoluta), entre comillas si contiene espacios. Se abre como subpestaña de solo lectura sin reemplazar ni detener las sesiones. No requiere MCP ni Skynet. Úsalo cuando el usuario pida abrir o mostrar el documento.", shQuote(bin))
+	return fmt.Sprintf("Para mostrar un archivo Markdown al usuario, ejecuta con Bash: %s open -- <ruta.md>. Usa la ruta del archivo local (relativa al directorio actual o absoluta), entre comillas si contiene espacios. Se abre en una subpestaña de cw de solo lectura, en la app o en la terminal, sin reemplazar ni detener las sesiones. No requiere MCP ni Skynet. Úsalo cuando el usuario pida abrir o mostrar un documento, en lugar de editores o visores externos como VS Code.", shQuote(bin))
 }

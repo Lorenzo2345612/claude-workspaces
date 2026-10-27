@@ -92,7 +92,7 @@ type closedSlot struct {
 
 // pushClosed remembers a session that is about to close.
 func pushClosed(t Tmux, s Slot, tab string) {
-	if s.ID == "" || s.Kind == kindHome {
+	if s.ID == "" || notSession(s.Kind) {
 		return
 	}
 	var list []closedSlot

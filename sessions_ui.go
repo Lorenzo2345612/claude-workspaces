@@ -21,7 +21,7 @@ func listSessionRows(t Tmux) []sessionRow {
 	}
 	var out []sessionRow
 	for _, r := range rows {
-		if len(r) != 12 || r[5] == kindHome {
+		if len(r) != 12 || notSession(r[5]) {
 			continue
 		}
 		kind := r[5]

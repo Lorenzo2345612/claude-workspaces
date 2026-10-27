@@ -164,7 +164,7 @@ func workspaceResources(ws string, tabOf func(session, title string) string) res
 		}
 	}
 	for _, r := range rows {
-		if len(r) != 6 || r[4] == kindHome || r[0] == appKeeper {
+		if len(r) != 6 || notSession(r[4]) || r[0] == appKeeper {
 			continue
 		}
 		pid, _ := strconv.Atoi(r[1])

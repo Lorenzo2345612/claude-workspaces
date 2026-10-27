@@ -757,20 +757,8 @@ func closeWindow(ws, target string) error {
 	if err != nil {
 		return err
 	}
-	session, err := t.Run("display", "-p", "-t", windowID, "#{session_name}")
-	if err != nil {
+	if err := keepTabOpen(t, windowID); err != nil {
 		return err
-	}
-	if n, _ := t.Run("display", "-p", "-t", windowID, "#{session_windows}"); n == "1" {
-		bin, err := os.Executable()
-		if err != nil {
-			return err
-		}
-		home := Slot{ID: newUUID(), Kind: kindHome, Cwd: tabDir(t, session)}
-		if _, err := t.createWindow(windowSpec{session: session, name: "inicio", slot: home,
-			argv: []string{bin, "_home", ws}}); err != nil {
-			return err
-		}
 	}
 	_, err = t.Run("kill-window", "-t", windowID)
 	return err

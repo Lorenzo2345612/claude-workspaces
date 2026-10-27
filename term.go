@@ -27,6 +27,10 @@ const (
 	keyWheelUp
 	keyWheelDown
 	keyOther
+	keyPgUp
+	keyPgDn
+	keyHome
+	keyEnd
 )
 
 type key struct {
@@ -100,6 +104,16 @@ func readKeys() ([]key, error) {
 			if i < len(b) {
 				if m, ok := map[byte]int{'A': keyUp, 'B': keyDown, 'C': keyRight, 'D': keyLeft, 'Z': keyBackTab}[b[i]]; ok {
 					k = m
+				}
+				switch string(b[2 : i+1]) {
+				case "5~":
+					k = keyPgUp
+				case "6~":
+					k = keyPgDn
+				case "H", "1~", "7~":
+					k = keyHome
+				case "F", "4~", "8~":
+					k = keyEnd
 				}
 			}
 			keys = append(keys, key{kind: k})

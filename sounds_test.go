@@ -201,3 +201,74 @@ func TestWindowsSoundEncodingAndStaleInterop(t *testing.T) {
 		}
 	}
 }
+
+func TestStopWithBackgroundTasksStaysBusy(t *testing.T) {
+	oldIndicators := updateNotificationIndicators
+	updateNotificationIndicators = func() error { return nil }
+	defer func() { updateNotificationIndicators = oldIndicators }()
+	oldBadge := requestNativeBadge
+	requestNativeBadge = func() error { return nil }
+	defer func() { requestNativeBadge = oldBadge }()
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux no disponible")
+	}
+	t.Setenv("CW_CONFIG_DIR", t.TempDir())
+	t.Setenv("CW_DATA_DIR", t.TempDir())
+	t.Setenv("SHELL", "")
+	originalPlayer := playNotification
+	defer func() { playNotification = originalPlayer }()
+	var played []string
+	playNotification = func(id string, volume int) error {
+		played = append(played, id)
+		return nil
+	}
+	oldStdin := os.Stdin
+	defer func() { os.Stdin = oldStdin }()
+	mux := Tmux{WS: "background-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	slot := Slot{ID: newUUID(), Kind: kindClaude, Alias: "test", Cwd: t.TempDir()}
+	win, err := mux.createWindow(windowSpec{session: "test", first: true, slot: slot, name: "test", display: statusIdle, argv: []string{"sleep", "300"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CW_WS", mux.WS)
+	t.Setenv("CW_SLOT", slot.ID)
+	t.Setenv("TMUX_PANE", "")
+	send := func(input string) string {
+		t.Helper()
+		f, err := os.CreateTemp(t.TempDir(), "hook")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer f.Close()
+		f.WriteString(input)
+		f.Seek(0, 0)
+		os.Stdin = f
+		if err := cmdHook(); err != nil {
+			t.Fatal(err)
+		}
+		status, err := mux.Run("display", "-p", "-t", win, "#{@cw_status}")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return status
+	}
+	send(`{"hook_event_name":"UserPromptSubmit","session_id":"id"}`)
+	for _, tasks := range []string{
+		`[{"id":"a","type":"shell","status":"running","command":"sleep 60"}]`,
+		`[{"id":"b","type":"subagent","status":"running","agent_type":"Explore"}]`,
+	} {
+		if got := send(`{"hook_event_name":"Stop","session_id":"id","background_tasks":` + tasks + `}`); got != statusBusy {
+			t.Fatal("ended with background work in flight", tasks, got)
+		}
+	}
+	if len(played) != 0 {
+		t.Fatal("completion notified before background work ended", played)
+	}
+	if got := send(`{"hook_event_name":"Stop","session_id":"id","background_tasks":[],"session_crons":[{"id":"c","schedule":"* * * * *","recurring":true}]}`); got != statusIdle {
+		t.Fatal("stayed busy without background tasks", got)
+	}
+	if len(played) != 1 {
+		t.Fatal("missing completion notice", played)
+	}
+}

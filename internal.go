@@ -371,6 +371,12 @@ func askText(heading, label, value, hint string) (string, bool) {
 type hookInput struct {
 	SessionID     string `json:"session_id"`
 	HookEventName string `json:"hook_event_name"`
+	// BackgroundTasks (Stop only) lists the shells, subagents, monitors… still in flight: the turn
+	// ended but Claude will wake up again when they report back.
+	BackgroundTasks []struct {
+		Type   string `json:"type"`
+		Status string `json:"status"`
+	} `json:"background_tasks"`
 }
 
 // cmdHook records a Claude session's current ID and activity on its tmux window.
@@ -419,6 +425,9 @@ func cmdHook() error {
 	}[in.HookEventName]
 	if status == "" {
 		return nil
+	}
+	if in.HookEventName == "Stop" && len(in.BackgroundTasks) > 0 {
+		status = statusBusy
 	}
 	lock, err := soundHookLock(ws, pane)
 	if err != nil {

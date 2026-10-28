@@ -48,7 +48,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	switchAliasPopup := fmt.Sprintf(`display-popup -E -w 72 -h 24 -T " Cambiar alias de claude " "%s _ui editcurrent %s"`, bq, ws)
 	helpPopup := fmt.Sprintf(`display-popup -E -w 82 -h 30 -T " Ayuda " "%s _ui help %s"`, bq, ws)
 	save := fmt.Sprintf(`run-shell "%s save %s >/dev/null 2>&1 || true" ; display-message "Estado guardado"`, bq, ws)
-	resumeIDPopup := fmt.Sprintf(`display-popup -E -w 84 -h 20 -T " Retomar sesión de Claude por ID " "%s _ui resumeid %s"`, bq, ws)
+	resumeIDPopup := fmt.Sprintf(`display-popup -E -w 84 -h 20 -T " Retomar conversación de Claude " "%s _ui resumeid %s"`, bq, ws)
 	combinePopup := fmt.Sprintf(`display-popup -E -w 78 -h 24 -T " Combinar sesiones en esta vista " "%s _ui combine %s"`, bq, ws)
 	splitOut := fmt.Sprintf(`run-shell "%s _splitout %s '#{pane_id}' || true"`, bq, ws)
 	layoutCmd := func(name string) string {
@@ -65,7 +65,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
 	confirmClose := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar sesión " "%s _ui confirm %s close"`, bq, ws)
 
-	slotMenu := fmt.Sprintf(`display-menu -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude" c { %s } "✦ Codex" d { %s } "↻ Claude por ID…" i { %s } "❯ Terminal" s { %s }`,
+	slotMenu := fmt.Sprintf(`display-menu -T "#[align=centre] Nueva sesión " -x C -y C "✦ Claude" c { %s } "✦ Codex" d { %s } "↻ Retomar Claude…" i { %s } "❯ Terminal" s { %s }`,
 		newClaudePopup, newCodexPopup, resumeIDPopup, newShell)
 
 	// Items whose name starts with "-" are disabled: they serve as group headings.
@@ -76,7 +76,7 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		`"-CREAR" "" ""`,
 		fmt.Sprintf(`"  ✦ Sesión de Claude" c { %s }`, newClaudePopup),
 		fmt.Sprintf(`"  ✦ Sesión de Codex" D { %s }`, newCodexPopup),
-		fmt.Sprintf(`"  ↻ Retomar sesión por ID…" i { %s }`, resumeIDPopup),
+		fmt.Sprintf(`"  ↻ Retomar conversación…" i { %s }`, resumeIDPopup),
 		fmt.Sprintf(`"  ❯ Terminal" s { %s }`, newShell),
 		fmt.Sprintf(`"  ▤ Pestaña" t { %s }`, newTabPopup),
 		fmt.Sprintf(`"  ↺ Reabrir sesión cerrada" z { %s }`, reopen),

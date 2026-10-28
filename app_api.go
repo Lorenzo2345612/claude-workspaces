@@ -401,8 +401,8 @@ func (s *appServer) handleGet(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		out := []map[string]any{}
-		for i, f := range findConversations(q.Get("q"), cfg) {
-			if i >= 8 {
+		for i, f := range browseConversations(q.Get("q"), cfg) {
+			if i >= 100 {
 				break
 			}
 			out = append(out, map[string]any{"id": f.conv.ID, "title": f.conv.Title, "first": shorten(f.conv.First, 140),

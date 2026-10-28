@@ -573,7 +573,7 @@ func uiHelp() {
 		"  " + sgrMuted + fit("clic", 9) + sgrReset + "en una pestaña o una sesión · clic derecho: menú",
 		"  " + sgrMuted + "REORDENAR" + sgrReset + "   arrastra pestañas y sesiones en la barra",
 		"  " + sgrMuted + "CERRAR" + sgrReset + "      ✕ en cada pestaña o sesión · ⏻ arriba a la derecha apaga todo",
-		"  " + sgrMuted + "POR ID" + sgrReset + "      Alt+n → Claude por ID… trae una conversación abierta fuera de cw",
+		"  " + sgrMuted + "RETOMAR" + sgrReset + "      Alt+n → Retomar Claude… elige una conversación anterior",
 		"  " + sgrMuted + "VER JUNTAS" + sgrReset + "  clic derecho en una sesión → Ver junto a…, o Alt+m → Combinar",
 		"  " + h("Alt+⇧←→") + fit("mover la sesión", 25) + h("Alt+< >") + "mover la pestaña",
 		"  " + sgrMuted + "NAVEGADOR" + sgrReset + "   Ctrl+T nueva · Ctrl+W cierra · Ctrl+⇧T reabre · Ctrl+PgUp/PgDn",

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 )
@@ -58,6 +59,60 @@ func findConversations(query string, cfg Config) []foundConv {
 			}
 			out = append(out, foundConv{conv: c, cwd: transcriptCwd(m), path: m})
 		}
+	}
+	return out
+}
+
+// browseConversations lists resumable conversations across configured Claude accounts.
+// Exact ID lookup stays separate because launch paths rely on its strict semantics.
+func browseConversations(query string, cfg Config) []foundConv {
+	q := strings.ToLower(strings.TrimSpace(query))
+	seenDir, seenID := map[string]bool{}, map[string]bool{}
+	var out []foundConv
+	for _, a := range cfg.claudeAliases() {
+		if a.isCodex() {
+			continue
+		}
+		projects := filepath.Join(a.configDir(), "projects")
+		real, err := filepath.EvalSymlinks(projects)
+		if err != nil || seenDir[real] {
+			continue
+		}
+		seenDir[real] = true
+		files, _ := filepath.Glob(filepath.Join(projects, "*", "*.jsonl"))
+		for _, path := range files {
+			id := strings.TrimSuffix(filepath.Base(path), ".jsonl")
+			if seenID[id] {
+				continue
+			}
+			seenID[id] = true
+			title, first := readTranscriptSummary(path)
+			if first == "" {
+				continue
+			}
+			cwd := transcriptCwd(path)
+			if q != "" && !strings.Contains(strings.ToLower(strings.Join([]string{id, title, first, cwd}, "\n")), q) {
+				continue
+			}
+			st, err := os.Stat(path)
+			if err != nil {
+				continue
+			}
+			out = append(out, foundConv{conv: recentConv{ID: id, Title: title, First: first, Modified: st.ModTime()}, cwd: cwd, path: path})
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].conv.Modified.Equal(out[j].conv.Modified) {
+			return out[i].conv.ID < out[j].conv.ID
+		}
+		return out[i].conv.Modified.After(out[j].conv.Modified)
+	})
+	// Resolve aliases only for the displayed results; this consults saved workspaces.
+	if len(out) > 100 {
+		out = out[:100]
+	}
+	for i := range out {
+		out[i].conv.Alias = guessAlias(cfg, out[i].conv.ID, out[i].path)
 	}
 	return out
 }
@@ -117,8 +172,8 @@ func uiResumeByID(ws string) error {
 	return err
 }
 
-// pickConversation asks for a conversation ID (or its first characters) and shows what it
-// matches; it returns nil when the user cancels. open marks conversations already in a session.
+// pickConversation lists recent conversations and filters them as the user types.
+// It returns nil on cancel; open marks conversations already in a session.
 func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 	var input []rune
 	var found []foundConv
@@ -126,35 +181,37 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 	msg := ""
 	var hits []hit
 	lookup := func() {
-		found = findConversations(string(input), cfg)
+		found = browseConversations(string(input), cfg)
 		sel = 0
 		msg = ""
 	}
 	draw := func() {
 		var s screen
-		s.at(2, 4, sgrMuted+"Pega el ID de una conversación de Claude (completo o sus primeros caracteres)."+sgrReset)
-		s.at(4, 4, "ID")
+		s.at(2, 4, sgrMuted+"Elige una conversación de Claude o busca por nombre, texto, carpeta o ID."+sgrReset)
+		s.at(4, 4, "Buscar")
 		s.at(4, 17, sgrFocus+" "+fit(string(input), fieldWidth-1)+sgrReset)
 		row := 6
-		switch {
-		case len(input) > 0 && len(input) < 6:
-			s.at(row, 17, sgrDim+"escribe al menos 6 caracteres"+sgrReset)
-		case len(input) >= 6 && len(found) == 0:
-			s.at(row, 17, sgrRed+"no encontré ninguna conversación con ese ID"+sgrReset)
+		if len(found) == 0 {
+			s.at(row, 4, sgrDim+"No hay conversaciones que coincidan."+sgrReset)
 		}
+		start := max(0, sel-4)
+
 		for i, f := range found {
-			if i >= 5 {
+			if i < start {
+				continue
+			}
+			if i >= start+5 {
 				break
 			}
 			name := f.conv.Title
 			if name == "" {
-				name = "(sin nombre)"
+				name = f.conv.First
 			}
 			line := " " + fit(f.conv.ID[:min(8, len(f.conv.ID))], 9) + fit(name, 18) + fit(whenES(f.conv.Modified), 11) + fit(shortPath(f.cwd), 22) + " "
 			if i == sel {
 				line = sgrSel + line + sgrReset
 			}
-			s.btn(row+i, 3, line, "pick:"+itoa(i))
+			s.btn(row+i-start, 3, line, "pick:"+itoa(i))
 			if first := f.conv.First; i == sel && first != "" {
 				s.at(row+min(len(found), 5)+1, 4, sgrDim+"«"+shorten(first, 64)+"»"+sgrReset)
 			}
@@ -175,6 +232,7 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 		hits = s.hits
 		s.flush(true)
 	}
+	lookup()
 	setRaw(true)
 	defer setRaw(false)
 	draw()
@@ -194,9 +252,9 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 			case strings.HasPrefix(id, "pick:"):
 				sel = atoiDefault(id[5:], 0)
 			case k.kind == keyUp && len(found) > 0:
-				sel = (sel - 1 + min(len(found), 5)) % min(len(found), 5)
+				sel = (sel - 1 + len(found)) % len(found)
 			case k.kind == keyDown && len(found) > 0:
-				sel = (sel + 1) % min(len(found), 5)
+				sel = (sel + 1) % len(found)
 			case k.kind == keyBackspace:
 				if len(input) > 0 {
 					input = input[:len(input)-1]
@@ -210,7 +268,7 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 				lookup()
 			case id == "next" || k.kind == keyEnter:
 				if len(found) == 0 {
-					msg = "Primero escribe un ID que exista."
+					msg = "Elige una conversación de la lista."
 					break
 				}
 				f := found[sel]

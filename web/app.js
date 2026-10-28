@@ -579,7 +579,7 @@ function emptyTab(tab) {
       big('✦', 'Claude', 'Ctrl+T', () => dlgNewSession(tab.id, 'claude')),
       big('✦', 'Codex', 'sesión nueva', () => dlgNewSession(tab.id, 'codex')),
       big('❯', 'Terminal', 'en esta carpeta', () => dlgNewSession(tab.id, 'shell')),
-      big('↻', 'Retomar', 'por su ID', () => dlgNewSession(tab.id, 'resume'))),
+      big('↻', 'Retomar', 'elegir conversación', () => dlgNewSession(tab.id, 'resume'))),
     h('div', { class: 'grp' }, h('span', {}, 'Recientes en esta carpeta')), list);
   api.get('recent', { ws: S.ws, tab: tab.id }).then(rows => {
     if (!rows.length) { list.append(h('div', { class: 'hint' }, 'No hay conversaciones anteriores en esta carpeta.')); return; }
@@ -984,7 +984,7 @@ function dlgNewSession(tabId, mode, conv) {
   const name = h('input', { class: 'input', placeholder: mode === 'shell' ? 'terminal' : 'p. ej. fix-matriz', value: conv ? (conv.title || '') : '' });
   const args = h('input', { class: 'input', placeholder: '--model opus' });
   const preview = h('div', { class: 'code' }, '…');
-  const idInput = h('input', { class: 'input', placeholder: 'ID de la conversación (completo o sus primeros caracteres)', value: conv ? conv.id : '' });
+  const idInput = h('input', { class: 'input', placeholder: 'Buscar por nombre, texto, carpeta o ID', value: conv ? conv.id : '' });
   const results = h('div', { class: 'list' });
   let aSeg;
   const body = h('div', { style: { display: 'grid', gap: '14px' } });
@@ -997,12 +997,15 @@ function dlgNewSession(tabId, mode, conv) {
       catch (e) { preview.textContent = e.message; }
     }, 120);
   };
+  let searchVersion = 0;
   const search = async () => {
+    const version = ++searchVersion;
+    resume = null;
     const q = idInput.value.trim();
     results.replaceChildren();
-    if (q.length < 6) { results.append(h('div', { class: 'hint' }, q ? 'Escribe al menos 6 caracteres.' : 'Pega el ID: lo ves con /status en Claude o en el nombre del archivo .jsonl.')); return; }
     const rows = await api.get('conversations', { q, ws: S.ws }).catch(() => []);
-    if (!rows.length) { results.append(h('div', { class: 'hint', style: { color: 'var(--red)' } }, 'No encontré ninguna conversación con ese ID.')); resume = null; return; }
+    if (version !== searchVersion) return;
+    if (!rows.length) { results.append(h('div', { class: 'hint', style: { color: 'var(--red)' } }, 'No hay conversaciones que coincidan.')); resume = null; return; }
     const pick = c => {
       resume = c; alias = c.alias || alias; aSeg.set(alias);
       if (!name.value) name.value = c.title || shorten((c.first || '').split(/\s+/).join('-'), 24);
@@ -1013,9 +1016,9 @@ function dlgNewSession(tabId, mode, conv) {
       h('span', { class: 'w' }, c.when + ' · ' + c.short), h('span', { class: 'q' }, c.openAs ? 'Ya está abierta aquí como ' + c.openAs : '«' + c.first + '»'))));
     pick(rows[0]);
   };
-  idInput.addEventListener('input', () => { clearTimeout(idInput._t); idInput._t = setTimeout(search, 180); });
+  idInput.addEventListener('input', () => { ++searchVersion; resume = null; clearTimeout(idInput._t); idInput._t = setTimeout(search, 180); });
   name.addEventListener('input', upd); args.addEventListener('input', upd);
-  const kinds = seg([{ value: 'claude', label: '✦ Claude' }, { value: 'codex', label: '✦ Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar por ID' }], mode, v => { mode = v; if (v === 'claude' || v === 'codex') { alias = agentAlias(v); args.value = ''; } draw(); });
+  const kinds = seg([{ value: 'claude', label: '✦ Claude' }, { value: 'codex', label: '✦ Codex' }, { value: 'shell', label: '❯ Terminal' }, { value: 'resume', label: '↻ Retomar' }], mode, v => { mode = v; if (v === 'claude' || v === 'codex') { alias = agentAlias(v); args.value = ''; } draw(); });
   const draw = () => {
     body.replaceChildren(kinds);
     aSeg = aliasSeg(alias, v => { alias = v; upd(); }, mode === 'resume' ? undefined : mode);
@@ -1030,6 +1033,7 @@ function dlgNewSession(tabId, mode, conv) {
     m.scrim.querySelector('header').textContent = mode === 'shell' ? 'Nueva terminal' : mode === 'resume' ? 'Retomar conversación de Claude' : mode === 'codex' ? 'Nueva sesión de Codex' : 'Nueva sesión de Claude';
     primary.textContent = mode === 'shell' ? 'Abrir terminal' : mode === 'resume' ? 'Retomar' : 'Crear sesión';
     upd();
+    if (mode === 'resume') search();
     setTimeout(() => (mode === 'resume' && !resume ? idInput : name).focus(), 10);
   };
   const m = modal({ title: '', sub: 'en la pestaña ' + tab.title + ' · ' + tab.short, body, buttons: [{ label: 'Cancelar' }, { label: 'Crear', primary: true, run: async () => {
@@ -1042,8 +1046,6 @@ function dlgNewSession(tabId, mode, conv) {
   } }] });
   const primary = m.scrim.querySelector('.btn.primary');
   draw();
-  if (mode === 'resume' && conv) search();
-  else if (mode === 'resume') search();
 }
 
 function dirInput(value) {
@@ -1169,13 +1171,13 @@ function dlgNewWorkspace(dirValue, startMode) {
   let mode = startMode || 'dir', found = null;
   const dir = dirInput(dirValue ? (S.info && dirValue.startsWith(S.info.home) ? '~' + dirValue.slice(S.info.home.length) : dirValue) : '~');
   const name = h('input', { class: 'input', placeholder: 'como la carpeta' });
-  const idIn = h('input', { class: 'input', placeholder: 'ID de la conversación (completo o sus primeros caracteres)' });
+  const idIn = h('input', { class: 'input', placeholder: 'Buscar por nombre, texto, carpeta o ID' });
   const list = h('div', { class: 'list' });
   idIn.addEventListener('input', () => { clearTimeout(idIn._t); idIn._t = setTimeout(async () => {
     const q = idIn.value.trim(); found = null;
     if (q.length < 6) { list.replaceChildren(h('div', { class: 'hint' }, 'Escribe al menos 6 caracteres.')); return; }
     const rows = await api.get('conversations', { q }).catch(() => []);
-    if (!rows.length) { list.replaceChildren(h('div', { class: 'hint err' }, 'No encontré ninguna conversación con ese ID.')); return; }
+    if (!rows.length) { list.replaceChildren(h('div', { class: 'hint err' }, 'No hay conversaciones que coincidan.')); return; }
     found = rows[0];
     list.replaceChildren(...rows.map((c, i) => h('div', { class: 'row-item' + (i === 0 ? ' sel' : ''), onclick: ev => {
       found = c; [...list.children].forEach(el => el.classList.remove('sel')); ev.currentTarget.classList.add('sel'); } },

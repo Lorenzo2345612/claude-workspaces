@@ -313,3 +313,12 @@ while a workspace runs; settings in `~/.config/cw/config.json`.
 
 Requires Go 1.26 (or Docker). `sh packaging/build.sh 0.1.1` cross-compiles every platform in a
 `golang` container and writes the packages to `dist/`. `./install.sh` builds and links a local copy.
+
+### Elegir una conversación para retomar
+
+En terminal y en la app, **Retomar conversación** abre un listado de las
+100 conversaciones de Claude más recientes de las cuentas configuradas, ordenadas
+por última actividad. Busca por nombre, primer mensaje, carpeta o ID; puedes
+seguir pegando un ID completo o parcial. En terminal, usa las flechas para recorrer
+la lista y Enter para continuar; en la app, selecciona una fila y pulsa Retomar.
+Se conserva la carpeta original y se indica si la conversación ya está abierta.

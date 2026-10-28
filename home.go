@@ -192,7 +192,7 @@ func (h *homeScreen) draw() {
 		add(plainLine("   " + sgrDim + "No hay conversaciones anteriores de Claude en este directorio." + sgrReset))
 	}
 	add(plainLine(""))
-	add(buttonLine(3, btnDef{label: "↻ Retomar una conversación por su ID…", id: "byid"}))
+	add(buttonLine(3, btnDef{label: "↻ Retomar una conversación…", id: "byid"}))
 
 	var s screen
 	s.place(max((ht-len(lines))/2, 0)+1, left, lines)

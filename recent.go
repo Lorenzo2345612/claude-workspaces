@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -75,36 +77,52 @@ func recentConversations(dir string, limit int, exclude map[string]bool, cfg Con
 	return out
 }
 
+// transcriptSummaryReads counts transcript summary reads, for tests that guard against
+// rereading transcripts.
+var transcriptSummaryReads atomic.Int64
+
 // readTranscriptSummary returns the session's latest custom title and its first real prompt.
 func readTranscriptSummary(path string) (title, first string) {
+	title, first, _ = readTranscriptSummaryFrom(path, 0, "", "")
+	return title, first
+}
+
+// readTranscriptSummaryFrom continues a summary from byte offset off, where an earlier read of
+// the same append-only transcript ended with title and first. It returns the updated summary and
+// the offset just past the last complete line, from which the next read resumes; a line still
+// being written is left for that next read.
+func readTranscriptSummaryFrom(path string, off int64, title, first string) (string, string, int64) {
+	transcriptSummaryReads.Add(1)
 	fh, err := os.Open(path)
 	if err != nil {
-		return "", ""
+		return title, first, off
 	}
 	defer fh.Close()
+	if _, err := fh.Seek(off, io.SeekStart); err != nil {
+		return title, first, off
+	}
 	r := bufio.NewReaderSize(fh, 1<<16)
 	for {
 		line, err := r.ReadBytes('\n')
-		if len(line) > 0 {
-			switch {
-			case bytesContains(line, `"type":"custom-title"`):
-				var e struct {
-					CustomTitle string `json:"customTitle"`
-				}
-				if json.Unmarshal(line, &e) == nil && e.CustomTitle != "" {
-					title = e.CustomTitle
-				}
-			case first == "" && bytesContains(line, `"type":"user"`):
-				first = firstPrompt(line)
-			}
+		if err != nil { // EOF: a trailing line without newline is incomplete
+			return title, first, off
 		}
-		if err == io.EOF || err != nil {
-			return title, first
+		off += int64(len(line))
+		switch {
+		case bytesContains(line, `"type":"custom-title"`):
+			var e struct {
+				CustomTitle string `json:"customTitle"`
+			}
+			if json.Unmarshal(line, &e) == nil && e.CustomTitle != "" {
+				title = e.CustomTitle
+			}
+		case first == "" && bytesContains(line, `"type":"user"`):
+			first = firstPrompt(line)
 		}
 	}
 }
 
-func bytesContains(b []byte, s string) bool { return strings.Contains(string(b), s) }
+func bytesContains(b []byte, s string) bool { return bytes.Contains(b, []byte(s)) }
 
 // firstPrompt extracts typed text from a user entry, ignoring meta entries, tool results and
 // command / reminder envelopes.

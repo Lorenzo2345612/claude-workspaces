@@ -6,16 +6,16 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 )
 
 // foundConv is a conversation located on disk from (part of) its ID.
 type foundConv struct {
-	conv recentConv
-	cwd  string // directory the conversation was started in
-	path string
+	conv   recentConv
+	cwd    string // directory the conversation was started in
+	path   string
+	search string // lowercased ID, title, first prompt and directory, for filtering
 }
 
 // findConversations looks a session ID (or its first characters, or a transcript path) up in
@@ -66,55 +66,7 @@ func findConversations(query string, cfg Config) []foundConv {
 // browseConversations lists resumable conversations across configured Claude accounts.
 // Exact ID lookup stays separate because launch paths rely on its strict semantics.
 func browseConversations(query string, cfg Config) []foundConv {
-	q := strings.ToLower(strings.TrimSpace(query))
-	seenDir, seenID := map[string]bool{}, map[string]bool{}
-	var out []foundConv
-	for _, a := range cfg.claudeAliases() {
-		if a.isCodex() {
-			continue
-		}
-		projects := filepath.Join(a.configDir(), "projects")
-		real, err := filepath.EvalSymlinks(projects)
-		if err != nil || seenDir[real] {
-			continue
-		}
-		seenDir[real] = true
-		files, _ := filepath.Glob(filepath.Join(projects, "*", "*.jsonl"))
-		for _, path := range files {
-			id := strings.TrimSuffix(filepath.Base(path), ".jsonl")
-			if seenID[id] {
-				continue
-			}
-			seenID[id] = true
-			title, first := readTranscriptSummary(path)
-			if first == "" {
-				continue
-			}
-			cwd := transcriptCwd(path)
-			if q != "" && !strings.Contains(strings.ToLower(strings.Join([]string{id, title, first, cwd}, "\n")), q) {
-				continue
-			}
-			st, err := os.Stat(path)
-			if err != nil {
-				continue
-			}
-			out = append(out, foundConv{conv: recentConv{ID: id, Title: title, First: first, Modified: st.ModTime()}, cwd: cwd, path: path})
-		}
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].conv.Modified.Equal(out[j].conv.Modified) {
-			return out[i].conv.ID < out[j].conv.ID
-		}
-		return out[i].conv.Modified.After(out[j].conv.Modified)
-	})
-	// Resolve aliases only for the displayed results; this consults saved workspaces.
-	if len(out) > 100 {
-		out = out[:100]
-	}
-	for i := range out {
-		out[i].conv.Alias = guessAlias(cfg, out[i].conv.ID, out[i].path)
-	}
-	return out
+	return filterConversations(scanConversations(cfg), query, newAliasGuesser(cfg))
 }
 
 // transcriptCwd reads the working directory recorded in a transcript's first entries.
@@ -180,8 +132,13 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 	sel := 0
 	msg := ""
 	var hits []hit
+	// Scan once when the dialog opens and filter in memory while typing: a scan has to stat
+	// every transcript of every account, too slow to repeat on each keystroke.
+	var all []foundConv
+	loading := true
+	guesser := newAliasGuesser(cfg)
 	lookup := func() {
-		found = browseConversations(string(input), cfg)
+		found = filterConversations(all, string(input), guesser)
 		sel = 0
 		msg = ""
 	}
@@ -191,7 +148,9 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 		s.at(4, 4, "Buscar")
 		s.at(4, 17, sgrFocus+" "+fit(string(input), fieldWidth-1)+sgrReset)
 		row := 6
-		if len(found) == 0 {
+		if loading {
+			s.at(row, 4, sgrDim+"Cargando conversaciones…"+sgrReset)
+		} else if len(found) == 0 {
 			s.at(row, 4, sgrDim+"No hay conversaciones que coincidan."+sgrReset)
 		}
 		start := max(0, sel-4)
@@ -232,9 +191,12 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 		hits = s.hits
 		s.flush(true)
 	}
-	lookup()
 	setRaw(true)
 	defer setRaw(false)
+	draw()
+	all = scanConversations(cfg)
+	loading = false
+	lookup()
 	draw()
 	for {
 		keys, err := readKeys()
@@ -284,21 +246,47 @@ func pickConversation(cfg Config, open map[string]string) (*foundConv, error) {
 // ran it with, the default alias, an alias that skips permissions when the conversation did,
 // and finally the first alias that reaches it.
 func guessAlias(cfg Config, id, path string) string {
-	var lastAt time.Time
-	last := ""
+	return newAliasGuesser(cfg).guess(id, path)
+}
+
+// aliasGuesser answers guessAlias for many conversations: it reads the saved workspaces once and
+// remembers each answer, so the resume picker can call it on every keystroke.
+type aliasGuesser struct {
+	cfg   Config
+	last  map[string]string // session ID → alias cw last ran it with
+	known map[string]string // session ID → guessed alias
+}
+
+func newAliasGuesser(cfg Config) *aliasGuesser {
+	g := &aliasGuesser{cfg: cfg, last: map[string]string{}, known: map[string]string{}}
+	lastAt := map[string]time.Time{}
 	for _, n := range savedWorkspaces() {
 		w, err := loadWorkspace(n)
-		if err != nil || !w.SavedAt.After(lastAt) {
+		if err != nil {
 			continue
 		}
 		for _, t := range w.Tabs {
 			for _, s := range t.Slots {
-				if s.SessionID == id && s.ClaudeAlias != "" {
-					last, lastAt = s.ClaudeAlias, w.SavedAt
+				if s.SessionID != "" && s.ClaudeAlias != "" && w.SavedAt.After(lastAt[s.SessionID]) {
+					g.last[s.SessionID], lastAt[s.SessionID] = s.ClaudeAlias, w.SavedAt
 				}
 			}
 		}
 	}
+	return g
+}
+
+func (g *aliasGuesser) guess(id, path string) string {
+	if a, ok := g.known[id]; ok {
+		return a
+	}
+	a := g.compute(id, path)
+	g.known[id] = a
+	return a
+}
+
+func (g *aliasGuesser) compute(id, path string) string {
+	cfg, last := g.cfg, g.last[id]
 	bypassed := transcriptBypassed(path)
 	if last != "" {
 		a := cfg.claudeAlias(last)

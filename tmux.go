@@ -111,7 +111,7 @@ func (t Tmux) createPane(w windowSpec, target string) (string, error) {
 }
 
 func (t Tmux) processArgs(w windowSpec) []string {
-	args := []string{"-c", w.slot.Cwd, "-e", "CW_WS=" + t.WS, "-e", "CW_SLOT=" + w.slot.ID}
+	args := append([]string{"-c", w.slot.Cwd}, cwPaneEnv(t.WS, w.slot.ID)...)
 	for _, kv := range w.env {
 		args = append(args, "-e", kv)
 	}

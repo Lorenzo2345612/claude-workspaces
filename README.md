@@ -205,6 +205,62 @@ Admite `.md` y `.markdown`, UTF-8, hasta 2 MiB, en modo de solo lectura. El viso
 encabezados, listas, negritas, citas, enlaces y bloques de código; no ejecuta HTML, no
 carga recursos remotos y descarta los caracteres de control del archivo.
 
+## Sesiones que se coordinan entre sí
+
+Cada sesión de Claude que abre cw puede manejar el workspace y hablar con las demás
+sesiones mediante comandos que ejecuta con Bash. No necesita MCP, Skynet ni la mensajería
+propia de Claude. cw se los explica en el system prompt; las sesiones que ya estaban
+abiertas deben reiniciarse para recibirlo.
+
+```sh
+cw yo                                         # workspace, pestaña, vista e id de esta sesión
+cw tool                                       # lista las herramientas y sus opciones
+cw tool listar_pestanas                       # pestañas del workspace actual
+cw tool listar_vistas --pestana 2             # subpestañas (vistas) y sus sesiones
+cw tool leer_sesion --sesion beta --lineas 80
+cw tool pestana --accion nueva --titulo API --carpeta ~/api --iniciar claude --nombre backend
+cw tool sesion --accion nueva --pestana API --tipo claude --nombre tests
+cw send backend -- "Revisa el endpoint /login y dime qué falla"
+```
+
+`cw tool` ofrece las mismas herramientas que `cw mcp`, con `--clave valor`; si no indicas
+el workspace, usa el de la sesión.
+
+`cw send <sesión> -- <mensaje>` escribe el mensaje en la otra sesión (por id o nombre), con
+una cabecera que indica quién lo envía. Cuando esa sesión termina su turno, el hook `Stop`
+toma su respuesta final y la escribe en la sesión que envió el mensaje, como un mensaje nuevo
+con la cabecera «Respuesta de la sesión…». Quien envía no tiene que esperarla ni sondearla.
+Si estaba trabajando, el mensaje queda en cola. Si estaba esperando una pregunta o suspendida,
+cw reintenta durante una hora. La respuesta no arma otra ruta de vuelta, así que no rebota.
+`--sin-respuesta` envía sin pedir respuesta; `-` como mensaje lo lee de stdin. A sesiones de
+terminal se les escribe el comando, pero no devuelven respuesta.
+
+### Saber si corre en cw, y dónde
+
+Cada panel que abre cw tiene tres variables de entorno, que solo existen dentro de cw:
+`CW_WS` (workspace), `CW_SLOT` (id de la sesión) y `CW_BIN` (ruta del ejecutable de cw,
+aunque no esté en el PATH). Con ellas, un agente comprueba de forma determinista si corre
+en cw. `"$CW_BIN" yo` devuelve en JSON dónde está ahora: workspace y su título, si es la
+app o la terminal, pestaña, subpestaña (vista), id, nombre y estado. Fuera de cw falla con
+código 1.
+
+### Plugin con skills para Claude y Codex
+
+```sh
+cw plugin              # instala o actualiza (también: cw plugin instalar)
+cw plugin --codex      # solo Codex; --claude solo Claude
+cw plugin desinstalar
+cw plugin ruta         # escribe el marketplace y muestra su carpeta
+```
+
+El plugin `cw` trae dos skills. La skill `cw` cubre la detección, `cw yo`, pestañas,
+subpestañas, sesiones y documentos. La skill `cw-coordinar` cubre `cw send` y las
+respuestas. Va dentro del binario: `cw plugin` lo escribe en `~/.local/share/cw/plugin` como
+marketplace local para los dos agentes y lo instala con `claude plugin` y `codex plugin` en
+cada cuenta que usan los alias (cada `CLAUDE_CONFIG_DIR` o `CODEX_HOME` distinto). Vuelve a
+ejecutarlo después de actualizar cw para llevar las skills a la nueva versión. Las sesiones
+abiertas deben reiniciarse para cargarlo.
+
 ## Claude y Codex: retomar entre agentes
 
 Todos los accesos para crear sesiones ofrecen **Claude** y **Codex** por separado: botones de la barra lateral, pantalla de pestaña vacía, menús, diálogos de sesión y creación de pestañas. Elige el agente y después uno de sus aliases.

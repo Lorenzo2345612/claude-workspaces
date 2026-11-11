@@ -94,7 +94,7 @@ func (l *Launcher) claudeArgv(s *Slot, resuming bool) ([]string, string) {
 		rest = append(rest, "--resume", path)
 	}
 	rest = append(rest, "--name", s.Alias, "--settings", l.hookSettings())
-	rest = append(rest, "--append-system-prompt", markdownInstructions(l.Bin))
+	rest = append(rest, "--append-system-prompt", cwInstructions(l.Bin))
 	rest = append(rest, l.Cfg.ClaudeArgs...)
 	rest = append(rest, s.Args...)
 	display := statusIdle

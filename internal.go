@@ -371,6 +371,10 @@ func askText(heading, label, value, hint string) (string, bool) {
 type hookInput struct {
 	SessionID     string `json:"session_id"`
 	HookEventName string `json:"hook_event_name"`
+	// Stop only: the final answer of the turn (newer Claude Code and Codex), and the transcript
+	// to read it from otherwise. A session waiting for that answer gets it (cw send).
+	LastAssistantMessage string `json:"last_assistant_message"`
+	TranscriptPath       string `json:"transcript_path"`
 	// BackgroundTasks (Stop only) lists the shells, subagents, monitors… still in flight: the turn
 	// ended but Claude will wake up again when they report back.
 	BackgroundTasks []struct {
@@ -455,6 +459,9 @@ func cmdHook() error {
 		return nil
 	}
 	_ = recordHookNotification(t, pane, previous, in.HookEventName, status)
+	if in.HookEventName == "Stop" && status == statusIdle {
+		routeRepliesOnStop(t, pane, in)
+	}
 	if cfg, err := loadConfig(); err == nil {
 		if id := soundForHook(cfg, previous, in.HookEventName, status); id != "" {
 			_ = playNotification(id, cfg.SoundVolume)
@@ -546,7 +553,7 @@ func respawnSlotMode(ws, pane string, sendContinue, suspend bool) error {
 	case kindHome:
 		argv = []string{l.Bin, "_home", ws}
 	}
-	cmd := []string{"respawn-pane", "-k", "-t", pane, "-c", s.Cwd, "-e", "CW_WS=" + ws, "-e", "CW_SLOT=" + s.ID}
+	cmd := append([]string{"respawn-pane", "-k", "-t", pane, "-c", s.Cwd}, cwPaneEnv(ws, s.ID)...)
 	for _, kv := range env {
 		cmd = append(cmd, "-e", kv)
 	}

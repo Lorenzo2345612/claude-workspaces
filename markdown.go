@@ -119,3 +119,8 @@ func cmdOpen(args []string) error {
 func markdownInstructions(bin string) string {
 	return fmt.Sprintf("Para mostrar un archivo Markdown al usuario, ejecuta con Bash: %s open -- <ruta.md>. Usa la ruta del archivo local (relativa al directorio actual o absoluta), entre comillas si contiene espacios. Se abre en una subpestaña de cw de solo lectura, en la app o en la terminal, sin reemplazar ni detener las sesiones. No requiere MCP ni Skynet. Úsalo cuando el usuario pida abrir o mostrar un documento, en lugar de editores o visores externos como VS Code.", shQuote(bin))
 }
+
+// cwInstructions is what cw appends to the system prompt of every Claude session it starts.
+func cwInstructions(bin string) string {
+	return markdownInstructions(bin) + "\n\n" + agentInstructions(bin)
+}

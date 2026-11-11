@@ -1,0 +1,12 @@
+{
+  "name": "cw",
+  "owner": { "name": "Agent Workspaces (cw)" },
+  "description": "Plugins locales de cw, instalados por cw plugin instalar.",
+  "plugins": [
+    {
+      "name": "cw",
+      "source": "./plugins/cw",
+      "description": "Detectar si la sesión corre en cw, manejar pestañas, subpestañas y sesiones, abrir documentos y enviar mensajes a otras sesiones con respuesta automática."
+    }
+  ]
+}

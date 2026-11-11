@@ -1,0 +1,14 @@
+{
+  "name": "cw",
+  "version": "{{VERSION}}",
+  "description": "Agent Workspaces (cw): saber si la sesión corre en cw y en qué workspace, manejar pestañas, subpestañas y sesiones, abrir documentos y coordinarse con otras sesiones.",
+  "author": { "name": "Agent Workspaces (cw)" },
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agent Workspaces (cw)",
+    "shortDescription": "Pestañas, sesiones y mensajes entre agentes en cw",
+    "developerName": "Agent Workspaces (cw)",
+    "category": "Developer Tools",
+    "capabilities": ["Interactive", "Read", "Write"]
+  }
+}

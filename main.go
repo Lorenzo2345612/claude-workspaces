@@ -30,6 +30,13 @@ Uso:
   cw rm <nombre>           borra el estado guardado de un workspace apagado
   cw uso                   uso de Claude de cada cuenta: sesión de 5 h, semana, reinicios y tokens
   cw open <archivo.md>     abre Markdown en una subpestaña (app y terminal), sin MCP
+  cw yo                    desde una sesión: su workspace, pestaña, vista e id
+  cw tool [nombre] [--k v] las herramientas de cw mcp desde la línea de comandos (pestañas,
+                           subpestañas, sesiones…); sin nombre las lista
+  cw send <sesión> -- <m>  envía un mensaje a otra sesión; su respuesta final vuelve sola a
+                           la sesión que lo envió (--sin-respuesta para no esperarla)
+  cw plugin [instalar]     instala o actualiza las skills de cw (plugin) en Claude y Codex,
+                           en cada cuenta que usan los alias (también: desinstalar, ruta)
   cw mcp                   servidor MCP (stdio) con herramientas para ver y manejar los workspaces
   cw skynet                chat con Skynet, el orquestador (--estado, --detener, --nueva)
   cw config                muestra la ruta y el contenido de la configuración
@@ -160,6 +167,16 @@ func run(args []string) error {
 		return cmdUso()
 	case "open":
 		return cmdOpen(rest)
+	case "yo", "whoami":
+		return cmdWhoAmI()
+	case "tool":
+		return cmdTool(rest)
+	case "send", "enviar":
+		return cmdSend(rest)
+	case "plugin":
+		return cmdPlugin(rest)
+	case "_deliver":
+		return cmdDeliver(rest)
 	case "_mdview":
 		return cmdMDView(rest)
 	case "mcp":

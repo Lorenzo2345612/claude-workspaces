@@ -72,7 +72,7 @@ func TestOpenCommandInApp(t *testing.T) {
 	argv, _ := launcher.claudeArgv(&Slot{Alias: "test"}, false)
 	found := false
 	for i, arg := range argv {
-		if arg == "--append-system-prompt" && i+1 < len(argv) && argv[i+1] == markdownInstructions(launcher.Bin) {
+		if arg == "--append-system-prompt" && i+1 < len(argv) && argv[i+1] == cwInstructions(launcher.Bin) {
 			found = true
 		}
 	}

@@ -1,0 +1,6 @@
+{
+  "name": "cw",
+  "version": "{{VERSION}}",
+  "description": "Agent Workspaces (cw): saber si la sesión corre en cw y en qué workspace, manejar pestañas, subpestañas y sesiones, abrir documentos y coordinarse con otras sesiones.",
+  "author": { "name": "Agent Workspaces (cw)" }
+}

@@ -226,8 +226,8 @@ cw send backend -- "Revisa el endpoint /login y dime qué falla"
 `cw tool` ofrece las mismas herramientas que `cw mcp`, con `--clave valor`; si no indicas
 el workspace, usa el de la sesión.
 
-`cw send <sesión> -- <mensaje>` escribe el mensaje en la otra sesión (por id o nombre), con
-una cabecera que indica quién lo envía. Cuando esa sesión termina su turno, el hook `Stop`
+`cw send <sesión> -- <mensaje>` escribe el mensaje en la otra sesión (por id o nombre), tal
+cual, sin cabecera. Cuando esa sesión termina su turno, el hook `Stop`
 toma su respuesta final y la escribe en la sesión que envió el mensaje, como un mensaje nuevo
 con la cabecera «Respuesta de la sesión…». Quien envía no tiene que esperarla ni sondearla.
 Si estaba trabajando, el mensaje queda en cola. Si estaba esperando una pregunta o suspendida,

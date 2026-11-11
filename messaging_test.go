@@ -78,7 +78,9 @@ func TestSendAndReply(t *testing.T) {
 		t.Fatal(err)
 	}
 	waitScreen(t, to, "revisa el plan")
-	waitScreen(t, to, "Mensaje de la sesión «alfa»")
+	if text, _ := screenOf(to, 200); strings.Contains(text, "Mensaje de la sesión") || strings.Contains(text, "cw send") {
+		t.Fatalf("el mensaje llegó con cabecera:\n%s", text)
+	}
 	if r := replyRoutes(mux, to.pane); len(r) != 1 || r[0] != mux.WS+"/"+a.ID {
 		t.Fatal("ruta de respuesta", r)
 	}

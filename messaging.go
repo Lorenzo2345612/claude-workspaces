@@ -233,16 +233,8 @@ func cmdSend(args []string) error {
 		reply = false
 		fmt.Fprintln(os.Stderr, "aviso: "+to.Name+" no es una sesión de Claude: no se devolverá su respuesta")
 	}
+	// The message goes as typed, with no header: who sent it lives on the target's pane.
 	body := msg
-	if from != nil {
-		head := fmt.Sprintf("[Mensaje de la sesión «%s» (id %s, %s › %s) enviado con cw send.", from.Name, from.ID, from.Workspace, from.Tab)
-		if reply {
-			head += " Cuando termines, tu respuesta final se le entregará automáticamente: no le respondas con cw send.]"
-		} else {
-			head += " No espera respuesta; si necesitas escribirle, usa cw send " + from.ID + ".]"
-		}
-		body = head + "\n\n" + msg
-	}
 	if reply {
 		// Armed before sending: a fast answer must not end its turn before the route exists.
 		if err := addReplyRoute(to, from); err != nil {
@@ -477,7 +469,7 @@ func agentInstructions(bin string) string {
 		"Para manejar pestañas, subpestañas y sesiones usa \"$CW_BIN\" tool (sin argumentos lista las herramientas; el workspace por defecto es el tuyo), por ejemplo "+
 		"\"$CW_BIN\" tool pestana --accion nueva --titulo T --iniciar claude o \"$CW_BIN\" tool sesion --accion nueva --pestana N --tipo claude [--vista V]. "+
 		"Para hablar con otra sesión usa \"$CW_BIN\" send <sesión> -- <mensaje>, no la mensajería propia de Claude (SendMessage): cuando esa sesión termine su turno, su respuesta final te llegará sola como un mensaje nuevo, así que no la esperes ni la sondees. "+
-		"Si recibes un mensaje que empieza con «[Mensaje de la sesión …]», hazlo y termina con tu respuesta completa: se le entrega sola a quien lo envió; no le respondas con cw send. "+
+		"Los mensajes de otras sesiones te llegan como si los escribiera el usuario: respóndelos normalmente, terminando con tu respuesta completa, que vuelve sola a quien lo envió; no respondas con cw send salvo que te lo pidan. "+
 		"Las skills cw y cw-coordinar (plugin cw) tienen el detalle. Si CW_BIN no está definida, usa %s. "+
 		"Solo crea o cierra pestañas o sesiones, o escribe a otras sesiones, cuando el usuario o la tarea lo pidan.", shQuote(bin))
 }

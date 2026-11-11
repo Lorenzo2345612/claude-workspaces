@@ -1,6 +1,6 @@
 ---
 name: cw-coordinar
-description: Envía mensajes o tareas a otras sesiones de cw (Claude, Codex o terminal) y recibe su respuesta automáticamente, sin la mensajería propia del agente. Úsala cuando haya que delegar trabajo a otra sesión, preguntarle algo, repartir una tarea entre sesiones, o cuando llegue un mensaje que empiece con «[Mensaje de la sesión …]» o «[Respuesta de la sesión …]».
+description: Envía mensajes o tareas a otras sesiones de cw (Claude, Codex o terminal) y recibe su respuesta automáticamente, sin la mensajería propia del agente. Úsala cuando haya que delegar trabajo a otra sesión, preguntarle algo, repartir una tarea entre sesiones, o cuando llegue un mensaje que empiece con «[Respuesta de la sesión …]».
 ---
 
 # Coordinarse con otras sesiones de cw
@@ -19,7 +19,8 @@ printf '%s\n' "$PLAN" | "$CW_BIN" send tests -- -     # mensaje largo por stdin
 
 - El destino es el id de la sesión (o sus primeros caracteres) o su nombre. Si el nombre
   se repite, agrega `--workspace W` o `--pestana T`. Para buscarlo: `"$CW_BIN" tool listar_sesiones`.
-- El mensaje llega con una cabecera que dice quién lo envía.
+- El mensaje llega tal cual, sin cabecera, como si lo escribiera el usuario: escríbelo
+  completo y claro, sin depender de que sepa quién lo envía.
 - Si la sesión de destino está trabajando, lo recibe al terminar el paso actual. Si espera
   una pregunta o está suspendida, el envío falla: avísale al usuario.
 
@@ -37,13 +38,8 @@ turno, cw escribe su respuesta final en esta sesión como un mensaje nuevo:
 Después de enviar, sigue con otra cosa o termina tu turno. Si delegaste a varias sesiones,
 llegará una respuesta por cada una.
 
-## Si recibes un mensaje
+## Si recibes un mensaje de otra sesión
 
-Un mensaje que empieza con `[Mensaje de la sesión «X» …]` viene de otra sesión.
-
-1. Haz lo que pide.
-2. Termina tu turno con la respuesta completa como último mensaje: cw se la entrega sola a X.
-3. No le respondas con `"$CW_BIN" send`, o le llegaría dos veces.
-
-Si la cabecera dice que no espera respuesta y necesitas decirle algo, usa
-`"$CW_BIN" send <su id> -- …`.
+Llega como cualquier mensaje del usuario, sin cabecera. Respóndelo normalmente y termina tu
+turno con la respuesta completa como último mensaje: cw se la entrega sola a quien lo envió.
+No respondas con `"$CW_BIN" send`, salvo que el mensaje te lo pida, o le llegaría dos veces.

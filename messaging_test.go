@@ -51,6 +51,9 @@ func TestInstructionsMentionTools(t *testing.T) {
 	}
 }
 
+// fakeAgent draws an input box like Claude's, then echoes what it is typed.
+var fakeAgent = []string{"sh", "-c", "r=────────────────────; printf '%s\\n❯ \\n%s\\n' $r $r; exec cat"}
+
 // TestSendAndReply: A sends to B, B ends its turn, and B's answer is typed into A.
 func TestSendAndReply(t *testing.T) {
 	isolateUsage(t)
@@ -62,10 +65,10 @@ func TestSendAndReply(t *testing.T) {
 	root := t.TempDir()
 	a := Slot{ID: newUUID(), Kind: kindClaude, Alias: "alfa", Cwd: root}
 	b := Slot{ID: newUUID(), Kind: kindClaude, Alias: "beta", Cwd: root}
-	if _, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: a, name: "alfa", argv: []string{"cat"}}); err != nil {
+	if _, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: a, name: "alfa", argv: fakeAgent}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mux.createWindow(windowSpec{session: "t01", slot: b, name: "beta", argv: []string{"cat"}}); err != nil {
+	if _, err := mux.createWindow(windowSpec{session: "t01", slot: b, name: "beta", argv: fakeAgent}); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CW_WS", mux.WS)

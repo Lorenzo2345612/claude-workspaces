@@ -95,11 +95,8 @@ func TestSendKeepsDraftLive(t *testing.T) {
 				t.Fatal("no apareció la caja:\n" + text)
 			}
 			draft := "borrador a medias\nsegunda linea del borrador"
-			if err := pasteInto(s, draft); err != nil {
-				t.Fatal(err)
-			}
-			if _, ok := waitBox(s, codex, 3*time.Second, func(b draftBox) bool { return b.present }); !ok {
-				t.Fatal("el borrador no llegó a la caja")
+			if _, ok, err := pasteVerified(s, codex, draft); err != nil || !ok {
+				t.Fatal("el borrador no llegó a la caja", err)
 			}
 			if err := sendToSession(s, "responde solo: recibido"); err != nil {
 				t.Fatal(err)
@@ -123,4 +120,34 @@ func TestSendKeepsDraftLive(t *testing.T) {
 			t.Fatal("el mensaje no se envió:\n" + text)
 		})
 	}
+}
+
+// TestSendToNewSessionLive sends a long message to a Claude session the moment it starts.
+func TestSendToNewSessionLive(t *testing.T) {
+	if os.Getenv("CW_LIVE_DRAFT") != "1" {
+		t.Skip("CW_LIVE_DRAFT=1 para probar con Claude real")
+	}
+	dir, _ := os.Getwd()
+	mux := Tmux{WS: "nueva-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	slot := Slot{ID: newUUID(), Kind: kindClaude, Alias: "claude", ClaudeAlias: "claude", Cwd: dir}
+	pane, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: slot, name: "claude", argv: []string{"claude"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = mux.Run("resize-window", "-t", pane, "-x", "100", "-y", "30")
+	s := &mcpSession{ID: slot.ID, Name: "claude", Kind: kindClaude, Alias: "claude", Workspace: mux.WS, pane: pane}
+	msg := "Esto es un mensaje largo de prueba.\n" + strings.Repeat("Linea de contexto que no hace falta leer con atencion. ", 12) + "\nResponde solo: recibido"
+	if err := sendToSession(s, msg); err != nil {
+		t.Fatal(err)
+	}
+	for range 60 {
+		text, _ := screenOf(s, 300)
+		if strings.Contains(text, "● recibido") || strings.Contains(text, "⏺ recibido") {
+			return
+		}
+		time.Sleep(time.Second)
+	}
+	text, _ := screenOf(s, 0)
+	t.Fatal("el mensaje no se envió:\n" + text)
 }

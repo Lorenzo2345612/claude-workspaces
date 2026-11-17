@@ -199,22 +199,70 @@ func pasteAndSubmit(s *mcpSession, text string) error {
 	return err
 }
 
-// submitChecked pastes and submits text, and presses Enter again when the message is still
-// sitting in the box (an agent that was redrawing can swallow the first one).
+// submitChecked pastes text and submits it, checking that it really left the box: an agent
+// that is starting or redrawing can swallow the Enter (or the paste lands after it). It
+// compares the box with what the paste left there, so long messages count too.
 func submitChecked(s *mcpSession, codex bool, text string) error {
-	if err := pasteAndSubmit(s, text); err != nil {
+	pasted, ok, err := pasteVerified(s, codex, text)
+	if err != nil {
 		return err
 	}
-	head := strings.TrimSpace(strings.SplitN(text, "\n", 2)[0])
-	head = string([]rune(head)[:min(20, len([]rune(head)))])
-	stuck := func(b draftBox) bool {
-		return b.present && strings.Contains(strings.ReplaceAll(b.String(), "\n", " "), head)
+	t := Tmux{WS: s.Workspace}
+	for attempt := 0; attempt < 4; attempt++ {
+		time.Sleep(250 * time.Millisecond) // let the paste settle before submitting it
+		if _, err := t.Run("send-keys", "-t", s.pane, "Enter"); err != nil {
+			return err
+		}
+		if !ok {
+			return nil // the box never showed the paste: nothing reliable to compare with
+		}
+		if _, gone := waitBox(s, codex, 1500*time.Millisecond, func(b draftBox) bool {
+			return !b.found || !b.present || b.String() != pasted.String()
+		}); gone {
+			return nil
+		}
 	}
-	if _, gone := waitBox(s, codex, 1500*time.Millisecond, func(b draftBox) bool { return !stuck(b) }); !gone {
-		_, err := Tmux{WS: s.Workspace}.Run("send-keys", "-t", s.pane, "Enter")
-		return err
+	return fmt.Errorf("pegué el mensaje en %s pero no se envió: sigue en su caja de texto", s.Name)
+}
+
+// pasteVerified pastes text and waits for the box to show it. A session that just started can
+// drop a paste: when the box is still empty, it pastes once more (never when the text showed
+// up late, which would type it twice).
+func pasteVerified(s *mcpSession, codex bool, text string) (draftBox, bool, error) {
+	for attempt := 0; attempt < 2; attempt++ {
+		if err := pasteInto(s, text); err != nil {
+			return draftBox{}, false, err
+		}
+		b, ok := waitBox(s, codex, 3*time.Second, func(b draftBox) bool { return b.present })
+		if ok || !b.found {
+			return b, ok, nil
+		}
 	}
-	return nil
+	return draftBox{}, false, nil
+}
+
+// waitReady waits until the session shows its input box steadily: a session that is still
+// starting would swallow what cw types. It fails when the box never shows (a dialog is open,
+// such as Claude asking whether to trust the folder).
+func waitReady(s *mcpSession, codex bool) (draftBox, error) {
+	deadline := time.Now().Add(45 * time.Second)
+	steady := 0
+	var b draftBox
+	for time.Now().Before(deadline) {
+		var err error
+		if b, err = readDraftBox(s, codex); err != nil {
+			return b, err
+		}
+		if b.found {
+			if steady++; steady >= 3 {
+				return b, nil
+			}
+		} else {
+			steady = 0
+		}
+		time.Sleep(300 * time.Millisecond)
+	}
+	return b, fmt.Errorf("%s no muestra su caja de texto (¿está arrancando o tiene un diálogo abierto?); no envié nada", s.Name)
 }
 
 // waitBox polls the input box until cond holds or the time runs out.
@@ -240,9 +288,9 @@ func sendKeepingDraft(s *mcpSession, text string) error {
 		defer lock.Close()
 	}
 	codex := isCodexSession(s)
-	box, err := readDraftBox(s, codex)
-	if err != nil || !box.found {
-		return pasteAndSubmit(s, text) // no input box on screen: type it as before
+	box, err := waitReady(s, codex)
+	if err != nil {
+		return err
 	}
 	if !box.present {
 		return submitChecked(s, codex, text)
@@ -286,5 +334,8 @@ func sendKeepingDraft(s *mcpSession, text string) error {
 	}
 	// Put the draft back once Codex has taken the message out of the box.
 	waitBox(s, true, 3*time.Second, empty)
-	return pasteInto(s, draft)
+	if _, ok, err := pasteVerified(s, true, draft); err != nil || !ok {
+		return fmt.Errorf("envié el mensaje a %s pero no pude devolver su borrador a la caja: %q", s.Name, draft)
+	}
+	return nil
 }

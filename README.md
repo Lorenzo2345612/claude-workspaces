@@ -232,6 +232,13 @@ toma su respuesta final y la escribe en la sesión que envió el mensaje, como u
 con la cabecera «Respuesta de la sesión…». Quien envía no tiene que esperarla ni sondearla.
 Si estaba trabajando, el mensaje queda en cola. Si estaba esperando una pregunta o suspendida,
 cw reintenta durante una hora. La respuesta no arma otra ruta de vuelta, así que no rebota.
+Si alguien estaba escribiendo en la caja de la sesión de destino, ese texto no se pierde. En
+Claude, cw lo aparta con Ctrl+S (stash), envía el mensaje y Claude lo devuelve solo y exacto,
+también si el mensaje queda en cola porque estaba trabajando. En Codex, que no tiene stash,
+cw lee el borrador de la pantalla, vacía la caja, envía y vuelve a pegarlo; un salto de línea
+que coincida justo con el ancho de la caja puede volver como espacio. Si no puede apartar el
+borrador, no envía nada y lo dice. Esto vale también para las respuestas que vuelven y para
+Skynet.
 `--sin-respuesta` envía sin pedir respuesta; `-` como mensaje lo lee de stdin. A sesiones de
 terminal se les escribe el comando, pero no devuelven respuesta.
 

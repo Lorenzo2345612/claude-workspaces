@@ -56,12 +56,10 @@ func sendToSession(s *mcpSession, text string) error {
 	if strings.TrimSpace(text) == "" {
 		return fmt.Errorf("el mensaje está vacío")
 	}
-	if err := pasteInto(s, text); err != nil {
-		return err
+	if s.Kind == kindClaude {
+		return sendKeepingDraft(s, text) // Claude or Codex: keep what the user was typing
 	}
-	time.Sleep(250 * time.Millisecond) // let the paste land before submitting it
-	_, err := Tmux{WS: s.Workspace}.Run("send-keys", "-t", s.pane, "Enter")
-	return err
+	return pasteAndSubmit(s, text)
 }
 
 // answerQuestion moves the selection of the open dialog to option n and confirms it; with text,

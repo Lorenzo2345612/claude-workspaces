@@ -20,6 +20,19 @@ func TestParseDraftBoxClaude(t *testing.T) {
 	if b := parseDraftBox(empty, false, 100); !b.found || b.present {
 		t.Fatalf("vacía: %+v", b)
 	}
+	// cw starts Claude with --name: the top border carries the session's name.
+	named := []string{"", "\x1b[38;5;244m" + strings.Repeat("─", 260) + " bug-110 ─\x1b[39m",
+		"\x1b[39m❯\u00a0\x1b[2mTry \"edit report_type_service.py to…\"\x1b[0m", rule, "  status"}
+	if b := parseDraftBox(named, false, 280); !b.found || b.present {
+		t.Fatalf("borde con nombre: %+v", b)
+	}
+	named[2] = "\x1b[39m❯\u00a0borrador"
+	if b := parseDraftBox(named, false, 280); !b.present || b.String() != "borrador" {
+		t.Fatalf("borde con nombre y borrador: %+v", b)
+	}
+	if isRule("── texto largo que no es un borde ─") || isRule("texto ──────────────") {
+		t.Fatal("tomó texto por un borde")
+	}
 	draft := []string{"\x1b[39m❯ responde solo: ok", "● ok", rule,
 		"\x1b[39m❯\u00a0hola esto es un borrador largo que deberia envolverse",
 		"  de claude code sin duda alguna", "  segunda linea", rule, "  status"}
@@ -71,7 +84,11 @@ func TestSendKeepsDraftLive(t *testing.T) {
 			mux := Tmux{WS: "draft-" + shortID()}
 			t.Cleanup(func() { _, _ = mux.Run("kill-server") })
 			slot := Slot{ID: newUUID(), Kind: kindClaude, Alias: agent, ClaudeAlias: agent, Cwd: dir}
-			pane, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: slot, name: agent, argv: []string{agent}})
+			argv := []string{agent}
+			if agent == "claude" {
+				argv = append(argv, "--name", "prueba-borrador") // as cw starts it: the name goes on the box's border
+			}
+			pane, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: slot, name: agent, argv: argv})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -99,7 +116,8 @@ func TestSendKeepsDraftLive(t *testing.T) {
 				t.Fatal("el borrador no llegó a la caja", err)
 			}
 			if err := sendToSession(s, "responde solo: recibido"); err != nil {
-				t.Fatal(err)
+				text, _ := screenOf(s, 0)
+				t.Fatalf("%v:\n%s", err, text)
 			}
 			b, ok := waitBox(s, codex, 5*time.Second, func(b draftBox) bool { return b.present })
 			got := b.String()
@@ -131,7 +149,7 @@ func TestSendToNewSessionLive(t *testing.T) {
 	mux := Tmux{WS: "nueva-" + shortID()}
 	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
 	slot := Slot{ID: newUUID(), Kind: kindClaude, Alias: "claude", ClaudeAlias: "claude", Cwd: dir}
-	pane, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: slot, name: "claude", argv: []string{"claude"}})
+	pane, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: slot, name: "claude", argv: []string{"claude", "--name", "bug-110"}})
 	if err != nil {
 		t.Fatal(err)
 	}

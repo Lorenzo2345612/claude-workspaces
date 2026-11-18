@@ -59,9 +59,14 @@ func readDraftBox(s *mcpSession, codex bool) (draftBox, error) {
 	return parseDraftBox(strings.Split(raw, "\n"), codex, box.width), nil
 }
 
+// isRule recognises the box's borders: a line of "─", which may carry a label such as the
+// session's name ("──────── bug-110 ─"; cw starts Claude with --name).
 func isRule(plain string) bool {
 	plain = strings.TrimSpace(plain)
-	return utf8.RuneCountInString(plain) >= 10 && strings.Trim(plain, "─") == ""
+	if !strings.HasPrefix(plain, "───") || !strings.HasSuffix(plain, "─") {
+		return false
+	}
+	return strings.Count(plain, "─") >= 10 && strings.Count(plain, "─")*2 > utf8.RuneCountInString(plain)
 }
 
 func parseDraftBox(raw []string, codex bool, width int) draftBox {
@@ -333,7 +338,7 @@ func sendKeepingDraft(s *mcpSession, text string) error {
 		return err
 	}
 	// Put the draft back once Codex has taken the message out of the box.
-	waitBox(s, true, 3*time.Second, empty)
+	waitBox(s, true, 8*time.Second, empty) // Codex may redraw the box while it starts working
 	if _, ok, err := pasteVerified(s, true, draft); err != nil || !ok {
 		return fmt.Errorf("envié el mensaje a %s pero no pude devolver su borrador a la caja: %q", s.Name, draft)
 	}

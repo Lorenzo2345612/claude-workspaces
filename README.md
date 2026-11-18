@@ -219,12 +219,14 @@ cw tool listar_pestanas                       # pestañas del workspace actual
 cw tool listar_vistas --pestana 2             # subpestañas (vistas) y sus sesiones
 cw tool leer_sesion --sesion beta --lineas 80
 cw tool pestana --accion nueva --titulo API --carpeta ~/api --iniciar claude --nombre backend
-cw tool sesion --accion nueva --pestana API --tipo claude --nombre tests
+cw tool sesion --accion nueva --tipo claude --nombre tests   # subpestaña hermana en tu pestaña
 cw send backend -- "Revisa el endpoint /login y dime qué falla"
 ```
 
 `cw tool` ofrece las mismas herramientas que `cw mcp`, con `--clave valor`; si no indicas
-el workspace, usa el de la sesión.
+el workspace, usa el de la sesión. `sesion --accion nueva` sin `--pestana` abre la sesión en la pestaña de
+quien la pide, como subpestaña hermana; las instrucciones piden a quien coordina abrir así sus
+sesiones de apoyo y crear pestañas nuevas solo si el usuario lo pide.
 
 `cw send <sesión> -- <mensaje>` escribe el mensaje en la otra sesión (por id o nombre), tal
 cual, sin cabecera. Cuando esa sesión termina su turno, el hook `Stop`

@@ -8,6 +8,17 @@ description: Envía mensajes o tareas a otras sesiones de cw (Claude, Codex o te
 Solo funciona dentro de cw: comprueba que `CW_WS` y `CW_SLOT` estén definidas (skill `cw`).
 Usa siempre `"$CW_BIN"`; no uses SendMessage ni otra mensajería del agente para esto.
 
+## Abrir las sesiones que coordinas
+
+Ábrelas como subpestañas hermanas en tu misma pestaña, no en pestañas nuevas:
+
+```sh
+"$CW_BIN" tool sesion --accion nueva --tipo claude --nombre bug-110   # sin --pestana: la tuya
+```
+
+Crea una pestaña nueva solo si el usuario lo pide. Puedes enviarle el mensaje enseguida:
+cw espera a que la sesión nueva esté lista antes de escribirle.
+
 ## Enviar
 
 ```sh

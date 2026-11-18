@@ -93,6 +93,12 @@ func cmdTool(args []string) error {
 	if _, ok := toolProps(*tool)["workspace"]; ok {
 		callerWorkspace(a)
 	}
+	if tool.Name == "sesion" && argStr(a, "accion") == "nueva" && argStr(a, "pestana") == "" {
+		// A new session goes next to the caller, as a sibling subtab in its own tab.
+		if me, err := caller(); err == nil && resolveWorkspace(argStr(a, "workspace")) == me.Workspace {
+			a["pestana"] = strconv.Itoa(me.TabIndex)
+		}
+	}
 	out, err := tool.run(a)
 	if err != nil {
 		return err
@@ -466,8 +472,9 @@ func agentInstructions(bin string) string {
 	return fmt.Sprintf("Corres dentro de cw (Agent Workspaces), junto a otras sesiones de Claude, Codex o terminal organizadas en pestañas y subpestañas (vistas). "+
 		"Las variables de entorno CW_WS (workspace), CW_SLOT (id de esta sesión) y CW_BIN (ruta de cw) solo existen dentro de cw: son la forma segura de saberlo. "+
 		"Antes de abrir o crear algo, ejecuta con Bash \"$CW_BIN\" yo: devuelve en JSON el workspace, la pestaña, la subpestaña (vista), tu id y si es la app o la terminal. "+
-		"Para manejar pestañas, subpestañas y sesiones usa \"$CW_BIN\" tool (sin argumentos lista las herramientas; el workspace por defecto es el tuyo), por ejemplo "+
-		"\"$CW_BIN\" tool pestana --accion nueva --titulo T --iniciar claude o \"$CW_BIN\" tool sesion --accion nueva --pestana N --tipo claude [--vista V]. "+
+		"Para manejar pestañas, subpestañas y sesiones usa \"$CW_BIN\" tool (sin argumentos lista las herramientas; el workspace por defecto es el tuyo). "+
+		"Si coordinas o delegas trabajo a otras sesiones, ábrelas como subpestañas hermanas en tu misma pestaña: \"$CW_BIN\" tool sesion --accion nueva --tipo claude|codex --nombre N (sin --pestana se abre en la tuya). "+
+		"Crea una pestaña nueva (\"$CW_BIN\" tool pestana --accion nueva --titulo T --iniciar claude) solo si el usuario lo pide. "+
 		"Para hablar con otra sesión usa \"$CW_BIN\" send <sesión> -- <mensaje>, no la mensajería propia de Claude (SendMessage): cuando esa sesión termine su turno, su respuesta final te llegará sola como un mensaje nuevo, así que no la esperes ni la sondees. "+
 		"Los mensajes de otras sesiones te llegan como si los escribiera el usuario: respóndelos normalmente, terminando con tu respuesta completa, que vuelve sola a quien lo envió; no respondas con cw send salvo que te lo pidan. "+
 		"Las skills cw y cw-coordinar (plugin cw) tienen el detalle. Si CW_BIN no está definida, usa %s. "+

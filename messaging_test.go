@@ -44,7 +44,7 @@ func TestLastAssistantText(t *testing.T) {
 
 func TestInstructionsMentionTools(t *testing.T) {
 	text := cwInstructions("/tmp/cw")
-	for _, want := range []string{"open --", "send <sesión>", "tool pestana --accion nueva", "SendMessage", "CW_WS", "yo"} {
+	for _, want := range []string{"open --", "send <sesión>", "tool pestana --accion nueva", "SendMessage", "CW_WS", "yo", "subpestañas hermanas"} {
 		if !strings.Contains(text, want) {
 			t.Fatalf("falta %q", want)
 		}

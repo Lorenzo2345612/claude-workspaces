@@ -48,12 +48,18 @@ o título; las sesiones, por id (o sus primeros caracteres) o por nombre.
 
 ## 4. Crear y manejar
 
+Si coordinas o delegas trabajo, abre las sesiones de apoyo como **subpestañas hermanas en tu
+misma pestaña**, no como pestañas nuevas. `sesion --accion nueva` sin `--pestana` se abre en
+la tuya. Crea una pestaña nueva solo si el usuario lo pide.
+
 ```sh
-# Pestaña nueva con una sesión de Claude
-"$CW_BIN" tool pestana --accion nueva --titulo API --carpeta ~/api --iniciar claude --nombre backend
-# Sesión nueva en una pestaña: sin --vista abre una subpestaña nueva; con --vista N la agrega a esa vista (solo la app)
-"$CW_BIN" tool sesion --accion nueva --pestana API --tipo claude --nombre tests
+# Sesiones hermanas en tu pestaña (lo habitual al coordinar)
+"$CW_BIN" tool sesion --accion nueva --tipo claude --nombre bug-110
+"$CW_BIN" tool sesion --accion nueva --tipo codex --nombre revision
+# En otra pestaña existente: sin --vista abre una subpestaña nueva; con --vista N la agrega a esa vista (solo la app)
 "$CW_BIN" tool sesion --accion nueva --pestana API --tipo terminal --vista 1
+# Pestaña nueva, solo si el usuario la pidió
+"$CW_BIN" tool pestana --accion nueva --titulo API --carpeta ~/api --iniciar claude --nombre backend
 # Otras acciones
 "$CW_BIN" tool sesion --accion renombrar --sesion tests --nombre e2e
 "$CW_BIN" tool sesion --accion separar --sesion e2e      # la saca a una subpestaña propia

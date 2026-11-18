@@ -93,3 +93,41 @@ func TestPaneKnowsItRunsInCW(t *testing.T) {
 		t.Fatal("cw yo debe fallar fuera de cw")
 	}
 }
+
+// TestNewSessionGoesNextToCaller: without --pestana, a session opened by another one lands in
+// the caller's tab as a sibling subtab, not in the first tab.
+func TestNewSessionGoesNextToCaller(t *testing.T) {
+	isolateUsage(t)
+	if _, err := exec.LookPath("tmux"); err != nil {
+		t.Skip("tmux no disponible")
+	}
+	mux := Tmux{WS: "hermana-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	dir := t.TempDir()
+	first := Slot{ID: newUUID(), Kind: kindShell, Alias: "otra", Cwd: dir}
+	coord := Slot{ID: newUUID(), Kind: kindShell, Alias: "coordinador", Cwd: dir}
+	if _, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: first, name: "otra", argv: []string{"sleep", "300"}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := mux.createWindow(windowSpec{session: "t02", first: true, slot: coord, name: "coordinador", argv: []string{"sleep", "300"}}); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CW_WS", mux.WS)
+	t.Setenv("CW_SLOT", coord.ID)
+	if err := cmdTool([]string{"sesion", "--accion", "nueva", "--tipo", "terminal", "--nombre", "apoyo"}); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := mux.Lines("list-panes", "-a", "-F", "#{session_name}"+sep+"#{@cw_alias}")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range rows {
+		if len(r) == 2 && r[1] == "apoyo" {
+			if r[0] != "t02" {
+				t.Fatalf("la sesión se abrió en %s, no en la pestaña del coordinador", r[0])
+			}
+			return
+		}
+	}
+	t.Fatalf("no se abrió la sesión: %q", rows)
+}

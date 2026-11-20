@@ -97,9 +97,6 @@ func cmdConfigMenu(args []string) error {
 	menu = append(menu, item("Preguntas y permisos", soundLabel(cfg.QuestionSound), "P", popup("Sonido de preguntas", 24, "_ui", "sounds", ws, "question"))...)
 	menu = append(menu, item("Trabajo terminado", soundLabel(cfg.CompletionSound), "T", popup("Sonido de finalización", 24, "_ui", "sounds", ws, "completion"))...)
 	menu = append(menu, item("Volumen de avisos", itoa(cfg.SoundVolume)+" %", "V", popup("Volumen de avisos", 13, "_ui", "setconf", ws, "sound-volume"))...)
-	menu = append(menu, "-SKYNET", "", "")
-	menu = append(menu, item("Skynet (orquestador)", yesNo(cfg.SkynetEnabled)+" · Alt+K abre el chat", "k", toggle("skynet"))...)
-	menu = append(menu, item("Avisar cuando una sesión pregunta", yesNo(cfg.skynetNotify()), "q", toggle("skynetnotify"))...)
 	menu = append(menu, "-APARIENCIA", "", "")
 	menu = append(menu, item("Tema de color", themeLabel(cfg.Theme), "t", toggle("theme"))...)
 	menu = append(menu, item("Barra de pestañas", bar, "b", toggle("bar"))...)
@@ -145,23 +142,11 @@ func cmdConf(args []string) error {
 	case "autoswitch":
 		on := !cfg.autoSwitchAlias()
 		cfg.AutoSwitchAlias = &on
-	case "skynet":
-		cfg.SkynetEnabled = !cfg.SkynetEnabled
-	case "skynetnotify":
-		on := !cfg.skynetNotify()
-		cfg.SkynetNotify = &on
 	default:
 		return fmt.Errorf("opción desconocida %q", what)
 	}
 	if err := saveConfig(cfg); err != nil {
 		return err
-	}
-	if what == "skynet" {
-		if cfg.SkynetEnabled {
-			_ = ensureSkynet()
-		} else if skynetRunning() {
-			_, _ = skynetCall("POST", "/stop", map[string]any{})
-		}
 	}
 	if what == "bar" || what == "theme" || what == "browser" {
 		if err := reloadConf(ws, cfg); err != nil {

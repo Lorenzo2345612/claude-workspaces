@@ -135,7 +135,8 @@ func (t Tmux) slotOptionsArgs(pane string, w windowSpec) []string {
 		"set", "-p", "-t", pane, "@cw_status", w.display, ";",
 		"set", "-p", "-t", pane, "@cw_args", argsToOption(w.slot.Args), ";",
 		"set", "-p", "-t", pane, "@cw_claude_alias", w.slot.ClaudeAlias, ";",
-		"set", "-p", "-t", pane, "@cw_suspended", boolOpt(w.slot.Suspended),
+		"set", "-p", "-t", pane, "@cw_suspended", boolOpt(w.slot.Suspended), ";",
+		"set", "-p", "-t", pane, "@cw_parent", w.slot.Parent,
 	}
 }
 
@@ -164,6 +165,7 @@ func (t Tmux) capture() (*Workspace, error) {
 		"#{session_name}", "#{window_index}", "#{window_active}", "#{pane_index}", "#{pane_active}",
 		"#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}", "#{@cw_status}",
 		"#{pane_current_path}", "#{@cw_args}", "#{@cw_claude_alias}", "#{window_layout}", "#{window_panes}", "#{@cw_suspended}",
+		"#{@cw_parent}", "#{@cw_has_panel}",
 	}, sep))
 	if err != nil {
 		return nil, err
@@ -203,13 +205,13 @@ func (t Tmux) capture() (*Workspace, error) {
 				view++
 				lastWindow = p[1]
 				layout := ""
-				if num(p[15]) > 1 {
+				if num(p[15]) > 1 && p[18] != "1" {
 					layout = p[14]
 				}
 				tab.Layouts = append(tab.Layouts, layout)
 			}
 			slot := Slot{ID: p[5], Kind: p[6], Alias: p[7], Cwd: p[8], SessionID: p[9], Status: p[10],
-				Args: argsFromOption(p[12]), ClaudeAlias: p[13], View: view, Suspended: p[16] == "1"}
+				Args: argsFromOption(p[12]), ClaudeAlias: p[13], View: view, Suspended: p[16] == "1", Parent: p[17]}
 			if slot.Kind == "" { // a pane opened with plain tmux keys: keep it as a shell
 				slot.Kind = kindShell
 			}

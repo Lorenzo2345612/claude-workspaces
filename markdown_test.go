@@ -48,7 +48,7 @@ func TestReadMarkdown(t *testing.T) {
 func TestMarkdownWithoutMCP(t *testing.T) {
 	for _, tool := range mcpTools() {
 		if tool.Name == "abrir_markdown" {
-			t.Fatal("El visor no debe formar parte del MCP de Skynet")
+			t.Fatal("El visor no debe formar parte del MCP")
 		}
 	}
 	instruction := markdownInstructions("/tmp/cw con espacios")

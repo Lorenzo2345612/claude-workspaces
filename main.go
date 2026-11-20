@@ -38,7 +38,6 @@ Uso:
   cw plugin [instalar]     instala o actualiza las skills de cw (plugin) en Claude y Codex,
                            en cada cuenta que usan los alias (también: desinstalar, ruta)
   cw mcp                   servidor MCP (stdio) con herramientas para ver y manejar los workspaces
-  cw skynet                chat con Skynet, el orquestador (--estado, --detener, --nueva)
   cw config                muestra la ruta y el contenido de la configuración
   cw version               muestra la versión
   cw update [--check]      se actualiza a la última versión publicada (--check solo avisa)
@@ -175,14 +174,16 @@ func run(args []string) error {
 		return cmdSend(rest)
 	case "plugin":
 		return cmdPlugin(rest)
+	case "_panel":
+		return cmdPanel(rest)
+	case "_ask-parent":
+		return cmdAskParent(rest)
 	case "_deliver":
 		return cmdDeliver(rest)
 	case "_mdview":
 		return cmdMDView(rest)
 	case "mcp":
 		return cmdMCP()
-	case "skynet":
-		return cmdSkynet(rest)
 	case "app":
 		return cmdApp(rest)
 	case "_notification-read":
@@ -443,7 +444,8 @@ func cmdStop(ws string) error {
 func cmdAutosave(ws string) error {
 	_ = tryUpdateNotificationIndicators()
 	quotaTick()
-	skynetTick()
+	stopLegacySkynet()
+	syncCoordinators(Tmux{WS: ws})
 	settleWaiting(ws)
 	cfg, _ := loadConfig()
 	if st, err := os.Stat(workspaceFile(ws)); err == nil &&

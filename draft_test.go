@@ -169,3 +169,78 @@ func TestSendToNewSessionLive(t *testing.T) {
 	text, _ := screenOf(s, 0)
 	t.Fatal("el mensaje no se envió:\n" + text)
 }
+
+// TestCoordinatorLive: a child Claude session asks its coordinator about the trust prompt and
+// about an AskUserQuestion. Needs CW_LIVE_DRAFT=1 and CW_TEST_BIN (a built cw, for the hooks).
+func TestCoordinatorLive(t *testing.T) {
+	bin := os.Getenv("CW_TEST_BIN")
+	if os.Getenv("CW_LIVE_DRAFT") != "1" || bin == "" {
+		t.Skip("CW_LIVE_DRAFT=1 y CW_TEST_BIN=<cw compilado>")
+	}
+	mux := Tmux{WS: "coord-" + shortID()}
+	t.Cleanup(func() { _, _ = mux.Run("kill-server") })
+	dir := t.TempDir() // a folder Claude never saw: it asks whether to trust it
+	coord := Slot{ID: newUUID(), Kind: kindClaude, Alias: "coord", Cwd: dir}
+	child := Slot{ID: newUUID(), Kind: kindClaude, Alias: "hija", Cwd: dir, Parent: coord.ID, ClaudeAlias: "claude"}
+	if _, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: coord, name: "coord", argv: fakeAgent}); err != nil {
+		t.Fatal(err)
+	}
+	l := &Launcher{WS: mux.WS, Bin: bin}
+	argv := []string{"claude", "--session-id", newUUID(), "--name", "hija", "--settings", l.hookSettings()}
+	pane, err := mux.createWindow(windowSpec{session: "t01", slot: child, name: "hija", argv: argv})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("CW_WS", mux.WS)
+	t.Setenv("CW_SLOT", coord.ID)
+	to := func() *mcpSession {
+		s, err := findSession(map[string]any{"sesion": child.ID, "workspace": mux.WS})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	from, _ := findSession(map[string]any{"sesion": coord.ID, "workspace": mux.WS})
+	time.Sleep(6 * time.Second)
+	start := time.Now()
+	err = cmdSend([]string{child.ID, "--", "hola"})
+	if err == nil || !strings.Contains(err.Error(), "confías en esa carpeta") || time.Since(start) > 5*time.Second {
+		t.Fatalf("esperaba el aviso de confianza enseguida: %v (%s)", err, time.Since(start))
+	}
+	if err := cmdTool([]string{"responder_pregunta", "--sesion", child.ID, "--opcion", "1"}); err == nil {
+		t.Fatal("confió sin confirmado_por_usuario")
+	}
+	if err := cmdTool([]string{"responder_pregunta", "--sesion", child.ID, "--opcion", "1", "--confirmado_por_usuario"}); err != nil {
+		t.Fatal(err)
+	}
+	_ = pane
+	if err := cmdSend([]string{child.ID, "--", "Usa la herramienta AskUserQuestion para preguntarme qué color prefiero, con las opciones Rojo y Azul. Después responde solo con el color elegido."}); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 60; i++ {
+		if text, _ := screenOf(from, 300); strings.Contains(strings.ReplaceAll(text, "\n", ""), "que coordinas, se detuvo esperando") {
+			break
+		}
+		if i == 59 {
+			text, _ := screenOf(to(), 0)
+			t.Fatalf("el coordinador no recibió la pregunta (hija: %s):\n%s", to().Status, text)
+		}
+		time.Sleep(time.Second)
+	}
+	waitScreen(t, from, "Rojo")
+	waitScreen(t, from, "responder_pregunta --sesion "+child.ID)
+	for i := 0; i < 20 && to().Status != "pregunta"; i++ {
+		time.Sleep(500 * time.Millisecond)
+	}
+	if err := cmdTool([]string{"responder_pregunta", "--sesion", child.ID, "--opcion", "2"}); err != nil {
+		t.Fatal(err)
+	}
+	for range 60 {
+		if text, _ := screenOf(to(), 300); strings.Contains(text, "Azul") && to().Status != "pregunta" {
+			return
+		}
+		time.Sleep(time.Second)
+	}
+	text, _ := screenOf(to(), 0)
+	t.Fatal("la hija no siguió tras la respuesta:\n" + text)
+}

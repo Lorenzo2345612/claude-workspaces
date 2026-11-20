@@ -67,6 +67,8 @@ type Slot struct {
 	// Suspended sessions keep their place and conversation but run no Claude process until
 	// they are resumed (Enter in the session, or Reanudar).
 	Suspended bool `json:"suspended,omitempty"`
+	// Parent is the session that opened this one or delegated work to it: its coordinator.
+	Parent string `json:"parent,omitempty"`
 }
 
 func (s Slot) wasWorking() bool {

@@ -108,14 +108,16 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		}
 		at := &appTab{ID: shortID(), Title: title, Dir: dir}
 		l.Tabs = append(l.Tabs, at)
-		l.Active = at.ID
+		if q.Parent == "" { // a tab a session opens for its work does not take the user there
+			l.Active = at.ID
+		}
 		if q.Start == kindClaude || q.Start == kindShell {
 			sizeHint()
 			ln, err := launcher(false)
 			if err != nil {
 				return nil, err
 			}
-			s := Slot{Kind: q.Start, Alias: "shell", Cwd: dir}
+			s := Slot{Kind: q.Start, Alias: "shell", Cwd: dir, Parent: q.Parent}
 			if q.Start == kindClaude {
 				s.Alias = cleanLabel(q.Name)
 				if s.Alias == "" {
@@ -324,7 +326,7 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		if err != nil {
 			return nil, err
 		}
-		s := Slot{Kind: q.Kind, Cwd: cwd, Status: statusIdle}
+		s := Slot{Kind: q.Kind, Cwd: cwd, Status: statusIdle, Parent: q.Parent}
 		resuming := false
 		switch q.Kind {
 		case kindClaude:
@@ -364,16 +366,24 @@ func wsAction(t Tmux, q *doReq) (map[string]any, error) {
 		if err := appOpenSlot(t, ln, &s, resuming); err != nil {
 			return nil, err
 		}
+		// A session opened by another one (its coordinator) does not take the user there.
+		focus := q.Parent == ""
 		if _, v := l.findView(q.View); v != nil && q.View != "" {
 			v.Slots = append(v.Slots, s.ID)
 			v.Weights = nil
-			v.Focus = s.ID
+			if focus {
+				v.Focus = s.ID
+			}
 		} else {
 			v := &appView{ID: shortID(), Layout: layoutCols, Slots: []string{s.ID}, Focus: s.ID}
 			at.Views = append(at.Views, v)
-			at.Active = v.ID
+			if focus || at.Active == "" {
+				at.Active = v.ID
+			}
 		}
-		l.Active = at.ID
+		if focus {
+			l.Active = at.ID
+		}
 		return map[string]any{"slot": s.ID}, save()
 	case "slot.focus":
 		at, v := l.findSlot(q.Slot)

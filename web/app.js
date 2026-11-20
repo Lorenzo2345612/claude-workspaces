@@ -218,8 +218,6 @@ function shortcut(ev) {
     case 'p': if (view?.focus && slotOf(view.focus)?.kind === 'claude') dlgBulkAlias('slot', view.focus); return true;
     case 'w': if (view?.focus) confirmCloseSlot(view.focus); return true;
     case 'b': dlgNotifications(); return true;
-    case 'k': skyToggle(); return true;
-    case 'j': if (skyOn()) { window.skyVoice?.push(); return true; } return false;
     case 'm': { const r = $('.ws').getBoundingClientRect(); wsMenu(r.left + 12, r.bottom + 4); return true; }
     case 'h': dlgSettings('keys'); return true;
     case ',': dlgSettings('general'); return true;
@@ -303,15 +301,15 @@ function render() {
   if (!app) {
     root.replaceChildren();
     app = h('div', { class: 'app' }, h('aside', { class: 'side' }),
-      h('div', { class: 'main' }, h('div', { class: 'bar' }), h('div', { class: 'document-tabs' }), h('div', { class: 'document-panel', hidden: true }), h('div', { class: 'stage' }), h('div', { class: 'status' })));
+      h('div', { class: 'main' }, h('div', { class: 'bar' }), h('div', { class: 'document-tabs' }), h('div', { class: 'document-panel', hidden: true }), h('div', { class: 'stagerow' }, h('div', { class: 'stage' }), h('aside', { class: 'kids', hidden: true })), h('div', { class: 'status' })));
     root.append(app);
   }
   renderSide($('.side', app));
   renderBar($('.bar', app));
   renderStage($('.stage', app));
   renderDocuments(app);
+  renderKids(app);
   renderStatus($('.status', app));
-  renderSky(app);
   // An open menu is left alone (rebuilding it on every status change made it flicker and closed
   // its submenus); it only closes when what it acts on is gone.
   if (ctx && ctx.kind !== 'menu' && !(ctx.kind === 'tab' ? tabItems(ctx.id) : slotItems(ctx.id))) closeCtx();
@@ -338,7 +336,7 @@ function renderSide(side) {
       ondragover: ev => { if (ev.dataTransfer.types.includes('cw/tab')) { ev.preventDefault(); ev.currentTarget.classList.add('drop'); } },
       ondragleave: ev => ev.currentTarget.classList.remove('drop'),
       ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/tab'); if (id && id !== t.id) act('tab.move', { tab: id, to: i }); },
-    }, h('span', { class: 'caret' }, open ? '▾' : '▸'), h('span', { class: 'n' }, t.title), unreadBadge(t.views.reduce((sum,v) => sum + v.slots.reduce((n,id) => n + unreadForSlot(S.ws,id),0),0)), open ? null : counts(t),
+    }, h('span', { class: 'caret' }, open ? '▾' : '▸'), t.views.some(v => v.slots.some(isCoord)) ? h('span', { class: 'coordmark', title: 'Tiene una sesión coordinadora' }, '◆') : null, h('span', { class: 'n' }, t.title), unreadBadge(t.views.reduce((sum,v) => sum + v.slots.reduce((n,id) => n + unreadForSlot(S.ws,id),0),0)), open ? null : counts(t),
       h('span', { class: 'add', title: 'Nueva sesión en esta pestaña', onclick: ev => { ev.stopPropagation(); dlgNewSession(t.id, 'claude'); } }, '+'));
     tree.append(row);
     if (!open) return;
@@ -355,6 +353,7 @@ function renderSide(side) {
         ondragleave: ev => ev.currentTarget.classList.remove('drop'),
         ondrop: ev => { ev.preventDefault(); ev.currentTarget.classList.remove('drop'); const id = ev.dataTransfer.getData('cw/view'); if (id && id !== v.id) act('view.move', { view: id, to: vi }); },
       }, multi ? h('span', { class: 'mark2' }, '⧉') : dotFor(first),
+        v.slots.some(isCoord) ? h('span', { class: 'coordmark', title: 'Coordina otras sesiones' }, '◆') : null,
         h('span', { class: 'n' }, multi ? v.slots.map(id => slotOf(id)?.name || '…').join(' + ') : (first ? first.name : '…')),
         unreadBadge(v.slots.reduce((sum,id) => sum + unreadForSlot(S.ws,id),0)),
         !multi && first && first.kind === 'claude' && first.alias && first.alias !== 'claude' ? h('span', { class: 'al' }, first.alias) : null,
@@ -376,11 +375,36 @@ function renderSide(side) {
       h('span', { class: 'ib', title: 'Ajustes', onclick: () => dlgSettings('general') }, '⚙'),
       h('span', { class: 'ib', title: 'Uso de Claude por cuenta', onclick: () => dlgUsage() }, '◔ Uso'),
       h('span', { class: 'ib', title: 'Memoria y CPU de cada sesión', onclick: () => dlgResources() }, '▤ Recursos'),
-      skyOn() ? h('span', { class: 'ib skyb' + (SKY.unread ? ' unread' : '') + (SKY.open ? ' on' : ''), 'data-n': SKY.unread || '', title: skyName() + ' (Alt+K)', onclick: () => skyToggle() }, '✦') : null,
       h('span', { class: 'ib pw', title: 'Apagar y guardar', onclick: () => confirmStop() }, '⏻')));
 }
 
 const statusLabel = { busy: 'trabajando', waiting: 'pide permiso', idle: 'lista', sleeping: 'suspendida' };
+
+// A session with live children (sessions it opened or delegated work to) is a coordinator: its
+// subtab is marked with ◆ and shows its children in a panel at the right.
+function childrenOf(id) { return Object.values(S.state?.slots || {}).filter(s => s.parent === id && !s.dead && findSlot(s.id).view); }
+function isCoord(id) { return childrenOf(id).length > 0; }
+function renderKids(app) {
+  const row = $('.stagerow', app), panel = $('.kids', app);
+  row.hidden = $('.stage', app).hidden; // the documents of the view take the whole area
+  const view = curView();
+  const coord = view ? view.slots.find(isCoord) : null;
+  if (!coord) { if (!panel.hidden) { panel.hidden = true; panel.replaceChildren(); panel._key = ''; } return; }
+  panel.hidden = false;
+  const kids = childrenOf(coord);
+  const key = kids.map(k => [k.id, k.name, k.status, k.suspended, unreadForSlot(S.ws, k.id), findSlot(k.id).tab?.title].join('|')).join('\n');
+  if (panel._key === key) return; // unchanged: keep the rows (and the hover) as they are
+  panel._key = key;
+  panel.replaceChildren(
+    h('div', { class: 'kh' }, h('span', { class: 'coordmark' }, '◆'), 'Hijas', h('span', { class: 'cnt' }, String(kids.length))),
+    h('div', { class: 'klist' }, ...kids.map(k => {
+      const where = findSlot(k.id).tab;
+      return h('div', { class: 'krow' + (k.status === 'waiting' ? ' ask' : ''), title: 'Ir a ' + k.name, onclick: () => focusSlot(k.id) },
+        dotFor(k), h('div', { class: 'kt' }, h('span', { class: 'n' }, k.name),
+          h('small', {}, (k.suspended ? 'suspendida' : statusLabel[k.status] || 'lista') + (where ? ' · ' + where.title : ''))),
+        unreadBadge(unreadForSlot(S.ws, k.id)));
+    })));
+}
 function dotFor(s) {
   if (!s) return h('span', { class: 'd' });
   if (s.kind !== 'claude') return h('span', { class: 'shellmark' }, '❯');
@@ -886,7 +910,6 @@ function wsMenu(x, y) {
     { label: 'Alias de agente de todo…', run: () => dlgBulkAlias('all', '') },
     { label: 'Uso de Claude…', run: () => dlgUsage() },
     { label: 'Recursos…', run: () => dlgResources() },
-    { label: '✦ ' + skyName(), k: skyOn() ? 'Alt K' : 'apagado', run: () => skyToggle() },
     ...(others.length ? ['-', ...others.map(w => ({ label: w.title, k: 'abierto', run: () => go(w.name) }))] : []),
     '-',
     { label: 'Ajustes', k: 'Alt ,', run: () => dlgSettings('general') },
@@ -1208,10 +1231,9 @@ async function dlgSettings(section) {
   scrim._close = close;
   scrim.addEventListener('mousedown', ev => { if (ev.target === scrim) close(); });
   const nav = h('nav'), sec = h('section');
-  const sections = [['general', 'General'], ['sounds', 'Sonidos'], ['aliases', 'Agentes y aliases'], ['skynet', 'Skynet'], ['look', 'Apariencia'], ['keys', 'Atajos']];
+  const sections = [['general', 'General'], ['sounds', 'Sonidos'], ['aliases', 'Agentes y aliases'], ['look', 'Apariencia'], ['keys', 'Atajos']];
   const set = async patch => {
     try { await api.do('config.set', { config: patch }); await loadConfig(); } catch (e) { toast(e.message, true); }
-    if ('skynet_enabled' in patch || 'skynet_voice' in patch) { skyConnect(); window.skyVoice?.sync(); render(); }
   };
   const draw = () => {
     nav.replaceChildren(h('div', { class: 'h' }, 'Configuración'), ...sections.map(([id, l]) => h('div', { class: 'i' + (id === section ? ' on' : ''), onclick: () => { section = id; draw(); } }, l)),
@@ -1272,20 +1294,6 @@ async function dlgSettings(section) {
           h('div', { class: 'hint', style: { marginBottom: '8px' } }, 'Detectados en tu shell — clic para agregarlos:'),
           h('div', { style: { display: 'flex', gap: '6px', flexWrap: 'wrap' } }, S.shellAliases.map(a => h('button', { class: 'chip', style: { cursor: 'pointer' }, title: a.summary,
             onclick: async () => { await api.do('alias.import', { name: a.name }).catch(e => toast(e.message, true)); await loadConfig(); draw(); } }, '＋ ' + a.name)))) : null);
-    } else if (section === 'skynet') {
-      const toggle = (key, on, invert) => h('button', { class: 'toggle' + (on ? ' on' : ''), onclick: () => set({ [key]: invert ? on === false : !on }).then(draw) }, h('i'));
-      const name = h('input', { class: 'input', style: { width: '180px' }, value: c.skynet_name || '', placeholder: 'Skynet', onchange: ev => set({ skynet_name: ev.target.value }) });
-      const alias = h('select', { class: 'input', style: { width: '200px' }, onchange: ev => set({ skynet_alias: ev.target.value }) },
-        h('option', { value: '' }, 'Automático'), ...S.aliases.map(a => h('option', { value: a.name, selected: c.skynet_alias === a.name }, a.name)));
-      sec.replaceChildren(h('h3', {}, 'Skynet'),
-        h('p', { class: 'hint', style: { marginTop: 0, marginBottom: '6px' } }, 'Un orquestador: una sesión de Claude que ve todas tus sesiones y actúa en ellas cuando se lo pides, por texto o por voz. No conoce el código de tus proyectos.'),
-        h('div', { class: 'setrow' }, h('div', {}, 'Encendido', h('small', {}, 'Ábrelo con Alt+K o con ✦ en la barra lateral.')), toggle('skynet_enabled', !!c.skynet_enabled)),
-        h('div', { class: 'setrow' }, h('div', {}, 'Nombre', h('small', {}, 'Con él lo llamas por voz: «' + (c.skynet_name || 'Skynet') + ', ¿cómo van las sesiones?»')), name),
-        h('div', { class: 'setrow' }, h('div', {}, 'Modelo'), seg([{ value: 'sonnet', label: 'Sonnet' }, { value: 'haiku', label: 'Haiku' }, { value: 'opus', label: 'Opus' }], c.skynet_model || 'sonnet', v => set({ skynet_model: v }).then(draw))),
-        h('div', { class: 'setrow' }, h('div', {}, 'Alias', h('small', {}, 'Su consumo sale de esa cuenta. En automático usa una con cuota y cambia a otra cuando se acaba.')), alias),
-        h('div', { class: 'setrow' }, h('div', {}, 'Avisar cuando una sesión pregunta', h('small', {}, 'Te muestra la pregunta con sus opciones y la respondes desde aquí.')), toggle('skynet_notify', c.skynet_notify !== false, true)),
-        h('div', { class: 'setrow' }, h('div', {}, 'Escuchar el micrófono', h('small', {}, 'Di su nombre y luego la instrucción. La voz se transcribe en este equipo (Whisper); la primera vez descarga el modelo.')), toggle('skynet_voice', !!c.skynet_voice)),
-        h('div', { class: 'setrow' }, h('div', {}, 'Aprobar permisos sin preguntarme', h('small', {}, 'Apagado, te pregunta antes de autorizar cualquier permiso de una sesión.')), toggle('skynet_auto_approve', !!c.skynet_auto_approve)));
     } else if (section === 'look') {
       const fs = c.app_font_size || 13.5;
       sec.replaceChildren(h('h3', {}, 'Apariencia'),
@@ -1512,6 +1520,4 @@ window.addEventListener('resize', () => { for (const t of terms.values()) t.refi
   if (S.launchDir) history.replaceState(null, '', location.pathname + location.hash);
   go(routeWS());
   checkUpdate();
-  skyConnect();
-  window.skyVoice?.sync();
 })();

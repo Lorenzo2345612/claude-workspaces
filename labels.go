@@ -15,9 +15,15 @@ func refreshTabLabel(t Tmux, session string) {
 	if title == "" {
 		title = session
 	}
-	busy, waiting, idle, asleep, unread := 0, 0, 0, 0, 0
-	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"+sep+"#{pane_dead}"+sep+"#{@cw_unread}"); err == nil {
+	busy, waiting, idle, asleep, unread, coord := 0, 0, 0, 0, 0, false
+	if rows, err := t.Lines("list-panes", "-s", "-t", session, "-F", "#{@cw_kind}"+sep+"#{@cw_status}"+sep+"#{pane_dead}"+sep+"#{@cw_unread}"+sep+"#{@cw_coord}"); err == nil {
 		for _, r := range rows {
+			if len(r) == 5 && r[4] == "1" {
+				coord = true
+			}
+			if len(r) == 5 {
+				r = r[:4]
+			}
 			if len(r) == 4 {
 				n, _ := strconv.Atoi(r[3])
 				unread += n
@@ -39,6 +45,9 @@ func refreshTabLabel(t Tmux, session string) {
 	// One counter per state with sessions in it: ●N working, ?N asking for a permission,
 	// ○N ready, zN asleep.
 	label, width := title, len([]rune(title))
+	if coord { // the tab holds a coordinator
+		label, width = "#[fg="+colCoord+"]◆#[fg=default] "+title, width+2
+	}
 	for _, c := range []struct {
 		n           int
 		colour, sym string

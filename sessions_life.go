@@ -35,16 +35,16 @@ func boolOpt(b bool) string {
 func paneSlot(t Tmux, pane string) (Slot, error) {
 	out, err := t.Run("display", "-p", "-t", pane, strings.Join([]string{
 		"#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}", "#{@cw_args}", "#{@cw_claude_alias}",
-		"#{@cw_status}", "#{@cw_suspended}", "#{pane_current_path}"}, sep))
+		"#{@cw_status}", "#{@cw_suspended}", "#{pane_current_path}", "#{@cw_parent}"}, sep))
 	if err != nil {
 		return Slot{}, err
 	}
 	f := strings.Split(out, sep)
-	if len(f) != 10 || f[0] == "" {
+	if len(f) != 11 || f[0] == "" {
 		return Slot{}, errors.New("panel sin datos de cw")
 	}
 	s := Slot{ID: f[0], Kind: f[1], Alias: f[2], Cwd: f[3], SessionID: f[4], Args: argsFromOption(f[5]),
-		ClaudeAlias: f[6], Status: f[7], Suspended: f[8] == "1"}
+		ClaudeAlias: f[6], Status: f[7], Suspended: f[8] == "1", Parent: f[10]}
 	if s.Kind == kindShell && f[9] != "" {
 		s.Cwd = f[9]
 	}

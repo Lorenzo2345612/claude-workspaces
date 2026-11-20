@@ -59,7 +59,6 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	wsDirPopup := fmt.Sprintf(`display-popup -E -w 76 -h 10 -T " Carpeta del workspace " "%s _ui wsdir %s"`, bq, ws)
 	usagePopup := fmt.Sprintf(`display-popup -E -w 110 -h 30 -T " Uso de Claude " "%s _ui uso %s"`, bq, ws)
 	notificationsPopup := fmt.Sprintf(`display-popup -E -w 90%% -h 80%% -T " Avisos pendientes " "%s _ui notifications %s"`, bq, ws)
-	skynetPopup := fmt.Sprintf(`display-popup -E -w 90%% -h 80%% -T " Skynet " "%s skynet"`, bq)
 	resourcesPopup := fmt.Sprintf(`display-popup -E -w 84 -h 26 -T " Recursos " "%s _ui recursos %s"`, bq, ws)
 	confirmStop := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Apagar " "%s _ui confirm %s stop"`, bq, ws)
 	confirmCloseTab := fmt.Sprintf(`display-popup -E -w 66 -h 13 -T " Cerrar pestaña " "%s _ui confirm %s closetab"`, bq, ws)
@@ -135,16 +134,21 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 		// A tmux range also claims the cell right after it, so a space outside any range separates
 		// the session's range from its ✕ (otherwise clicking the ✕ would select the session).
 		// A view showing several sessions lists them all: "⧉ api ● · ui ○".
-		single := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] #{@cw_alias}%s#[%s]%s#[norange] #[range=user|xw:#{window_id}]#[%s]✕#[norange] #[default] `,
-			style, indicator, style, alias, style)
+		// A coordinator's subtab (it has a children panel) carries a purple diamond.
+		coord := `#{?#{@cw_has_panel},#[fg=` + colCoord + `]◆ #[` + style + `],}`
+		single := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] %s#{@cw_alias}%s#[%s]%s#[norange] #[range=user|xw:#{window_id}]#[%s]✕#[norange] #[default] `,
+			style, coord, indicator, style, alias, style)
 		// A view with several sessions: each session is its own clickable item with its own ✕
 		// (closing only that session), like a session on its own; the active one is bold.
 		// tmux resolves a "pane" range to the view's active pane, so each name carries its own
 		// pane id in a user range ("sp:%N") that the click handlers read.
 		item := fmt.Sprintf(`#[range=user|sp:#{pane_id}]#[%s]#{?pane_active,#[bold],#[nobold]}#{@cw_alias}%s#[%s]%s#[norange] #[range=user|xw:#{pane_id}]#[%s]✕#[norange]#{?#{e|<:#{pane_index},#{window_panes}},#[%s] │ ,}`,
 			style, indicator, style, alias, style, style)
-		multi := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] ⧉ #[norange]#{P:%s,%s}#[%s] #[default] `, style, item, item, style)
-		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#{?#{e|>:#{window_panes},1},%s,%s}}`, multi, single)
+		// The children panel is not a session: it is not listed, nor counted to tell a view
+		// with several sessions.
+		item = `#{?#{==:#{@cw_kind},` + kindPanel + `},,` + item + `}`
+		multi := fmt.Sprintf(`#[range=window|#{window_index}]#[%s] %s⧉ #[norange]#{P:%s,%s}#[%s] #[default] `, style, coord, item, item, style)
+		return fmt.Sprintf(`#{?#{==:#{@cw_kind},home},,#{?#{e|>:#{window_panes},#{?#{@cw_has_panel},2,1}},%s,%s}}`, multi, single)
 	}
 	sessionsRow := fmt.Sprintf(`   #{W:%s,%s}  #[range=user|newclaude]#[bg=colour237 fg=%s bold] + Claude #[norange default]  `+
 		`#[range=user|newcodex]#[bg=colour237 fg=%s bold] + Codex #[norange default]  `+
@@ -218,7 +222,6 @@ func tmuxConf(ws, bin string, barTop, browserKeys bool) string {
 	w(`bind -n M-e { %s }`, sessionsPopup)
 	w(`bind -n M-p { %s }`, switchAliasPopup)
 	w(`bind -n M-u { %s }`, usagePopup)
-	w(`bind -n M-k { %s }`, skynetPopup)
 	w(`bind -n M-b { %s }`, notificationsPopup)
 	read := fmt.Sprintf(`run-shell -b "%s _notification-read %s '#{pane_id}' || true"`, bq, ws)
 	w(`set-hook -g after-select-pane { %s }`, read)

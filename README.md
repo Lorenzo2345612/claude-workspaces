@@ -37,14 +37,11 @@ directory, and saves / restores the whole set with one command. Built on tmux; r
   app's «Recursos»).
 - **Switch alias when out of quota** (on by default): sessions stopped by an exhausted account
   move to an alias of an account with quota and continue.
-- **Skynet, the orchestrator** (off by default; Ajustes → Skynet, or Alt+m → Configuración): a
-  Claude session (Sonnet) with no project context that sees every workspace and drives it with
-  the cw tools — list tabs, views and sessions, read a session, send it an instruction, answer
-  its question, open, close, rename, suspend… It tells you when a session asks something (a card
-  with the options), and asks before answering a permission. Chat panel in the app (Alt+K) and
-  `cw skynet` (Alt+K) in the terminal. In the app it also listens: say its name (configurable)
-  and the instruction; Whisper transcribes on this machine. It runs on an alias with quota and
-  moves to another when that account runs out.
+- **Coordinator sessions**: a session that opens other sessions (or delegates work to them
+  with `cw send`) becomes their coordinator. Its subtab and its tab show a purple ◆, and a panel
+  at the right of its subtab lists its children with their state; click one to go to it. When a
+  child stops on a question or a permission, the coordinator is told and asks you with Claude's
+  own question dialog. See «Sesiones que se coordinan entre sí».
 - **`cw mcp`**: the same tools as an MCP server (stdio), for any Claude session.
 - **Folders**: change a tab's folder (where its new sessions start) and the workspace's default
   folder (where new tabs start).
@@ -178,7 +175,7 @@ Dentro de una sesión de cw, en la app o en la terminal, ejecuta:
 cw open -- docs/plan.md
 ```
 
-No requiere MCP ni Skynet. Al iniciar cada sesión de Claude, cw añade una instrucción
+No requiere MCP. Al iniciar cada sesión de Claude, cw añade una instrucción
 al system prompt para que Claude descubra el comando y lo ejecute con Bash cuando le
 pidas mostrar un documento, en lugar de abrir editores externos como VS Code, sin
 modificar el `CLAUDE.md` del proyecto. Las sesiones ya abiertas deben reiniciarse para
@@ -208,7 +205,7 @@ carga recursos remotos y descarta los caracteres de control del archivo.
 ## Sesiones que se coordinan entre sí
 
 Cada sesión de Claude que abre cw puede manejar el workspace y hablar con las demás
-sesiones mediante comandos que ejecuta con Bash. No necesita MCP, Skynet ni la mensajería
+sesiones mediante comandos que ejecuta con Bash. No necesita MCP ni la mensajería
 propia de Claude. cw se los explica en el system prompt; las sesiones que ya estaban
 abiertas deben reiniciarse para recibirlo.
 
@@ -239,10 +236,29 @@ Claude, cw lo aparta con Ctrl+S (stash), envía el mensaje y Claude lo devuelve 
 también si el mensaje queda en cola porque estaba trabajando. En Codex, que no tiene stash,
 cw lee el borrador de la pantalla, vacía la caja, envía y vuelve a pegarlo; un salto de línea
 que coincida justo con el ancho de la caja puede volver como espacio. Si no puede apartar el
-borrador, no envía nada y lo dice. Esto vale también para las respuestas que vuelven y para
-Skynet.
+borrador, no envía nada y lo dice. Esto vale también para las respuestas que vuelven.
 `--sin-respuesta` envía sin pedir respuesta; `-` como mensaje lo lee de stdin. A sesiones de
 terminal se les escribe el comando, pero no devuelven respuesta.
+
+### Coordinadoras e hijas
+
+Una sesión que abre otra con `cw tool sesion|pestana --accion nueva`, o que le delega trabajo
+con `cw send`, pasa a ser su **coordinadora**, y la otra, su **hija**. cw lo guarda con el
+workspace.
+
+- La subpestaña de la coordinadora y su pestaña muestran un ◆ morado.
+- A la derecha de su subpestaña aparece un panel con sus hijas y su estado (trabajando,
+  pregunta, lista, suspendida). Un clic lleva a la subpestaña de la hija; en la terminal
+  también sirven ↑↓ y Enter. El panel desaparece cuando ya no quedan hijas.
+- Si una hija se detiene con una pregunta o un permiso, no puede terminar su turno. cw le
+  manda a la coordinadora la pregunta, sus opciones y el comando para responder, y le pide
+  hacértela con el diálogo de preguntas de Claude (AskUserQuestion) en vez de escribírtela.
+  Con tu respuesta, la coordinadora contesta con `cw tool responder_pregunta`; los permisos
+  solo se responden con `--confirmado_por_usuario`.
+- Si una sesión nueva se abre en una carpeta que Claude no conocía, Claude pregunta si confías
+  en ella. `cw send` lo detecta al instante (antes esperaba 45 s) y explica cómo aceptarlo
+  después de preguntarte: `cw tool responder_pregunta --sesion X --opcion 1
+  --confirmado_por_usuario`.
 
 ### Saber si corre en cw, y dónde
 
@@ -322,7 +338,7 @@ Los campos de configuración son `question_sound`, `completion_sound` y `sound_v
 El aviso de pregunta suena una vez al entrar en espera de respuesta. El de finalización
 suena cuando una sesión de Claude/Codex que estaba trabajando termina su turno;
 no se dispara por abrir, restaurar, suspender una sesión ni por un fallo de ejecución.
-Los hooks repetidos no duplican el mismo aviso. Los sonidos no dependen de Skynet.
+Los hooks repetidos no duplican el mismo aviso. 
 
 La reproducción ocurre en el equipo que ejecuta cw, también si la app está en segundo
 plano. En Windows/WSL se usa el audio nativo de Windows; en macOS, `afplay`; en Linux,

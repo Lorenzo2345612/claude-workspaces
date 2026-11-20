@@ -21,8 +21,9 @@ type mcpSession struct {
 	Dir       string `json:"dir"`
 	Workspace string `json:"workspace"`
 	Tab       string `json:"tab"`
-	TabIndex  int    `json:"tab_index"` // 1-based
-	View      int    `json:"view"`      // 1-based, within the tab
+	TabIndex  int    `json:"tab_index"`        // 1-based
+	View      int    `json:"view"`             // 1-based, within the tab
+	Parent    string `json:"parent,omitempty"` // id of its coordinator
 	pane      string
 }
 
@@ -118,7 +119,7 @@ func mcpLoad(ws string) (*mcpWorkspace, error) {
 		}
 		for _, s := range tab.Slots {
 			ms := mcpSession{ID: s.ID, Name: s.Alias, Kind: s.Kind, Status: mcpStatus(s), Dir: s.Cwd,
-				Workspace: ws, Tab: tab.Title, TabIndex: i + 1, View: s.View + 1, pane: panes[s.ID]}
+				Workspace: ws, Tab: tab.Title, TabIndex: i + 1, View: s.View + 1, Parent: s.Parent, pane: panes[s.ID]}
 			if s.Kind == kindClaude {
 				ms.Alias = s.ClaudeAlias
 				mt.Counts[ms.Status]++
@@ -248,6 +249,9 @@ func pendingQuestion(s *mcpSession) (map[string]any, error) {
 	rows := strings.Split(text, "\n")
 	start := max(0, len(rows)-40)
 	rows = rows[start:]
+	if isTrustDialog(text) {
+		return trustQuestion(s, strings.Join(rows, "\n")), nil
+	}
 	var opts []map[string]any
 	selected := 0
 	for _, r := range rows {
@@ -262,7 +266,8 @@ func pendingQuestion(s *mcpSession) (map[string]any, error) {
 			}
 		}
 	}
-	out := map[string]any{"sesion": s.Name, "id": s.ID, "estado": s.Status, "pantalla": strings.Join(rows, "\n")}
+	out := map[string]any{"sesion": s.Name, "id": s.ID, "estado": s.Status, "pantalla": strings.Join(rows, "\n"),
+		"permiso": permissionRe.MatchString(text)}
 	if s.Status != "pregunta" || !dialogOpenRe.MatchString(text) {
 		out["aviso"] = "la sesión no está esperando una respuesta ahora"
 	}

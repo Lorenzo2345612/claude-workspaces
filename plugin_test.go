@@ -109,7 +109,8 @@ func TestNewSessionGoesNextToCaller(t *testing.T) {
 	if _, err := mux.createWindow(windowSpec{session: "t01", first: true, slot: first, name: "otra", argv: []string{"sleep", "300"}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := mux.createWindow(windowSpec{session: "t02", first: true, slot: coord, name: "coordinador", argv: []string{"sleep", "300"}}); err != nil {
+	coordPane, err := mux.createWindow(windowSpec{session: "t02", first: true, slot: coord, name: "coordinador", argv: []string{"sleep", "300"}})
+	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CW_WS", mux.WS)
@@ -125,6 +126,10 @@ func TestNewSessionGoesNextToCaller(t *testing.T) {
 		if len(r) == 2 && r[1] == "apoyo" {
 			if r[0] != "t02" {
 				t.Fatalf("la sesión se abrió en %s, no en la pestaña del coordinador", r[0])
+			}
+			// Opened by the coordinator: the user stays on the coordinator's subtab.
+			if active, _ := mux.Run("display", "-p", "-t", "t02", "#{window_id}"); active != coordPane {
+				t.Fatalf("la sesión nueva tomó el foco: %s", active)
 			}
 			return
 		}

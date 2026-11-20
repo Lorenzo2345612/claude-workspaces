@@ -230,7 +230,7 @@ func newSession(a map[string]any) (any, error) {
 	dir := argStr(a, "carpeta")
 	if m.ws.App {
 		f := map[string]any{"tab": m.tab.id, "kind": kind, "name": name, "alias": alias, "args": argStr(a, "args"),
-			"dir": dir, "resume": argStr(a, "conversacion")}
+			"dir": dir, "resume": argStr(a, "conversacion"), "parent": argStr(a, "_padre")}
 		if argInt(a, "vista", 0) > 0 {
 			v, err := m.viewID(a, "vista")
 			if err != nil {
@@ -240,7 +240,8 @@ func newSession(a map[string]any) (any, error) {
 		}
 		return m.do("slot.new", f)
 	}
-	s := Slot{Kind: kind, Alias: name, Cwd: tabDir(m.tmux(), m.tab.session), ClaudeAlias: alias, Args: splitArgs(argStr(a, "args"))}
+	s := Slot{Kind: kind, Alias: name, Cwd: tabDir(m.tmux(), m.tab.session), ClaudeAlias: alias, Args: splitArgs(argStr(a, "args")),
+		Parent: argStr(a, "_padre")}
 	if dir != "" {
 		if s.Cwd, err = checkDir(dir); err != nil {
 			return nil, err
@@ -313,7 +314,8 @@ func tabAction(a map[string]any) (any, error) {
 			}
 		}
 		if m.ws.App {
-			return m.do("tab.new", map[string]any{"dir": dir, "title": title, "start": start, "name": argStr(a, "nombre"), "alias": alias})
+			return m.do("tab.new", map[string]any{"dir": dir, "title": title, "start": start, "name": argStr(a, "nombre"), "alias": alias,
+				"parent": argStr(a, "_padre")})
 		}
 		cfg, err := loadConfig()
 		if err != nil {
@@ -334,9 +336,9 @@ func tabAction(a map[string]any) (any, error) {
 			if name == "" {
 				name = title
 			}
-			tab.Slots = []Slot{{Kind: kindClaude, Alias: name, Cwd: dir, ClaudeAlias: alias}}
+			tab.Slots = []Slot{{Kind: kindClaude, Alias: name, Cwd: dir, ClaudeAlias: alias, Parent: argStr(a, "_padre")}}
 		case kindShell:
-			tab.Slots = []Slot{{Kind: kindShell, Alias: "shell", Cwd: dir}}
+			tab.Slots = []Slot{{Kind: kindShell, Alias: "shell", Cwd: dir, Parent: argStr(a, "_padre")}}
 		}
 		return "Pestaña nueva: " + title, l.openTab(t, t.nextTabSession(), &tab, false)
 	case "renombrar":

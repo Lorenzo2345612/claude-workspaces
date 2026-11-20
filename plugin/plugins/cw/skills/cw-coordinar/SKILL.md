@@ -1,6 +1,6 @@
 ---
 name: cw-coordinar
-description: Envía mensajes o tareas a otras sesiones de cw (Claude, Codex o terminal) y recibe su respuesta automáticamente, sin la mensajería propia del agente. Úsala cuando haya que delegar trabajo a otra sesión, preguntarle algo, repartir una tarea entre sesiones, o cuando llegue un mensaje que empiece con «[Respuesta de la sesión …]».
+description: Envía mensajes o tareas a otras sesiones de cw (Claude, Codex o terminal) y recibe su respuesta automáticamente, sin la mensajería propia del agente. Úsala cuando haya que delegar trabajo a otra sesión, preguntarle algo, repartir una tarea entre sesiones, o cuando llegue un mensaje que empiece con «[Respuesta de la sesión …]» o «[cw] La sesión …».
 ---
 
 # Coordinarse con otras sesiones de cw
@@ -34,6 +34,23 @@ printf '%s\n' "$PLAN" | "$CW_BIN" send tests -- -     # mensaje largo por stdin
   completo y claro, sin depender de que sepa quién lo envía.
 - Si la sesión de destino está trabajando, lo recibe al terminar el paso actual. Si espera
   una pregunta o está suspendida, el envío falla: avísale al usuario.
+
+## Si una sesión que coordinas se detiene con una pregunta
+
+Una sesión que abriste o a la que delegaste trabajo es tu hija. Si se detiene con una pregunta
+o un permiso, no puede terminar su turno, así que cw te avisa con un mensaje que empieza con
+`[cw] La sesión «X» (id …), que coordinas, se detuvo esperando una respuesta`. Trae la pregunta,
+sus opciones y el comando para responder.
+
+1. Hazle esa pregunta al usuario con tu herramienta de preguntas (AskUserQuestion), con las
+   mismas opciones. No se la escribas como texto ni elijas tú.
+2. Con su respuesta, ejecuta el comando del aviso:
+   `"$CW_BIN" tool responder_pregunta --sesion <id> --opcion N` (agrega
+   `--confirmado_por_usuario` si es un permiso, o usa `--texto "…"` para una respuesta escrita).
+
+Si una sesión nueva se abre en una carpeta que Claude no conocía, pregunta si confías en ella.
+`cw send` te lo dice al instante; pregúntaselo al usuario igual y, si acepta, responde
+`--opcion 1 --confirmado_por_usuario` antes de reenviar el mensaje.
 
 ## Recibir la respuesta
 

@@ -84,7 +84,9 @@ func openInTab(ws, session string, s Slot, resuming bool) error {
 	if err != nil {
 		return err
 	}
-	_, err = t.Run("select-window", "-t", id)
+	if s.Parent == "" { // opened by its coordinator: leave the user where they are
+		_, err = t.Run("select-window", "-t", id)
+	}
 	saveNow(ws) // before closeHome: it may kill this very process (the start screen of the tab)
 	closeHome(t, session)
 	return err
@@ -375,6 +377,10 @@ type hookInput struct {
 	// to read it from otherwise. A session waiting for that answer gets it (cw send).
 	LastAssistantMessage string `json:"last_assistant_message"`
 	TranscriptPath       string `json:"transcript_path"`
+	// PreToolUse and PermissionRequest: the tool waiting on the user and its input (the
+	// questions of AskUserQuestion, the command of Bash), told to the coordinator.
+	ToolName  string          `json:"tool_name"`
+	ToolInput json.RawMessage `json:"tool_input"`
 	// BackgroundTasks (Stop only) lists the shells, subagents, monitors… still in flight: the turn
 	// ended but Claude will wake up again when they report back.
 	BackgroundTasks []struct {
@@ -461,6 +467,11 @@ func cmdHook() error {
 	_ = recordHookNotification(t, pane, previous, in.HookEventName, status)
 	if in.HookEventName == "Stop" && status == statusIdle {
 		routeRepliesOnStop(t, pane, in)
+	}
+	if status == statusWaiting {
+		notifyParentOnWait(t, pane, data)
+	} else if previous == statusWaiting {
+		clearAskedOnResume(t, pane)
 	}
 	if cfg, err := loadConfig(); err == nil {
 		if id := soundForHook(cfg, previous, in.HookEventName, status); id != "" {

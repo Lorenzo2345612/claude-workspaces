@@ -11,7 +11,7 @@ import (
 )
 
 // Whatever the user was typing in a session's input box survives a message cw types into it
-// (cw send, the replies, Skynet):
+// (cw send and the replies it delivers):
 //
 //   - Claude Code: Ctrl+S stashes the draft and Claude restores it on its own right after the
 //     next message is submitted, also when that message is queued because Claude is working.
@@ -258,6 +258,11 @@ func waitReady(s *mcpSession, codex bool) (draftBox, error) {
 		if b, err = readDraftBox(s, codex); err != nil {
 			return b, err
 		}
+		if !b.found {
+			if screen, _ := screenOf(s, 0); isTrustDialog(screen) {
+				return b, trustError(s) // waiting for the user, not starting: say so at once
+			}
+		}
 		if b.found {
 			if steady++; steady >= 3 {
 				return b, nil
@@ -266,6 +271,9 @@ func waitReady(s *mcpSession, codex bool) (draftBox, error) {
 			steady = 0
 		}
 		time.Sleep(300 * time.Millisecond)
+	}
+	if screen, _ := screenOf(s, 0); isTrustDialog(screen) {
+		return b, trustError(s)
 	}
 	return b, fmt.Errorf("%s no muestra su caja de texto (¿está arrancando o tiene un diálogo abierto?); no envié nada", s.Name)
 }

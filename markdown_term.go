@@ -18,7 +18,7 @@ import (
 const kindDoc = "doc"
 
 // notSession reports whether a pane kind is one of cw's own screens rather than a session.
-func notSession(kind string) bool { return kind == kindHome || kind == kindDoc }
+func notSession(kind string) bool { return kind == kindHome || kind == kindDoc || kind == kindPanel }
 
 const sgrCode = "\033[38;5;180m"
 

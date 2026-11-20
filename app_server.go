@@ -454,7 +454,6 @@ func (s *appServer) routes() http.Handler {
 	mux.HandleFunc("/api/pty", s.handlePTY)
 	mux.HandleFunc("/api/get/", s.handleGet)
 	mux.HandleFunc("/api/do", s.handleDo)
-	mux.HandleFunc("/api/skynet/", s.handleSkynet)
 	mux.Handle("/", files)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !s.hostOK(r) {
@@ -570,13 +569,14 @@ func (s *appServer) autosaveLoop() {
 		}
 		_ = updateNotificationIndicators()
 		quotaTick()
-		skynetTick()
+		stopLegacySkynet()
 		cfg, _ := loadConfig()
 		for _, ws := range runningWorkspaces() {
 			t := Tmux{WS: ws}
 			if !appMode(t) {
 				continue
 			}
+			syncCoordinators(t)
 			settleWaiting(ws)
 			if st, err := os.Stat(workspaceFile(ws)); err == nil && time.Since(st.ModTime()) < time.Duration(cfg.AutosaveSeconds)*time.Second {
 				continue

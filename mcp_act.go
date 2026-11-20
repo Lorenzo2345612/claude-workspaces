@@ -69,6 +69,9 @@ func answerQuestion(s *mcpSession, n int, text string, confirmed bool) (string, 
 	if err != nil {
 		return "", err
 	}
+	if trust, _ := q["confianza"].(bool); trust {
+		return answerTrust(s, n, confirmed)
+	}
 	if _, waiting := q["aviso"]; waiting {
 		return "", fmt.Errorf("%s no está esperando una respuesta ahora", s.Name)
 	}
@@ -162,10 +165,6 @@ func mcpSessionTools() []mcpTool {
 					return nil, err
 				}
 				ok, _ := a["confirmado_por_usuario"].(bool)
-				if !ok {
-					cfg, _ := loadConfig()
-					ok = cfg.SkynetAutoApprove
-				}
 				return answerQuestion(s, argInt(a, "opcion", 0), argStr(a, "texto"), ok)
 			}},
 		{Name: "interrumpir", Description: "Interrumpe lo que hace una sesión: Esc en Claude (deja de trabajar y espera instrucciones), Ctrl+C en una terminal.",

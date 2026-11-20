@@ -93,15 +93,21 @@ func cmdTool(args []string) error {
 	if _, ok := toolProps(*tool)["workspace"]; ok {
 		callerWorkspace(a)
 	}
-	if tool.Name == "sesion" && argStr(a, "accion") == "nueva" && argStr(a, "pestana") == "" {
-		// A new session goes next to the caller, as a sibling subtab in its own tab.
+	if (tool.Name == "sesion" || tool.Name == "pestana") && argStr(a, "accion") == "nueva" {
 		if me, err := caller(); err == nil && resolveWorkspace(argStr(a, "workspace")) == me.Workspace {
-			a["pestana"] = strconv.Itoa(me.TabIndex)
+			a["_padre"] = me.ID // the caller coordinates what it opens
+			if tool.Name == "sesion" && argStr(a, "pestana") == "" {
+				// A new session goes next to the caller, as a sibling subtab in its own tab.
+				a["pestana"] = strconv.Itoa(me.TabIndex)
+			}
 		}
 	}
 	out, err := tool.run(a)
 	if err != nil {
 		return err
+	}
+	if argStr(a, "_padre") != "" {
+		syncCoordinators(Tmux{WS: resolveWorkspace(argStr(a, "workspace"))})
 	}
 	if s, ok := out.(string); ok {
 		fmt.Println(s)
@@ -245,6 +251,12 @@ func cmdSend(args []string) error {
 		// Armed before sending: a fast answer must not end its turn before the route exists.
 		if err := addReplyRoute(to, from); err != nil {
 			return err
+		}
+		// Delegating work makes the sender its coordinator, unless it already has one or the
+		// target coordinates the sender (a reply up the chain is not a delegation).
+		if to.Parent == "" && from.Parent != to.ID && to.Workspace == from.Workspace {
+			_, _ = Tmux{WS: to.Workspace}.Run("set", "-p", "-t", to.pane, "@cw_parent", from.ID)
+			syncCoordinators(Tmux{WS: to.Workspace})
 		}
 	}
 	if err := sendToSession(to, body); err != nil {
@@ -435,8 +447,15 @@ func cmdDeliver(args []string) error {
 		text = text[:replyMaxBytes] + "\n[…respuesta recortada; usa cw tool leer_sesion para ver el resto]"
 	}
 	body := fmt.Sprintf("[Respuesta de la sesión «%s» (id %s) a tu mensaje enviado con cw send.]\n\n%s", p.FromName, p.FromID, text)
-	pending := p.Routes
-	deadline := time.Now().Add(time.Hour)
+	deliverTo(p.Routes, body, time.Hour)
+	return nil
+}
+
+// deliverTo types body into each session of routes ("workspace/slot"), retrying while one is
+// asking the user something or is suspended, until the deadline. A closed session is skipped.
+func deliverTo(routes []string, body string, within time.Duration) {
+	pending := routes
+	deadline := time.Now().Add(within)
 	for len(pending) > 0 && time.Now().Before(deadline) {
 		var retry []string
 		for _, r := range pending {
@@ -447,7 +466,7 @@ func cmdDeliver(args []string) error {
 			s, err := findSession(map[string]any{"sesion": id, "workspace": ws})
 			if err != nil {
 				if (Tmux{WS: ws}).Running() {
-					continue // the sender was closed: nobody to tell
+					continue // the session was closed: nobody to tell
 				}
 				retry = append(retry, r) // its workspace is restarting
 				continue
@@ -465,7 +484,6 @@ func cmdDeliver(args []string) error {
 			time.Sleep(5 * time.Second)
 		}
 	}
-	return nil
 }
 
 func agentInstructions(bin string) string {
@@ -476,6 +494,7 @@ func agentInstructions(bin string) string {
 		"Si coordinas o delegas trabajo a otras sesiones, ábrelas como subpestañas hermanas en tu misma pestaña: \"$CW_BIN\" tool sesion --accion nueva --tipo claude|codex --nombre N (sin --pestana se abre en la tuya). "+
 		"Crea una pestaña nueva (\"$CW_BIN\" tool pestana --accion nueva --titulo T --iniciar claude) solo si el usuario lo pide. "+
 		"Para hablar con otra sesión usa \"$CW_BIN\" send <sesión> -- <mensaje>, no la mensajería propia de Claude (SendMessage): cuando esa sesión termine su turno, su respuesta final te llegará sola como un mensaje nuevo, así que no la esperes ni la sondees. "+
+		"Si una sesión que coordinas se detiene con una pregunta o un permiso, cw te lo avisa con un mensaje que empieza con «[cw] La sesión …»: hazle esa pregunta al usuario con AskUserQuestion, con las mismas opciones, y responde a la sesión con el comando que trae el aviso. "+
 		"Los mensajes de otras sesiones te llegan como si los escribiera el usuario: respóndelos normalmente, terminando con tu respuesta completa, que vuelve sola a quien lo envió; no respondas con cw send salvo que te lo pidan. "+
 		"Las skills cw y cw-coordinar (plugin cw) tienen el detalle. Si CW_BIN no está definida, usa %s. "+
 		"Solo crea o cierra pestañas o sesiones, o escribe a otras sesiones, cuando el usuario o la tarea lo pidan.", shQuote(bin))

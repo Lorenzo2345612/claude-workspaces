@@ -206,14 +206,14 @@ func (t Tmux) listSlotPanes() (map[string]paneInfo, error) {
 	rows, err := t.Lines("list-panes", "-a", "-F", strings.Join([]string{
 		"#{session_name}", "#{pane_id}", "#{@cw_slot}", "#{@cw_kind}", "#{@cw_alias}", "#{@cw_cwd}", "#{@cw_sid}",
 		"#{@cw_status}", "#{@cw_args}", "#{@cw_claude_alias}", "#{pane_dead}", "#{pane_dead_status}", "#{pane_current_path}",
-		"#{@cw_suspended}",
+		"#{@cw_suspended}", "#{@cw_parent}",
 	}, sep))
 	if err != nil {
 		return nil, err
 	}
 	out := map[string]paneInfo{}
 	for _, r := range rows {
-		if len(r) != 14 || !strings.HasPrefix(r[0], slotPrefix) {
+		if len(r) != 15 || !strings.HasPrefix(r[0], slotPrefix) {
 			continue
 		}
 		id := strings.TrimPrefix(r[0], slotPrefix)
@@ -226,7 +226,7 @@ func (t Tmux) listSlotPanes() (map[string]paneInfo, error) {
 		}
 		out[id] = paneInfo{session: r[0], pane: r[1], dead: r[10] == "1", deadStatus: r[11], path: r[12],
 			slot: Slot{ID: id, Kind: kind, Alias: r[4], Cwd: r[5], SessionID: r[6], Status: r[7],
-				Args: argsFromOption(r[8]), ClaudeAlias: r[9], Suspended: r[13] == "1"}}
+				Args: argsFromOption(r[8]), ClaudeAlias: r[9], Suspended: r[13] == "1", Parent: r[14]}}
 	}
 	return out, nil
 }

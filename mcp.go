@@ -9,8 +9,8 @@ import (
 	"sort"
 )
 
-// cw mcp is a Model Context Protocol server over stdio: it gives a Claude session (Skynet, the
-// orchestrator) tools to see and drive every workspace. Messages are JSON-RPC 2.0, one per line.
+// cw mcp is a Model Context Protocol server over stdio: it gives any Claude session tools to
+// see and drive every workspace. Messages are JSON-RPC 2.0, one per line.
 
 type mcpTool struct {
 	Name        string         `json:"name"`
